@@ -557,6 +557,9 @@ class ILQRMPCCPPController(AbstractController):
         """
         u_act = self.ilmpc.get_control_output(x[0], x[1], x[2], x[3])
 
+        if np.isnan(u_act):
+            u_act = 0
+
         # u = [self.u1_traj[0], self.u2_traj[0]]
         u = [0.0, 0.0]
         u[self.active_act] = u_act
