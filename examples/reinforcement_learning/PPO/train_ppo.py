@@ -2,30 +2,26 @@ import os
 import numpy as np
 import gymnasium as gym
 from stable_baselines3 import SAC
+from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.sac.policies import MlpPolicy
 from stable_baselines3.common.callbacks import (
     EvalCallback,
-    StopTrainingOnRewardThreshold, BaseCallback,
+    StopTrainingOnRewardThreshold, CallbackList,
 )
 from stable_baselines3.common.env_util import make_vec_env
-import matplotlib.pyplot as plt
-from stable_baselines3.common.results_plotter import load_results, ts2xy
 from double_pendulum.model.symbolic_plant import SymbolicDoublePendulum
 from double_pendulum.model.model_parameters import model_parameters
 from double_pendulum.simulation.simulation import Simulator
-from double_pendulum.simulation.gym_env import (
-    CustomEnv,
-    double_pendulum_dynamics_func,
-)
-from double_pendulum.utils.wrap_angles import wrap_angles_top
+from double_pendulum.simulation.gym_env import double_pendulum_dynamics_func
 from double_pendulum.utils.wrap_angles import wrap_angles_diff
-from tqdm.auto import tqdm
-
-from examples.reinforcement_learning.PPO.environment import PPOEnv
+from examples.reinforcement_learning.PPO.environment import PPOEnv, ProgressBarManager
 
 
 def reward_func(observation, action):
-    # quadratic with roa attraction
+    # action: float from -1 to 1
+    # observation:
+    # order = [angle1, angle2, velocity1, velocity2],
+    # units = [rad, rad, rad / s, rad / s]
     Q = np.zeros((4, 4))
     Q[0, 0] = 10
     Q[1, 1] = 10
@@ -165,7 +161,10 @@ eval_env = PPOEnv(
     reward_func=reward_func,
     terminated_func=terminated_func,
     reset_func=noisy_reset_func,
+    render_mode='human',
+    max_episode_steps=200
 )
+eval_env = Monitor(eval_env, log_dir)
 
 agent = SAC(
     MlpPolicy,
@@ -188,6 +187,8 @@ eval_callback = EvalCallback(
     eval_freq=5000,
     verbose=verbose,
     n_eval_episodes=5,
+    render=True
 )
 
-agent.learn(total_timesteps=training_steps, callback=eval_callback)
+with ProgressBarManager(training_steps) as callback:
+    agent.learn(training_steps, callback=CallbackList([callback, eval_callback]))
