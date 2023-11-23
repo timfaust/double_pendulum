@@ -143,8 +143,12 @@ if not os.path.exists(log_dir):
 robot = "acrobot"
 training_steps = 100000
 learning_rate = 0.01
+verbose = False
+
 mpar = load_param(robot=robot)
+
 dynamics_function = get_dynamics_function(mpar, robot)
+
 envs = make_vec_env(
     env_id=PPOEnv,
     n_envs=1,
@@ -166,9 +170,24 @@ eval_env = PPOEnv(
 agent = SAC(
     MlpPolicy,
     envs,
-    verbose=True,
+    verbose=verbose,
     tensorboard_log=os.path.join(log_dir, "tb_logs"),
     learning_rate=learning_rate,
 )
 
-agent.learn(total_timesteps=training_steps, callback=None)
+callback_on_best = StopTrainingOnRewardThreshold(
+    reward_threshold=3e7, verbose=verbose
+)
+
+eval_callback = EvalCallback(
+    eval_env,
+    callback_on_new_best=callback_on_best,
+    best_model_save_path=os.path.join(log_dir,
+                                      "best_model"),
+    log_path=log_dir,
+    eval_freq=5000,
+    verbose=verbose,
+    n_eval_episodes=5,
+)
+
+agent.learn(total_timesteps=training_steps, callback=eval_callback)
