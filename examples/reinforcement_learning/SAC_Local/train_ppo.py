@@ -14,7 +14,7 @@ from double_pendulum.model.model_parameters import model_parameters
 from double_pendulum.simulation.simulation import Simulator
 from double_pendulum.simulation.gym_env import double_pendulum_dynamics_func
 from double_pendulum.utils.wrap_angles import wrap_angles_diff
-from examples.reinforcement_learning.PPO.environment import PPOEnv, ProgressBarManager
+from examples.reinforcement_learning.SAC_Local.environment import SACEnv, ProgressBarManager
 
 
 def reward_func(observation, action):
@@ -146,7 +146,7 @@ mpar = load_param(robot=robot)
 dynamics_function = get_dynamics_function(mpar, robot)
 
 envs = make_vec_env(
-    env_id=PPOEnv,
+    env_id=SACEnv,
     n_envs=1,
     env_kwargs={
         "dynamics_func": dynamics_function,
@@ -156,7 +156,7 @@ envs = make_vec_env(
     },
     monitor_dir=log_dir
 )
-eval_env = PPOEnv(
+eval_env = SACEnv(
     dynamics_func=dynamics_function,
     reward_func=reward_func,
     terminated_func=terminated_func,

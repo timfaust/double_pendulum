@@ -6,6 +6,7 @@ from tqdm.auto import tqdm
 from src.python.double_pendulum.simulation.gym_env import CustomEnv
 import pygame
 
+
 class ProgressBarCallback(BaseCallback):
     """
     :param pbar: (tqdm.pbar) Progress bar object
@@ -38,7 +39,7 @@ class ProgressBarManager(object):
         self.pbar.close()
 
 
-class PPOEnv(CustomEnv):
+class SACEnv(CustomEnv):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
 
     def __init__(
@@ -122,7 +123,7 @@ class PPOEnv(CustomEnv):
         pygame.draw.line(canvas, (0, 0, 0), tuple(np.round(end_1)), tuple(np.round(end_2)))
 
         myFont = pygame.font.SysFont("Times New Roman", 18)
-        step = myFont.render(str(self.step_counter), 1, (0, 0, 0),)
+        step = myFont.render(str(self.step_counter), 1, (0, 0, 0), )
         canvas.blit(step, (10, 10))
 
         if self.render_mode == "human":
@@ -134,3 +135,4 @@ class PPOEnv(CustomEnv):
             # We need to ensure that human-rendering occurs at the predefined framerate.
             # The following line will automatically add a delay to keep the framerate stable.
             self.clock.tick(self.metadata["render_fps"])
+
