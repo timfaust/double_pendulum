@@ -7,4 +7,4 @@ from stable_baselines3 import SAC
 if __name__ == '__main__':
     default_env = DefaultEnv("acrobot", simple_reward_acrobot)
     sac = Trainer('test', default_env, SAC, SACPolicy)
-    sac.train(0.01, 1e6, 500, 10000, 20)
+    sac.train(0.005, 1e7, 500, 1e5, 20)

@@ -20,4 +20,4 @@ def simple_reward_acrobot(observation, action):
     goal = np.array([0, -0.5])
     distance = np.sqrt(np.sum((end_2 - goal)**2))
 
-    return 1/(distance + 0.01) - 10
+    return 1/(distance + 0.0001) - 10
