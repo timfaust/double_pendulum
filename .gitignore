@@ -27,3 +27,4 @@ leaderboard/robustness/pendubot/data/*
 
 examples/reinforcement_learning/PPO/log_data/*
 examples/reinforcement_learning/SAC/log_data_designC.1/*
+examples/reinforcement_learning/General/log_data/
