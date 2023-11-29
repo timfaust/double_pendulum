@@ -87,7 +87,6 @@ class GeneralEnv(CustomEnv):
             self.clock = pygame.time.Clock()
 
         canvas = pygame.Surface((self.window_size, self.window_size))
-        canvas.fill((255, 255, 255))
         s = np.array(
             [
                 self.observation[0] * np.pi + np.pi,  # [0, 2pi]
@@ -105,6 +104,10 @@ class GeneralEnv(CustomEnv):
         end_1 = start + np.array([np.sin(y[0]), np.cos(y[0])]) * total_length * l[0]
         end_2 = end_1 + np.array([np.sin(y[0] + y[1]), np.cos(y[0] + y[1])]) * total_length * l[1]
 
+        threshold = 0.5
+        canvas.fill((255, 255, 255))
+        if self.window_size // 2 - total_length + threshold * 2 * total_length > end_2[1]:
+            canvas.fill((184, 255, 191))
         pygame.draw.line(canvas, (0, 0, 0), tuple(np.round(start)), tuple(np.round(end_1)))
         pygame.draw.line(canvas, (0, 0, 0), tuple(np.round(end_1)), tuple(np.round(end_2)))
 

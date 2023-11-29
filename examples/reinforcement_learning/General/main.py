@@ -10,7 +10,9 @@ def linear_schedule(initial_value):
         initial_value = float(initial_value)
 
     def func(progress):
-        return progress * initial_value
+        if progress < 0.5:
+            return progress/0.5 * initial_value
+        return initial_value
 
     return func
 
