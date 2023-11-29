@@ -1,7 +1,6 @@
 import numpy as np
 from double_pendulum.utils.wrap_angles import wrap_angles_diff
 
-
 def get_state_values(observation, robot):
     l = [0.2, 0.3]
     if robot == 'pendubot':
@@ -38,3 +37,15 @@ def pos_reward(observation, action, env_type):
     y, x, v, goal = get_state_values(observation, env_type)
     distance = np.linalg.norm(x - goal)
     return 1 / (distance + 0.0001)
+
+def saturated_distance_from_target(observation, env_type):
+    y, x, v, goal = get_state_values(observation, env_type)
+
+    diff = x - goal
+
+    sigma_c = np.diag([1/0.3, 1/0.2])
+    exp_term = np.exp(-np.dot(np.dot(diff.T, sigma_c), diff))
+
+    squared_dist = 1.0 - exp_term
+
+    return squared_dist

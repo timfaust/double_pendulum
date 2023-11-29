@@ -19,5 +19,7 @@ if __name__ == '__main__':
     env_type = "pendubot"
     default_env = DefaultEnv(env_type, lambda obs, act: future_pos_reward(obs, act, env_type))
     sac = Trainer('future_pos', default_env, SAC, sac.MlpPolicy)
-    sac.train(0.01, 1e7, 500, 1e6, 25)
+    print("training")
+    sac.train(learning_rate=0.01, training_steps=1e6, max_episode_steps=500, eval_freq=1e3, n_envs=25, show_progress_bar=False, save_freq=1e4)
+    print("training finished")
     sac.simulate()

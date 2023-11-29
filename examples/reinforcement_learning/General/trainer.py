@@ -8,12 +8,13 @@ from stable_baselines3.common.policies import BasePolicy
 from stable_baselines3.common.callbacks import (
     EvalCallback,
     CallbackList,
+    CheckpointCallback
 )
 
 from examples.reinforcement_learning.General.environments import GeneralEnv
-from examples.reinforcement_learning.SAC_Local.environment import ProgressBarManager
 from double_pendulum.controller.abstract_controller import AbstractController
 from double_pendulum.utils.plotting import plot_timeseries
+
 
 class Trainer:
     def __init__(self, name, environment: Type[GeneralEnv], model: Type[BaseAlgorithm], policy: Type[BasePolicy]):
@@ -22,7 +23,8 @@ class Trainer:
         self.model = model
         self.policy = policy
 
-    def train(self, learning_rate, training_steps, max_episode_steps, eval_freq, n_envs=1, n_eval_episodes=1, same_environment=True, verbose=False):
+    def train(self, learning_rate, training_steps, max_episode_steps, eval_freq, n_envs=1, n_eval_episodes=1,
+              save_freq=5000, show_progress_bar=True, same_environment=True, verbose=False):
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir)
 
@@ -39,11 +41,15 @@ class Trainer:
             eval_env,
             best_model_save_path=os.path.join(self.log_dir, 'best_model'),
             log_path=self.log_dir,
-            eval_freq=eval_freq/n_envs,
+            eval_freq=eval_freq / n_envs,
             verbose=verbose,
             n_eval_episodes=n_eval_episodes,
             render=True
         )
+
+        checkpoint_callback = CheckpointCallback(save_freq=int(save_freq/n_envs),
+                                                 save_path=os.path.join(self.log_dir, 'saved_model'),
+                                                 name_prefix="saved_model")
 
         agent = self.model(
             self.policy,
@@ -53,14 +59,14 @@ class Trainer:
             learning_rate=learning_rate,
         )
 
-        with ProgressBarManager(training_steps) as callback:
-            agent.learn(training_steps, callback=CallbackList([callback, eval_callback]))
+        agent.learn(training_steps, callback=CallbackList([eval_callback, checkpoint_callback]),
+                    progress_bar=show_progress_bar)
 
     class GeneralController(AbstractController):
-        def __init__(self, model: Type[BaseAlgorithm], environment: Type[GeneralEnv], log_dir):
+        def __init__(self, model: Type[BaseAlgorithm], environment: Type[GeneralEnv], model_path):
             super().__init__()
 
-            self.model = model.load(log_dir + "/best_model/best_model")
+            self.model = model.load(model_path)
             self.simulation = environment.simulation
             self.dynamics_func = environment.dynamics_func
             self.model.predict([0.0, 0.0, 0.0, 0.0])
@@ -79,8 +85,10 @@ class Trainer:
 
             return u
 
-    def simulate(self, tf=10.0):
-        controller = self.GeneralController(self.model, self.environment, self.log_dir)
+    def simulate(self, model_path="/best_model/best_model", tf=10.0):
+
+        model_path = self.log_dir+model_path
+        controller = self.GeneralController(self.model, self.environment, model_path)
 
         T, X, U = controller.simulation.simulate_and_animate(
             t0=0.0,
@@ -99,5 +107,3 @@ class Trainer:
             pos_y_lines=[np.pi],
             tau_y_lines=[-5.0, 5.0],
         )
-
-

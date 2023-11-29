@@ -51,6 +51,7 @@ policy_par_path = (
 )
 file = open(policy_par_path, 'rb')
 parameters = pkl.load(file)
+print(parameters)
 
 controller = Controller_sum_of_Gaussians_with_angles_numpy(parameters, ctrl_rate, u_max, n_dof, controlled_joint)
 
