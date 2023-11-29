@@ -24,10 +24,20 @@ def get_state_values(observation, robot):
     return y, x, v, goal
 
 
+def up_slow_reward_acrobot(observation, action):
+    y, x, v, goal = get_state_values(observation, 'acrobot')
+    threshold = 0.002
+    distance = np.maximum(x[1] + 0.01 * v[1] - goal[1], threshold)
+    if distance == threshold:
+        return -distance
+    return 1 / (np.sqrt(np.sum(v ** 2)) + 1)
+
+
 def future_pos_reward_acrobot(observation, action):
     y, x, v, goal = get_state_values(observation, 'acrobot')
     distance = np.sqrt(np.sum((x + 0.01 * v - goal) ** 2))
     return 1 / (distance + 0.0001)
+
 
 def pos_reward_acrobot(observation, action):
     y, x, v, goal = get_state_values(observation, 'acrobot')
