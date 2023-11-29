@@ -62,6 +62,7 @@ class Trainer:
 
         agent.learn(training_steps, callback=CallbackList([eval_callback, checkpoint_callback]),
                     progress_bar=show_progress_bar)
+        agent.save(os.path.join(self.log_dir, "saved_model", "trained_model"))
 
     class GeneralController(AbstractController):
         def __init__(self, model: Type[BaseAlgorithm], environment: Type[GeneralEnv], model_path):
