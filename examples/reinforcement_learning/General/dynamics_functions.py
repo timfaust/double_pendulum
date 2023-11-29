@@ -1,7 +1,29 @@
+import numpy as np
 from double_pendulum.model.symbolic_plant import SymbolicDoublePendulum
 from double_pendulum.simulation.simulation import Simulator
 from double_pendulum.simulation.gym_env import double_pendulum_dynamics_func
 from double_pendulum.model.model_parameters import model_parameters
+
+
+#TODO: make random
+class RandomDoublePendulum(SymbolicDoublePendulum):
+    def __int__(self, model_pars):
+        super().__init__(model_pars=model_pars)
+
+    def forward_dynamics(self, x, u):
+        vel = np.copy(x[self.dof:])
+
+        M = self.mass_matrix(x)
+        C = self.coriolis_matrix(x)
+        G = self.gravity_vector(x)
+        F = self.coulomb_vector(x)
+
+        Minv = np.linalg.inv(M)
+
+        force = np.dot(self.B, u) - np.dot(C, vel) + G - F
+
+        accn = Minv.dot(force)
+        return accn
 
 
 def load_param(robot, torque_limit=5.0):
@@ -31,11 +53,19 @@ def load_param(robot, torque_limit=5.0):
     return mpar
 
 
+def random_dynamics(robot):
+    mpar = load_param(robot)
+    plant = RandomDoublePendulum(model_pars=mpar)
+    return general_dynamics(robot, plant)
+
+
 def default_dynamics(robot):
     mpar = load_param(robot)
-    print("create plant")
     plant = SymbolicDoublePendulum(model_pars=mpar)
-    print("plant created")
+    return general_dynamics(robot, plant)
+
+
+def general_dynamics(robot, plant):
     simulator = Simulator(plant=plant)
     dynamics_function = double_pendulum_dynamics_func(
         simulator=simulator,

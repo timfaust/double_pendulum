@@ -104,7 +104,7 @@ class GeneralEnv(CustomEnv):
         end_1 = start + np.array([np.sin(y[0]), np.cos(y[0])]) * total_length * l[0]
         end_2 = end_1 + np.array([np.sin(y[0] + y[1]), np.cos(y[0] + y[1])]) * total_length * l[1]
 
-        threshold = 0.5
+        threshold = 0.005
         canvas.fill((255, 255, 255))
         if self.window_size // 2 - total_length + threshold * 2 * total_length > end_2[1]:
             canvas.fill((184, 255, 191))
@@ -120,8 +120,3 @@ class GeneralEnv(CustomEnv):
             pygame.event.pump()
             pygame.display.update()
             self.clock.tick(self.metadata["render_fps"])
-
-
-class DefaultEnv(GeneralEnv):
-    def __init__(self, robot, reward_function):
-        super().__init__(robot, default_dynamics, reward_function)
