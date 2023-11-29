@@ -25,8 +25,12 @@ class Trainer:
     def train(self, learning_rate, training_steps, max_episode_steps, eval_freq, n_envs=1, n_eval_episodes=1, same_environment=True, verbose=False):
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir)
+
+        self.environment.render_mode = None
+        self.environment.reset()
         self.environment.max_episode_steps = max_episode_steps
         envs = self.environment.get_envs(n_envs=n_envs, log_dir=self.log_dir, same=same_environment)
+
         eval_env = self.environment
         eval_env.render_mode = 'human'
         eval_env = Monitor(eval_env, self.log_dir)
@@ -35,7 +39,7 @@ class Trainer:
             eval_env,
             best_model_save_path=os.path.join(self.log_dir, 'best_model'),
             log_path=self.log_dir,
-            eval_freq=eval_freq,
+            eval_freq=eval_freq/n_envs,
             verbose=verbose,
             n_eval_episodes=n_eval_episodes,
             render=True
@@ -60,8 +64,9 @@ class Trainer:
             self.simulation = environment.simulation
             self.dynamics_func = environment.dynamics_func
             self.model.predict([0.0, 0.0, 0.0, 0.0])
-            self.dt = 0.01
-            self.scaling = True
+            self.dt = environment.dynamics_func.dt
+            self.scaling = environment.dynamics_func.scaling
+            self.integrator = environment.dynamics_func.integrator
 
         def get_control_output_(self, x, t=None):
             if self.scaling:
@@ -74,16 +79,16 @@ class Trainer:
 
             return u
 
-    def simulate(self):
+    def simulate(self, tf=10.0):
         controller = self.GeneralController(self.model, self.environment, self.log_dir)
 
         T, X, U = controller.simulation.simulate_and_animate(
             t0=0.0,
             x0=[0.0, 0.0, 0.0, 0.0],
-            tf=10.0,
-            dt=0.01,
+            tf=tf,
+            dt=controller.dt,
             controller=controller,
-            integrator="runge_kutta",
+            integrator=controller.integrator,
             save_video=False,
         )
         plot_timeseries(

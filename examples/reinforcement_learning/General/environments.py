@@ -17,7 +17,8 @@ class GeneralEnv(CustomEnv):
             robot,
             dynamics_function,
             reward_function,
-            max_episode_steps=0
+            max_episode_steps=0,
+            scaling=True
     ):
 
         self.robot = robot
@@ -36,13 +37,11 @@ class GeneralEnv(CustomEnv):
             gym.spaces.Box(np.array([-1.0, -1.0, -1.0, -1.0]), np.array([1.0, 1.0, 1.0, 1.0])),
             gym.spaces.Box(np.array([-1]), np.array([1])),
             max_episode_steps,
-            True
+            scaling
         )
 
         self.window_size = 512
-        render_mode = None
-        assert render_mode is None or render_mode in self.metadata["render_modes"]
-        self.render_mode = render_mode
+        self.render_mode = None
         self.window = None
         self.clock = None
 
@@ -97,11 +96,14 @@ class GeneralEnv(CustomEnv):
         )
 
         y = wrap_angles_diff(s)
-        length = 100
+        total_length = 200
+        l = [0.4, 0.6]
+        if self.robot is 'pendubot':
+            l = [0.6, 0.4]
 
         start = np.array([self.window_size // 2, self.window_size // 2])
-        end_1 = start + np.array([np.sin(y[0]), np.cos(y[0])]) * length
-        end_2 = end_1 + np.array([np.sin(y[0] + y[1]), np.cos(y[0] + y[1])]) * length
+        end_1 = start + np.array([np.sin(y[0]), np.cos(y[0])]) * total_length * l[0]
+        end_2 = end_1 + np.array([np.sin(y[0] + y[1]), np.cos(y[0] + y[1])]) * total_length * l[1]
 
         pygame.draw.line(canvas, (0, 0, 0), tuple(np.round(start)), tuple(np.round(end_1)))
         pygame.draw.line(canvas, (0, 0, 0), tuple(np.round(end_1)), tuple(np.round(end_2)))

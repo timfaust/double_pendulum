@@ -40,5 +40,10 @@ def default_dynamics(robot):
     dynamics_function = double_pendulum_dynamics_func(
         simulator=simulator,
         robot=robot,
+        dt=0.01,
+        integrator="runge_kutta",
+        max_velocity=20.0,
+        torque_limit=[5.0, 5.0],
+        scaling=True
     )
     return dynamics_function, simulator, plant
