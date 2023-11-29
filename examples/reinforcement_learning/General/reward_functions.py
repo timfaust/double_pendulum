@@ -29,8 +29,8 @@ def up_slow_reward_acrobot(observation, action):
     threshold = 0.002
     distance = np.maximum(x[1] + 0.01 * v[1] - goal[1], threshold)
     if distance == threshold:
-        return -distance
-    return 1 / (np.sqrt(np.sum(v ** 2)) + 1)
+        return 1 / (np.sqrt(np.sum(v ** 2)) + 1)
+    return -distance
 
 
 def future_pos_reward_acrobot(observation, action):
