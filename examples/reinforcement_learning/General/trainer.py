@@ -2,6 +2,7 @@ import os
 from typing import Type
 
 import numpy as np
+from double_pendulum.utils.csv_trajectory import save_trajectory
 from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.policies import BasePolicy
@@ -19,7 +20,7 @@ from double_pendulum.utils.plotting import plot_timeseries
 class Trainer:
     def __init__(self, name, environment: Type[GeneralEnv], model: Type[BaseAlgorithm], policy: Type[BasePolicy]):
         self.environment = environment
-        self.log_dir = './log_data/' + name
+        self.log_dir = './log_data/' + name + '/' + environment.robot
         self.model = model
         self.policy = policy
 
@@ -94,16 +95,25 @@ class Trainer:
             t0=0.0,
             x0=[0.0, 0.0, 0.0, 0.0],
             tf=tf,
-            dt=controller.dt,
+            dt=controller.dt * 0.1,
             controller=controller,
             integrator=controller.integrator,
-            save_video=False,
+            save_video=True,
+            video_name=os.path.join(self.log_dir, "sim_video.gif"),
+            scale=0.25
         )
+
+        save_trajectory(os.path.join(self.log_dir, "sim_swingup.csv"), T=T, X_meas=X, U_con=U)
+
         plot_timeseries(
             T,
             X,
             U,
             X_meas=controller.simulation.meas_x_values,
-            pos_y_lines=[np.pi],
-            tau_y_lines=[-5.0, 5.0],
+            pos_y_lines=[-np.pi, 0.0, np.pi],
+            vel_y_lines=[0.0],
+            tau_y_lines=[-5.0, 0.0, 5.0],
+            save_to=os.path.join(self.log_dir, "timeseries"),
+            show=False,
+            scale=0.5,
         )

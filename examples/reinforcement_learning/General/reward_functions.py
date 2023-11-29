@@ -30,7 +30,7 @@ def future_pos_reward(observation, action, env_type):
     distance = np.maximum(np.linalg.norm(x + 0.01 * v - goal), threshold)
     if distance > threshold:
         return 1 / distance
-    return 1 / distance + 1 / v_total
+    return 1 / distance + 1 / (v_total + 0.0001)
 
 
 def pos_reward(observation, action, env_type):
