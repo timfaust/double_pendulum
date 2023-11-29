@@ -41,4 +41,4 @@ def default_dynamics(robot):
         simulator=simulator,
         robot=robot,
     )
-    return dynamics_function
+    return dynamics_function, simulator, plant

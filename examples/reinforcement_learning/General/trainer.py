@@ -1,6 +1,7 @@
 import os
 from typing import Type
 
+import numpy as np
 from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.policies import BasePolicy
@@ -9,12 +10,13 @@ from stable_baselines3.common.callbacks import (
     CallbackList,
 )
 
-from examples.reinforcement_learning.General.environments import AbstractEnv
+from examples.reinforcement_learning.General.environments import GeneralEnv
 from examples.reinforcement_learning.SAC_Local.environment import ProgressBarManager
-
+from double_pendulum.controller.abstract_controller import AbstractController
+from double_pendulum.utils.plotting import plot_timeseries
 
 class Trainer:
-    def __init__(self, name, environment: Type[AbstractEnv], model: Type[BaseAlgorithm], policy: Type[BasePolicy]):
+    def __init__(self, name, environment: Type[GeneralEnv], model: Type[BaseAlgorithm], policy: Type[BasePolicy]):
         self.environment = environment
         self.log_dir = './log_data/' + name
         self.model = model
@@ -49,3 +51,48 @@ class Trainer:
 
         with ProgressBarManager(training_steps) as callback:
             agent.learn(training_steps, callback=CallbackList([callback, eval_callback]))
+
+    class GeneralController(AbstractController):
+        def __init__(self, model: Type[BaseAlgorithm], environment: Type[GeneralEnv], log_dir):
+            super().__init__()
+
+            self.model = model.load(log_dir + "/best_model/best_model")
+            self.simulation = environment.simulation
+            self.dynamics_func = environment.dynamics_func
+            self.model.predict([0.0, 0.0, 0.0, 0.0])
+            self.dt = 0.01
+            self.scaling = True
+
+        def get_control_output_(self, x, t=None):
+            if self.scaling:
+                obs = self.dynamics_func.normalize_state(x)
+                action = self.model.predict(obs)
+                u = self.dynamics_func.unscale_action(action)
+            else:
+                action = self.model.predict(x)
+                u = self.dynamics_func.unscale_action(action)
+
+            return u
+
+    def simulate(self):
+        controller = self.GeneralController(self.model, self.environment, self.log_dir)
+
+        T, X, U = controller.simulation.simulate_and_animate(
+            t0=0.0,
+            x0=[0.0, 0.0, 0.0, 0.0],
+            tf=10.0,
+            dt=0.01,
+            controller=controller,
+            integrator="runge_kutta",
+            save_video=False,
+        )
+        plot_timeseries(
+            T,
+            X,
+            U,
+            X_meas=controller.simulation.meas_x_values,
+            pos_y_lines=[np.pi],
+            tau_y_lines=[-5.0, 5.0],
+        )
+
+

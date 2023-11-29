@@ -9,7 +9,7 @@ import gymnasium as gym
 from double_pendulum.utils.wrap_angles import wrap_angles_diff
 
 
-class AbstractEnv(CustomEnv):
+class GeneralEnv(CustomEnv):
     metadata = {"render_modes": ["human"], "render_fps": 60}
 
     def __init__(
@@ -25,12 +25,11 @@ class AbstractEnv(CustomEnv):
         self.reward_function = reward_function
         self.max_episode_steps = max_episode_steps
 
-        dynamics = dynamics_function
-        if hasattr(dynamics, '__code__'):
-            dynamics = dynamics(robot)
+        if hasattr(dynamics_function, '__code__'):
+            dynamics_function, self.simulation, self.plant = dynamics_function(robot)
 
         super().__init__(
-            dynamics,
+            dynamics_function,
             reward_function,
             no_termination,
             noisy_reset,
@@ -39,6 +38,7 @@ class AbstractEnv(CustomEnv):
             max_episode_steps,
             True
         )
+
         self.window_size = 512
         render_mode = None
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -48,15 +48,15 @@ class AbstractEnv(CustomEnv):
 
     def get_envs(self, n_envs, log_dir, same):
         if same:
-            dynamics = self.dynamics_func
+            dynamics_function = self.dynamics_func
         else:
-            dynamics = self.dynamics_function
+            dynamics_function = self.dynamics_function
         envs = make_vec_env(
-            env_id=AbstractEnv,
+            env_id=GeneralEnv,
             n_envs=n_envs,
             env_kwargs={
                 "robot": self.robot,
-                "dynamics_function": dynamics,
+                "dynamics_function": dynamics_function,
                 "reward_function": self.reward_function,
                 "max_episode_steps": self.max_episode_steps,
             },
@@ -117,6 +117,6 @@ class AbstractEnv(CustomEnv):
             self.clock.tick(self.metadata["render_fps"])
 
 
-class DefaultEnv(AbstractEnv):
-    def __init__(self, robot, reward_func):
-        super().__init__(robot, default_dynamics, reward_func)
+class DefaultEnv(GeneralEnv):
+    def __init__(self, robot, reward_function):
+        super().__init__(robot, default_dynamics, reward_function)
