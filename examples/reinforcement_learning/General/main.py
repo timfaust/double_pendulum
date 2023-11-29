@@ -16,7 +16,8 @@ def linear_schedule(initial_value):
 
 
 if __name__ == '__main__':
-    default_env = DefaultEnv("acrobot", up_slow_reward_acrobot)
-    sac = Trainer('up_slow', default_env, SAC, sac.MlpPolicy)
-    sac.train(0.01, 1e7, 500, 1e6, 20)
+    env_type = "pendubot"
+    default_env = DefaultEnv(env_type, lambda obs, act: future_pos_reward(obs, act, env_type))
+    sac = Trainer('future_pos', default_env, SAC, sac.MlpPolicy)
+    sac.train(0.01, 1e7, 500, 1e6, 25)
     sac.simulate()
