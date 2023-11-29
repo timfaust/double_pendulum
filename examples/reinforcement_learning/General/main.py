@@ -20,8 +20,8 @@ def linear_schedule(initial_value):
 if __name__ == '__main__':
     env_type = "pendubot"
     default_env = DefaultEnv(env_type, lambda obs, act: future_pos_reward(obs, act, env_type))
-    sac = Trainer('future_pos', default_env, SAC, sac.MlpPolicy)
+    sac = Trainer('future_pos_td3', default_env, TD3, td3.MlpPolicy)
     print("training")
-    sac.train(learning_rate=0.01, training_steps=1e6, max_episode_steps=500, eval_freq=1e4, n_envs=25, show_progress_bar=True, save_freq=1e4)
+    sac.train(learning_rate=linear_schedule(0.01), training_steps=1.5e7, max_episode_steps=500, eval_freq=1e6, n_envs=1, show_progress_bar=True, save_freq=1e4)
     print("training finished")
     sac.simulate(model_path="/saved_model/trained_model")
