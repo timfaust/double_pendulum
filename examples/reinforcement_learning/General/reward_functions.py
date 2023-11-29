@@ -4,7 +4,7 @@ from double_pendulum.utils.wrap_angles import wrap_angles_diff
 
 def get_state_values(observation, robot):
     l = [0.2, 0.3]
-    if robot is 'pendubot':
+    if robot == 'pendubot':
         l = [0.3, 0.2]
 
     s = np.array(

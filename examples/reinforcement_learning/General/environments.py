@@ -98,7 +98,7 @@ class GeneralEnv(CustomEnv):
         y = wrap_angles_diff(s)
         total_length = 200
         l = [0.4, 0.6]
-        if self.robot is 'pendubot':
+        if self.robot == 'pendubot':
             l = [0.6, 0.4]
 
         start = np.array([self.window_size // 2, self.window_size // 2])
