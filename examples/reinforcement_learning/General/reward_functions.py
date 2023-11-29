@@ -28,3 +28,8 @@ def future_pos_reward_acrobot(observation, action):
     y, x, v, goal = get_state_values(observation, 'acrobot')
     distance = np.sqrt(np.sum((x + 0.01 * v - goal) ** 2))
     return 1 / (distance + 0.0001)
+
+def pos_reward_acrobot(observation, action):
+    y, x, v, goal = get_state_values(observation, 'acrobot')
+    distance = np.sqrt(np.sum((x - goal) ** 2))
+    return 1 / (distance + 0.0001)
