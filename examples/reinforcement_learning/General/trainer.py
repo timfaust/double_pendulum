@@ -61,6 +61,42 @@ class Trainer:
         self.environment.max_episode_steps = max_episode_steps
         envs = self.environment.get_envs(n_envs=n_envs, log_dir=self.log_dir, same=same_environment)
 
+        callback_list = self.get_callback_list(training_steps, eval_freq, n_envs, n_eval_episodes,
+                                               save_freq, show_progress_bar, verbose)
+
+        agent = self.model(
+            self.policy,
+            envs,
+            verbose=verbose,
+            tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
+            learning_rate=learning_rate,
+        )
+
+        agent.learn(training_steps, callback=callback_list, log_interval=eval_freq)
+        agent.save(os.path.join(self.log_dir, "saved_model", "trained_model"))
+
+    def retrain_model(self, model_path, training_steps, max_episode_steps, eval_freq, n_envs=1, n_eval_episodes=1,
+                      save_freq=5000, show_progress_bar=True, same_environment=True, verbose=False):
+        if not os.path.exists(self.log_dir + model_path + ".zip"):
+            raise Exception("model not found")
+
+        self.environment.render_mode = None
+        self.environment.reset()
+        self.environment.max_episode_steps = max_episode_steps
+        envs = self.environment.get_envs(n_envs=n_envs, log_dir=self.log_dir, same=same_environment)
+
+        agent = self.model.load(self.log_dir + model_path)
+        agent.set_env(envs)
+
+        callback_list = self.get_callback_list(training_steps, eval_freq, n_envs, n_eval_episodes,
+                                               save_freq, show_progress_bar, verbose)
+
+        agent.learn(training_steps, callback=callback_list, reset_num_timesteps=True)
+        agent.save(os.path.join(self.log_dir, "saved_model", "trained_model"))
+
+    def get_callback_list(self, training_steps, eval_freq, n_envs=1, n_eval_episodes=1,
+                          save_freq=5000, show_progress_bar=True, verbose=False):
+
         eval_env = self.environment
         eval_env.render_mode = 'human'
         eval_env = Monitor(eval_env, self.log_dir)
@@ -79,21 +115,13 @@ class Trainer:
                                                  save_path=os.path.join(self.log_dir, 'saved_model'),
                                                  name_prefix="saved_model")
 
-        agent = self.model(
-            self.policy,
-            envs,
-            verbose=verbose,
-            tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
-            learning_rate=learning_rate,
-        )
-
         if show_progress_bar:
             with ProgressBarManager(training_steps) as callback:
-                agent.learn(training_steps, callback=CallbackList([eval_callback, checkpoint_callback, callback]))
+                callback_list = CallbackList([eval_callback, checkpoint_callback, callback])
         else:
-            agent.learn(training_steps, callback=CallbackList([eval_callback, checkpoint_callback]))
+            callback_list = CallbackList([eval_callback, checkpoint_callback])
 
-        agent.save(os.path.join(self.log_dir, "saved_model", "trained_model"))
+        return callback_list
 
     class GeneralController(AbstractController):
         def __init__(self, model: Type[BaseAlgorithm], environment: Type[GeneralEnv], model_path):

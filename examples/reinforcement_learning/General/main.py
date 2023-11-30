@@ -20,7 +20,17 @@ if __name__ == '__main__':
     env_type = "pendubot"
     default_env = GeneralEnv(env_type, default_dynamics, lambda obs, act: future_pos_reward(obs, act, env_type))
     sac = Trainer('future_pos_new3', default_env, SAC, sac.MlpPolicy)
-    print("training")
-    sac.train(learning_rate=linear_schedule(0.01), training_steps=1e7, max_episode_steps=500, eval_freq=5e5, n_envs=10, show_progress_bar=True, save_freq=5e5)
+
+    try:
+        print("retraining last model")
+
+        #   saved_model_path = "/saved_model/saved_model_...._steps"
+        #   trained_model_path = "/saved_model/trained_model"
+        sac.retrain_model(model_path="/saved_model/trained_model", training_steps=1e7, max_episode_steps=500, eval_freq=5e5, n_envs=10, show_progress_bar=False, save_freq=5e5, verbose=True)
+    except Exception as e:
+        print(e)
+        print("training new model")
+        sac.train(learning_rate=linear_schedule(0.01), training_steps=1e7, max_episode_steps=500, eval_freq=5e5, n_envs=10, show_progress_bar=False, save_freq=5e5, verbose=True)
+
     print("training finished")
     sac.simulate(model_path="/saved_model/trained_model")

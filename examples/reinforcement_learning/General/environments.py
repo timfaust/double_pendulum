@@ -117,8 +117,8 @@ class GeneralEnv(CustomEnv):
         pygame.draw.circle(canvas, (60, 60, 230), tuple(np.round(end_2)), 5)
 
         pygame.draw.line(canvas, (150, 150, 150), (0, round(y_threshold)), (self.window_size, round(y_threshold)))
-        pygame.draw.line(canvas, (150, 150, 150), (0, round(self.window_size // 2 - total_length)), (self.window_size, round(self.window_size // 2 - total_length)))
-
+        pygame.draw.line(canvas, (150, 150, 150), (0, round(self.window_size // 2 - total_length)),
+                         (self.window_size, round(self.window_size // 2 - total_length)))
 
         myFont = pygame.font.SysFont("Times New Roman", 18)
         step = myFont.render(str(self.step_counter), 1, (0, 0, 0), )
