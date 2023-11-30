@@ -122,6 +122,7 @@ class Trainer:
 
         model_path = self.log_dir + model_path
         controller = self.GeneralController(self.model, self.environment, model_path)
+        controller.init()
 
         T, X, U = controller.simulation.simulate_and_animate(
             t0=0.0,
