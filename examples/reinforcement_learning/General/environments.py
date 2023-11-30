@@ -40,7 +40,7 @@ class GeneralEnv(CustomEnv):
             scaling
         )
 
-        self.window_size = 512
+        self.window_size = 800
         self.render_mode = None
         self.window = None
         self.clock = None
@@ -95,7 +95,7 @@ class GeneralEnv(CustomEnv):
         )
 
         y = wrap_angles_diff(s)
-        total_length = 200
+        total_length = 350
         l = [0.4, 0.6]
         if self.robot == 'pendubot':
             l = [0.6, 0.4]
@@ -104,12 +104,21 @@ class GeneralEnv(CustomEnv):
         end_1 = start + np.array([np.sin(y[0]), np.cos(y[0])]) * total_length * l[0]
         end_2 = end_1 + np.array([np.sin(y[0] + y[1]), np.cos(y[0] + y[1])]) * total_length * l[1]
 
-        threshold = 0.005
+        threshold = 0.01
         canvas.fill((255, 255, 255))
-        if self.window_size // 2 - total_length + threshold * 2 * total_length > end_2[1]:
+        y_threshold = self.window_size // 2 - total_length + threshold * 2 * total_length
+        if end_2[1] < y_threshold:
             canvas.fill((184, 255, 191))
-        pygame.draw.line(canvas, (0, 0, 0), tuple(np.round(start)), tuple(np.round(end_1)))
-        pygame.draw.line(canvas, (0, 0, 0), tuple(np.round(end_1)), tuple(np.round(end_2)))
+        pygame.draw.line(canvas, (0, 0, 0), tuple(np.round(start)), tuple(np.round(end_1)), 5)
+        pygame.draw.line(canvas, (0, 0, 0), tuple(np.round(end_1)), tuple(np.round(end_2)), 5)
+
+        pygame.draw.circle(canvas, (60, 60, 230), tuple(np.round(start)), 10)
+        pygame.draw.circle(canvas, (60, 60, 230), tuple(np.round(end_1)), 10)
+        pygame.draw.circle(canvas, (60, 60, 230), tuple(np.round(end_2)), 5)
+
+        pygame.draw.line(canvas, (150, 150, 150), (0, round(y_threshold)), (self.window_size, round(y_threshold)))
+        pygame.draw.line(canvas, (150, 150, 150), (0, round(self.window_size // 2 - total_length)), (self.window_size, round(self.window_size // 2 - total_length)))
+
 
         myFont = pygame.font.SysFont("Times New Roman", 18)
         step = myFont.render(str(self.step_counter), 1, (0, 0, 0), )
