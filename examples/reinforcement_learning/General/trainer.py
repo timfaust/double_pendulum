@@ -72,7 +72,12 @@ class Trainer:
             learning_rate=learning_rate,
         )
 
-        agent.learn(training_steps, callback=callback_list, log_interval=eval_freq)
+        if show_progress_bar:
+            with ProgressBarManager(training_steps) as callback:
+                agent.learn(training_steps, callback=CallbackList([callback_list, callback]), log_interval=eval_freq)
+        else:
+            agent.learn(training_steps, callback=callback_list, log_interval=eval_freq)
+
         agent.save(os.path.join(self.log_dir, "saved_model", "trained_model"))
 
     def retrain_model(self, model_path, training_steps, max_episode_steps, eval_freq, n_envs=1, n_eval_episodes=1,
@@ -91,7 +96,11 @@ class Trainer:
         callback_list = self.get_callback_list(training_steps, eval_freq, n_envs, n_eval_episodes,
                                                save_freq, show_progress_bar, verbose)
 
-        agent.learn(training_steps, callback=callback_list, reset_num_timesteps=True)
+        if show_progress_bar:
+            with ProgressBarManager(training_steps) as callback:
+                agent.learn(training_steps, callback=CallbackList([callback_list, callback]), reset_num_timesteps=True)
+        else:
+            agent.learn(training_steps, callback=callback_list, reset_num_timesteps=True)
         agent.save(os.path.join(self.log_dir, "saved_model", "trained_model"))
 
     def get_callback_list(self, training_steps, eval_freq, n_envs=1, n_eval_episodes=1,
@@ -115,22 +124,7 @@ class Trainer:
                                                  save_path=os.path.join(self.log_dir, 'saved_model'),
                                                  name_prefix="saved_model")
 
-        agent = self.model(
-            self.policy,
-            envs,
-            verbose=verbose,
-            tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
-            learning_rate=learning_rate,
-            seed=42
-        )
-
-        if show_progress_bar:
-            with ProgressBarManager(training_steps) as callback:
-                callback_list = CallbackList([eval_callback, checkpoint_callback, callback])
-        else:
-            callback_list = CallbackList([eval_callback, checkpoint_callback])
-
-        return callback_list
+        return CallbackList([eval_callback, checkpoint_callback])
 
     class GeneralController(AbstractController):
         def __init__(self, model: Type[BaseAlgorithm], environment: Type[GeneralEnv], model_path):
