@@ -33,4 +33,4 @@ if __name__ == '__main__':
         sac.train(learning_rate=linear_schedule(0.01), training_steps=1e7, max_episode_steps=500, eval_freq=5e5, n_envs=10, show_progress_bar=False, save_freq=5e5, verbose=True)
 
     print("training finished")
-    sac.simulate(model_path="/saved_model/trained_model")
+    #sac.simulate(model_path="/saved_model/saved_model_1000000_steps")

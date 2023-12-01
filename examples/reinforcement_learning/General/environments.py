@@ -2,6 +2,7 @@ from stable_baselines3.common.env_util import make_vec_env
 
 from examples.reinforcement_learning.General.dynamics_functions import default_dynamics
 from examples.reinforcement_learning.General.misc_helper import no_termination, noisy_reset
+from examples.reinforcement_learning.General.reward_functions import get_state_values
 from src.python.double_pendulum.simulation.gym_env import CustomEnv
 import pygame
 import numpy as np
@@ -10,7 +11,7 @@ from double_pendulum.utils.wrap_angles import wrap_angles_diff
 
 
 class GeneralEnv(CustomEnv):
-    metadata = {"render_modes": ["human"], "render_fps": 60}
+    metadata = {"render_modes": ["human"], "render_fps": 120}
 
     def __init__(
             self,
@@ -21,6 +22,9 @@ class GeneralEnv(CustomEnv):
             scaling=True
     ):
 
+        self.reward = 0
+        self.action = None
+        self.acc_reward = 0
         self.robot = robot
         self.dynamics_function = dynamics_function
         self.reward_function = reward_function
@@ -65,6 +69,9 @@ class GeneralEnv(CustomEnv):
 
     def reset(self, seed=None, options=None):
         observation, info = super().reset(seed, options)
+        self.reward = 0
+        self.acc_reward = 0
+        self.action = np.array([0, 0])
         if self.render_mode == "human":
             self._render_frame()
         return observation, info
@@ -72,6 +79,9 @@ class GeneralEnv(CustomEnv):
     def step(self, action):
         observation, reward, terminated, truncated, info = super().step(action)
         if self.render_mode == "human":
+            self.reward = reward
+            self.acc_reward += reward
+            self.action = action
             self._render_frame()
         return observation, reward, terminated, truncated, info
 
@@ -104,7 +114,7 @@ class GeneralEnv(CustomEnv):
         end_1 = start + np.array([np.sin(y[0]), np.cos(y[0])]) * total_length * l[0]
         end_2 = end_1 + np.array([np.sin(y[0] + y[1]), np.cos(y[0] + y[1])]) * total_length * l[1]
 
-        threshold = 0.01
+        threshold = 0.005
         canvas.fill((255, 255, 255))
         y_threshold = self.window_size // 2 - total_length + threshold * 2 * total_length
         if end_2[1] < y_threshold:
@@ -120,9 +130,23 @@ class GeneralEnv(CustomEnv):
         pygame.draw.line(canvas, (150, 150, 150), (0, round(self.window_size // 2 - total_length)),
                          (self.window_size, round(self.window_size // 2 - total_length)))
 
-        myFont = pygame.font.SysFont("Times New Roman", 18)
-        step = myFont.render(str(self.step_counter), 1, (0, 0, 0), )
-        canvas.blit(step, (10, 10))
+        y, x1, x2, v1, v2, action, goal = get_state_values(self.observation, self.action, self.robot)
+        distance = round(np.linalg.norm(x2 - goal), 3)
+        distance_next = round(np.linalg.norm(x2 + 0.01 * v2 - goal), 3)
+        v1_total = round(np.linalg.norm(v1), 3)
+        v2_total = round(np.linalg.norm(v1), 3)
+        a = round(y[0], 3)
+
+        myFont = pygame.font.SysFont("Times New Roman", 36)
+        acc_reward = myFont.render(str(round(self.acc_reward)), 1, (0, 0, 0), )
+        reward = myFont.render(str(round(self.reward)), 1, (0, 0, 0), )
+        canvas.blit(acc_reward, (10, 10))
+        canvas.blit(reward, (10, 60))
+        canvas.blit(myFont.render(str(distance), 1, (0, 0, 0), ), (10, self.window_size - 200))
+        canvas.blit(myFont.render(str(distance_next), 1, (0, 0, 0), ), (10, self.window_size - 160))
+        canvas.blit(myFont.render(str(v1_total), 1, (0, 0, 0), ), (10, self.window_size - 120))
+        canvas.blit(myFont.render(str(v2_total), 1, (0, 0, 0), ), (10, self.window_size - 80))
+        canvas.blit(myFont.render(str(a), 1, (0, 0, 0), ), (10, self.window_size - 40))
 
         if self.render_mode == "human":
             self.window.blit(canvas, canvas.get_rect())

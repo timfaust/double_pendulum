@@ -115,6 +115,15 @@ class Trainer:
                                                  save_path=os.path.join(self.log_dir, 'saved_model'),
                                                  name_prefix="saved_model")
 
+        agent = self.model(
+            self.policy,
+            envs,
+            verbose=verbose,
+            tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
+            learning_rate=learning_rate,
+            seed=42
+        )
+
         if show_progress_bar:
             with ProgressBarManager(training_steps) as callback:
                 callback_list = CallbackList([eval_callback, checkpoint_callback, callback])
