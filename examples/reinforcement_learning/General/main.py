@@ -18,7 +18,7 @@ def linear_schedule(initial_value):
 
 if __name__ == '__main__':
     env_type = "pendubot"
-    default_env = GeneralEnv(env_type, default_dynamics, lambda obs, act: future_pos_reward(obs, act, env_type))
+    default_env = GeneralEnv(env_type, default_dynamics, lambda obs, act: pos_reward(obs, act, env_type))
     sac = Trainer('future_pos2', default_env, SAC, sac.MlpPolicy)
 
     try:

@@ -2,6 +2,10 @@ import numpy as np
 from double_pendulum.utils.wrap_angles import wrap_angles_diff
 
 
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+
+
 def get_state_values(observation, action, robot):
     l = [0.2, 0.3]
     if robot == 'pendubot':
@@ -30,10 +34,10 @@ def future_pos_reward(observation, action, env_type):
     y, x1, x2, v1, v2, action, goal = get_state_values(observation, action, env_type)
     threshold = 0.005
     distance = np.linalg.norm(x2 + 0.01 * v2 - goal)
-    reward = 1 / np.maximum(distance, threshold)
+    reward = sigmoid(1 / distance)
     if distance < threshold:
         v_total = np.linalg.norm(v1) + np.linalg.norm(v2) + np.linalg.norm(action)
-        reward += 1 / (v_total + 0.0001)
+        reward += sigmoid(1 / v_total)
     return reward
 
 
