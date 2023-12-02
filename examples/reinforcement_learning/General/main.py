@@ -18,25 +18,17 @@ def linear_schedule(initial_value):
 
 if __name__ == '__main__':
     env_type = "pendubot"
-
-    """default_env = GeneralEnv(env_type, default_dynamics, lambda obs, act: pos_reward(obs, act, env_type))
-    sac = Trainer('future_pos2', default_env, SAC, sac.MlpPolicy)"""
-
-    default_env = GeneralEnv(env_type, default_dynamics, lambda obs, act: saturated_distance_from_target(obs, act, env_type))
-    sac = Trainer('saturated_dist', default_env, SAC, sac.MlpPolicy)
+    default_env = GeneralEnv(env_type, default_dynamics, lambda obs, act: future_pos_reward(obs, act, env_type))
+    sac = Trainer('future_pos', default_env, SAC, sac.MlpPolicy)
 
     try:
         print("retraining last model")
-        #   best_model="/best_model/best_model"
-        #   saved_model="/saved_model/trained_model")
-        sac.retrain_model(model_path="/best_model/best_model", training_steps=1e7, max_episode_steps=500, eval_freq=5e4, n_envs=10, show_progress_bar=False, save_freq=5e4, verbose=True)
+        sac.retrain_model(model_path="/saved_model/trained_model", learning_rate=0.001, training_steps=1e7, max_episode_steps=500, eval_freq=1e5, n_envs=10, show_progress_bar=True, save_freq=1e5)
     except Exception as e:
         print(e)
         print("training new model")
-
-        # sac.train(learning_rate=0.01, training_steps=1e7, max_episode_steps=500, eval_freq=1e5, n_envs=10, show_progress_bar=True, save_freq=1e5)
-        sac.train(learning_rate=linear_schedule(0.01), training_steps=1e7, max_episode_steps=500, eval_freq=5e4, n_envs=10, show_progress_bar=False, save_freq=5e4, verbose=True)
+        sac.train(learning_rate=linear_schedule(0.005), training_steps=10e6, max_episode_steps=500, eval_freq=1e5, n_envs=10, show_progress_bar=True, save_freq=1e5)
 
     print("training finished")
 
-    sac.simulate(model_path="/saved_model/trained_model")
+    # sac.simulate(model_path="/saved_model/trained_model")

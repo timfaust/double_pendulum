@@ -23,24 +23,21 @@ def get_state_values(observation, action, robot):
     v2 = v1 + np.array([np.cos(y[0] + y[1]), -np.sin(y[0] + y[1])]) * (y[2] + y[3]) * l[1]
     goal = np.array([0, -0.5])
 
-    return s, x1, x2, v1, v2, action * 5, goal
+    return s, x1, x2, v1, v2, action * 5, goal, 0.05, 0.005
 
 
 def future_pos_reward(observation, action, env_type):
-    y, x1, x2, v1, v2, action, goal = get_state_values(observation, action, env_type)
-    threshold = 0.005
-    distance = np.linalg.norm(x2 + 0.1 * v2 - goal)
-    reward = 1 / (distance + 1)
+    y, x1, x2, v1, v2, action, goal, dt, threshold = get_state_values(observation, action, env_type)
+    distance = np.linalg.norm(x2 + dt * v2 - goal)
+    reward = 1 / (distance + 0.01)
     if distance < threshold:
         v_total = np.linalg.norm(v1) + np.linalg.norm(v2) + np.linalg.norm(action)
-        reward += 1 / (v_total + 0.1)
-    if y[1] > np.pi/2 or y[1] < -np.pi/2:
-        reward -= 10
+        reward += 1 / (v_total + 0.001)
     return reward
 
 
 def pos_reward(observation, action, env_type):
-    y, x1, x2, v1, v2, action, goal = get_state_values(observation, action, env_type)
+    y, x1, x2, v1, v2, action, goal, dt, threshold = get_state_values(observation, action, env_type)
     distance = np.linalg.norm(x2 - goal)
     return 1 / (distance + 0.0001)
 

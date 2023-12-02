@@ -80,7 +80,7 @@ class Trainer:
         agent.save(os.path.join(self.log_dir, "saved_model", "trained_model"))
 
     def retrain_model(self, model_path, training_steps, max_episode_steps, eval_freq, n_envs=1, n_eval_episodes=1,
-                      save_freq=5000, show_progress_bar=True, same_environment=True, verbose=False):
+                      save_freq=5000, show_progress_bar=True, same_environment=True, verbose=False, learning_rate=None):
         if not os.path.exists(self.log_dir + model_path + ".zip"):
             raise Exception("model not found")
 
@@ -91,6 +91,8 @@ class Trainer:
 
         agent = self.model.load(self.log_dir + model_path)
         agent.set_env(envs)
+        if learning_rate is not None:
+            agent.learning_rate = learning_rate
 
         callback_list = self.get_callback_list(eval_freq, n_envs, n_eval_episodes, save_freq, verbose)
 
