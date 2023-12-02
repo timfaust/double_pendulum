@@ -48,13 +48,38 @@ def pos_reward(observation, action, env_type):
 
 
 def saturated_distance_from_target(observation, action, env_type):
-    y, x1, x2, v1, v2, action, goal = get_state_values(observation, action, env_type)
+    l = [0.2, 0.3]
+    if env_type == 'pendubot':
+        l = [0.3, 0.2]
 
-    diff = x2 - goal
+    s = np.array(
+        [
+            observation[0] * np.pi + np.pi,  # [0, 2pi]
+            (observation[1] * np.pi + np.pi + np.pi) % (2 * np.pi) - np.pi,  # [-pi, pi]
+            observation[2],
+            observation[3]
+        ]
+    )
+    y = wrap_angles_diff(s)
+    R = np.array([[0.0001]])
+    u = action * 5
+    goal = [np.pi, 0]
 
-    sigma_c = np.diag([1 / 0.3, 1 / 0.2])
-    exp_term = np.exp(-np.dot(np.dot(diff.T, sigma_c), diff))
+    diff = y[:2] - goal
+
+    sigma_c = np.diag([1 / l[0], 1 / l[1]])
+    #   encourage to minimize the distance
+    exp_indx = -np.dot(np.dot(diff.T, sigma_c), diff)
+
+    #   encourage to have zero torque change as distance minimizes
+    threshold = np.maximum(np.abs(np.linalg.norm(diff)), 10)
+    exp_indx -= np.abs(np.einsum("i, ij, j", u, R, u) / threshold)
+
+    #   encourage to have zero velocity as distance minimizes
+    exp_indx -= np.abs(np.linalg.norm(y[2:]) / threshold)
+
+    exp_term = np.exp(exp_indx)
 
     squared_dist = 1.0 - exp_term
-
-    return squared_dist
+    #print(-squared_dist * 1000)
+    return -squared_dist

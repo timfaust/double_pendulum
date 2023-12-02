@@ -92,7 +92,7 @@ class Trainer:
         agent = self.model.load(self.log_dir + model_path)
         agent.set_env(envs)
 
-        callback_list = self.get_callback_list(training_steps, eval_freq, n_envs, n_eval_episodes, save_freq, show_progress_bar, verbose)
+        callback_list = self.get_callback_list(eval_freq, n_envs, n_eval_episodes, save_freq, verbose)
 
         if show_progress_bar:
             with ProgressBarManager(training_steps) as callback:
@@ -146,7 +146,7 @@ class Trainer:
 
             return u
 
-    def simulate(self, model_path="/best_model/best_model", tf=10.0):
+    def simulate(self, model_path="/best_model/best_model", tf=10.0, save_video=True):
 
         model_path = self.log_dir + model_path
         controller = self.GeneralController(self.model, self.environment, model_path)
@@ -159,7 +159,7 @@ class Trainer:
             dt=controller.dt * 0.1,
             controller=controller,
             integrator=controller.integrator,
-            save_video=True,
+            save_video=save_video,
             video_name=os.path.join(self.log_dir, "sim_video.gif"),
             scale=0.25
         )
