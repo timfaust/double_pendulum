@@ -16,15 +16,21 @@ def high_reset():
 
 
 def random_reset():
-    return general_reset([0, 1, 0, 0], [1, 0.25, 0.5, 0.25])
+    return general_reset([0, 0, 0, 0], [1, 1, 0.75, 0.75])
+
+
+def semi_random_reset():
+    return general_reset([0, 1, 0, 0], [1, 0.2, 0.5, 0.2])
 
 
 def balanced_reset():
     r = np.random.random()
     if r < 0.25:
         return high_reset()
-    elif r > 0.75:
+    elif r < 0.5:
         return low_reset()
+    elif r < 0.75:
+        return semi_random_reset()
     else:
         return random_reset()
 
