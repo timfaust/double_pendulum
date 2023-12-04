@@ -78,3 +78,73 @@ def saturated_distance_from_target(observation, action, env_type):
     squared_dist = 1.0 - exp_term
     #print(-squared_dist * 1000)
     return -squared_dist
+
+
+
+def unholy_reward_3(observation, action, env_type):
+    #quadtratic cost and quadtratic penalties
+    l = [0.2, 0.3]
+    if env_type == 'pendubot':
+        l = [0.3, 0.2]
+
+    s = np.array(
+        [
+            observation[0] * np.pi + np.pi,  # [0, 2pi]
+            (observation[1] * np.pi + np.pi + np.pi) % (2 * np.pi) - np.pi,  # [-pi, pi]
+            observation[2],
+            observation[3]
+        ]
+    )
+
+
+
+    y, x1, x2, v1, v2, action, goal, dt, threshold = get_state_values(observation, action, env_type)
+
+
+
+    goal = np.array([np.pi, 0., 0., 0.])
+
+    #we want it to go up
+    #we dont want rotations
+    #we dont want oscillations
+
+    #error scale matrix for state deviation
+    Q = np.zeros((4, 4))
+    Q[0, 0] = 10.0
+    Q[1, 1] = 10.0
+    Q[2, 2] = 0.2
+    Q[3, 3] = 0.2
+
+    #penalty for actuation
+    R = np.array([[0.001]])
+
+    #state error
+    err = s - goal
+
+    # "control" input
+    u = action * 5
+
+    #quadratic cost for u, quadratic cost for state
+    cost1 = np.einsum("i, ij, j", err, Q, err) + np.einsum("i, ij, j", u, R, u)
+
+
+    #additional cartesian distance cost
+    cart_goal_x2 = np.array([0, -0.5])
+    cart_err = x2 - cart_goal_x2
+    Q2 = np.zeros((2,2))
+    Q2[0, 0] = 10.0
+    Q2[1, 1] = 10.0
+
+
+
+    cost2= np.einsum("i, ij, j", cart_err, Q2, cart_err)
+
+    reward = -1 * cost1 - 1 * cost2
+
+    #try x.T Q x, then try vector norms
+
+    #general:
+    #try: LQR style
+    #else try: PID style
+
+    return reward
