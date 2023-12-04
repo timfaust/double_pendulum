@@ -69,6 +69,7 @@ class Trainer:
             verbose=verbose,
             tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
             learning_rate=learning_rate,
+            gradient_steps=3
         )
 
         if show_progress_bar:
