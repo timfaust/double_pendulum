@@ -137,7 +137,7 @@ def unholy_reward_4(observation, action, env_type):
     #additional cartesian distance cost
     if env_type == 'pendubot':
         cart_goal_x1 = np.array([0,-0.3])
-    elif: env_type =='acrobot'
+    elif env_type =='acrobot':
         cart_goal_x1 = np.array([0,-0.2])
 
 
