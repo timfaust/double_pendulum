@@ -17,10 +17,16 @@ def get_state_values(observation, action, robot):
     )
 
     y = wrap_angles_diff(s) #now both angles from -pi to pi
+
+    #cartesians of elbow x1 and end effector x2
     x1 = np.array([np.sin(y[0]), np.cos(y[0])]) * l[0]
     x2 = x1 + np.array([np.sin(y[0] + y[1]), np.cos(y[0] + y[1])]) * l[1]
+
+    #angular velocities of the joints
     v1 = np.array([np.cos(y[0]), -np.sin(y[0])]) * y[2] * l[0]
     v2 = v1 + np.array([np.cos(y[0] + y[1]), -np.sin(y[0] + y[1])]) * (y[2] + y[3]) * l[1]
+
+    #goal for cartesian end effector position
     goal = np.array([0, -0.5])
 
     return s, x1, x2, v1, v2, action * 5, goal, 0.05, 0.005
@@ -81,7 +87,7 @@ def saturated_distance_from_target(observation, action, env_type):
 
 
 
-def unholy_reward_3(observation, action, env_type):
+def unholy_reward_4(observation, action, env_type):
     #quadtratic cost and quadtratic penalties
     l = [0.2, 0.3]
     if env_type == 'pendubot':
@@ -101,7 +107,7 @@ def unholy_reward_3(observation, action, env_type):
     y, x1, x2, v1, v2, action, goal, dt, threshold = get_state_values(observation, action, env_type)
 
 
-
+    #defining custom goal for state (pos1, pos2, angl_vel1, angl_vel2)
     goal = np.array([np.pi, 0., 0., 0.])
 
     #we want it to go up
@@ -121,7 +127,7 @@ def unholy_reward_3(observation, action, env_type):
     #state error
     err = s - goal
 
-    # "control" input
+    #"control" input penalty
     u = action * 5
 
     #quadratic cost for u, quadratic cost for state
@@ -129,22 +135,31 @@ def unholy_reward_3(observation, action, env_type):
 
 
     #additional cartesian distance cost
+    if env_type == 'pendubot':
+        cart_goal_x1 = np.array([0,-0.3])
+    elif: env_type =='acrobot'
+        cart_goal_x1 = np.array([0,-0.2])
+
+
     cart_goal_x2 = np.array([0, -0.5])
-    cart_err = x2 - cart_goal_x2
+    cart_err_x2 = x2 - cart_goal_x2
+
+    cart_err_x1 = x1 - cart_goal_x1
+
     Q2 = np.zeros((2,2))
     Q2[0, 0] = 10.0
     Q2[1, 1] = 10.0
 
 
 
-    cost2= np.einsum("i, ij, j", cart_err, Q2, cart_err)
+    cost2= np.einsum("i, ij, j", cart_err_x2, Q2, cart_err_x2) + np.einsum("i, ij, j", cart_err_x1, Q2, cart_err_x1)
 
     reward = -1 * cost1 - 1 * cost2
 
     #try x.T Q x, then try vector norms
 
     #general:
-    #try: LQR style
-    #else try: PID style
+    #try: LQR style --> Quadratic Costfunctions
+    #else try: PID style --> "Damping"
 
     return reward
