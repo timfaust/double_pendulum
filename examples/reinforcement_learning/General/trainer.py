@@ -52,7 +52,9 @@ class Trainer:
         self.policy = policy
 
     def train(self, learning_rate, training_steps, max_episode_steps, eval_freq, n_envs=1, n_eval_episodes=1,
-              save_freq=5000, show_progress_bar=True, same_environment=True, verbose=False):
+              save_freq=5000, show_progress_bar=True, same_environment=True, verbose=False, buffer_size=10e6,
+              batch_size=256, gradient_steps=1,tau=0.005, gamma=0.99,ent_coef="auto", action_noise=None, use_sde=False,
+              sde_sample_freq=-1,use_sde_at_warmup=False):
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir)
 
@@ -69,7 +71,16 @@ class Trainer:
             verbose=verbose,
             tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
             learning_rate=learning_rate,
-            gradient_steps=3
+            gradient_steps=gradient_steps,
+            buffer_size=buffer_size,
+            batch_size=batch_size,
+            tau=tau,
+            gamma=gamma,
+            ent_coef=ent_coef,
+            action_noise=action_noise,
+            use_sde=use_sde,
+            sde_sample_freq=sde_sample_freq,
+            use_sde_at_warmup=use_sde_at_warmup
         )
 
         if show_progress_bar:
