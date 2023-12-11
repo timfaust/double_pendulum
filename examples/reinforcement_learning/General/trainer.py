@@ -2,6 +2,7 @@ import os
 from typing import Type
 
 import numpy as np
+import json
 from double_pendulum.utils.csv_trajectory import save_trajectory
 from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.monitor import Monitor
@@ -12,6 +13,7 @@ from stable_baselines3.common.callbacks import (
     CheckpointCallback, BaseCallback
 )
 from tqdm.auto import tqdm
+from stable_baselines3.common.noise import ActionNoise
 
 from examples.reinforcement_learning.General.environments import GeneralEnv
 from double_pendulum.controller.abstract_controller import AbstractController
@@ -45,16 +47,15 @@ class ProgressBarManager(object):
 
 
 class Trainer:
-    def __init__(self, name, environment: Type[GeneralEnv], model: Type[BaseAlgorithm], policy: Type[BasePolicy]):
+    def __init__(self, name, environment: Type[GeneralEnv], model: Type[BaseAlgorithm], policy: Type[BasePolicy], action_noise: Type[ActionNoise]):
         self.environment = environment
         self.log_dir = './log_data/' + name + '/' + environment.robot
         self.model = model
         self.policy = policy
+        self.action_noise = action_noise
 
     def train(self, learning_rate, training_steps, max_episode_steps, eval_freq, n_envs=1, n_eval_episodes=1,
-              save_freq=5000, show_progress_bar=True, same_environment=True, verbose=False, buffer_size=10e6,
-              batch_size=256, gradient_steps=1,tau=0.005, gamma=0.99,ent_coef="auto", action_noise=None, use_sde=False,
-              sde_sample_freq=-1,use_sde_at_warmup=False):
+              save_freq=5000, show_progress_bar=True, same_environment=True, verbose=False, custom_param=None):
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir)
 
@@ -71,17 +72,11 @@ class Trainer:
             verbose=verbose,
             tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
             learning_rate=learning_rate,
-            gradient_steps=gradient_steps,
-            buffer_size=buffer_size,
-            batch_size=batch_size,
-            tau=tau,
-            gamma=gamma,
-            ent_coef=ent_coef,
-            action_noise=action_noise,
-            use_sde=use_sde,
-            sde_sample_freq=sde_sample_freq,
-            use_sde_at_warmup=use_sde_at_warmup
+            action_noise=self.action_noise
         )
+
+        if custom_param is not None:
+            self.load_custom_params(agent, custom_param)
 
         if show_progress_bar:
             with ProgressBarManager(training_steps) as callback:
@@ -136,6 +131,20 @@ class Trainer:
                                                  name_prefix="saved_model")
 
         return CallbackList([eval_callback, checkpoint_callback])
+
+    def load_custom_params(self, agent, param_name):
+        if not os.path.exists("parameters.json"):
+            print("parameter.json doesn't exist!")
+            return
+
+        data = json.load(open("parameters.json"))
+        if not param_name in data:
+            print("couldn't find key: ", param_name)
+            return
+
+        for key in data[param_name]:
+            if hasattr(agent, key):
+                setattr(agent, key, data[param_name][key])
 
     class GeneralController(AbstractController):
         def __init__(self, model: Type[BaseAlgorithm], environment: Type[GeneralEnv], model_path):
