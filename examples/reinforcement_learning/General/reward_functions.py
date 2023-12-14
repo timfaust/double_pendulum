@@ -22,7 +22,7 @@ def get_state_values(observation, action, robot):
     x1 = np.array([np.sin(y[0]), np.cos(y[0])]) * l[0]
     x2 = x1 + np.array([np.sin(y[0] + y[1]), np.cos(y[0] + y[1])]) * l[1]
 
-    #angular velocities of the joints
+    #cartesian velocities of the joints: v = omega * r
     v1 = np.array([np.cos(y[0]), -np.sin(y[0])]) * y[2] * l[0]
     v2 = v1 + np.array([np.cos(y[0] + y[1]), -np.sin(y[0] + y[1])]) * (y[2] + y[3]) * l[1]
 
@@ -163,3 +163,53 @@ def unholy_reward_4(observation, action, env_type):
     #else try: PID style --> "Damping"
 
     return reward
+
+
+
+def unholy_reward_5(observation, action, env_type):
+    #rein experimentell. nicht sehr wertvoll
+
+    s = np.array(
+        [
+            observation[0] * np.pi + np.pi,  # [0, 2pi]
+            (observation[1] * np.pi + np.pi + np.pi) % (2 * np.pi) - np.pi,  # [-pi, pi]
+            observation[2],
+            observation[3]
+        ]
+    )
+
+    y, x1, x2, v1, v2, action, goal, dt, threshold = get_state_values(observation, action, env_type)
+    short_state = np.array([y[0], y[1]])
+    # defining custom goal for state (pos1, pos2, angl_vel1, angl_vel2)
+    goal = np.array([np.pi, 0.])
+    if env_type == 'pendubot':
+        d_goal_x1 = np.array([0, -0.3])
+    elif env_type == 'acrobot':
+        d_goal_x1 = np.array([0, -0.2])
+    d_goal_x2 = np.array([0, -0.5])
+
+    # error scale matrices
+    Q = np.zeros((2, 2))
+    Q[0, 0] = 10.0
+    Q[1, 1] = 10.0
+
+
+    # penalty for actuation
+    R = np.array([[0.001]])
+
+    # state error
+    err = short_state - goal
+
+    d_err_1 = x1 + dt * v1 - d_goal_x1
+    d_err_2 = x2 + dt * v2 - d_goal_x2
+
+
+    # "control" input penalty
+    u = action * 5
+
+    # quadratic cost for u, quadratic cost for state
+    cost = np.einsum("i, ij, j", err, Q, err) + np.einsum("i, ij, j", u, R, u) + np.einsum("i, ij, j", d_err_1, Q, d_err_1) + np.einsum("i, ij, j", d_err_2, Q, d_err_2)
+    reward = -1 * cost
+
+    return reward
+

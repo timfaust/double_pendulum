@@ -73,7 +73,7 @@ sde_sample_freq = -1 #Sample a new noise matrix every n steps when using gSDE De
 use_sde_at_warmup = False #Whether to use gSDE instead of uniform sampling during the warm up phase
 # (before learning starts)
 
-training_steps = 1e6
+training_steps = 0.1 *10e6
 max_episode_steps = 500
 
 
@@ -90,8 +90,8 @@ save_freq=1e5
 
 if __name__ == '__main__':
     env_type = "pendubot"
-    default_env = GeneralEnv(env_type, default_dynamics, lambda obs, act: test(obs, act, env_type))
-    sac = Trainer('test', default_env, SAC, sac.MlpPolicy)
+    default_env = GeneralEnv(env_type, default_dynamics, lambda obs, act: unholy_reward_5(obs, act, env_type))
+    sac = Trainer('unholy_reward_5', default_env, SAC, sac.MlpPolicy)
 
     try:
         print("retraining last model")
@@ -128,4 +128,4 @@ if __name__ == '__main__':
 
     print("training finished")
 
-    # sac.simulate(model_path="/saved_model/trained_model")
+    sac.simulate(model_path="/saved_model/trained_model")
