@@ -102,10 +102,12 @@ class GeneralEnv(CustomEnv):
         canvas = pygame.Surface((self.window_size, self.window_size))
         y, x1, x2, v1, v2, action, goal, dt, threshold = get_state_values(self.observation, self.action, self.robot)
         x3 = x2 + dt * v2
-        if self.robot == "pendubot":
+        """if self.robot == "pendubot":
             action = action[0]
         else:
-            action = action[1]
+            action = action[1]"""
+
+        action = action[0]
         distance = np.linalg.norm(x2 - goal)
         distance_next = np.linalg.norm(x3 - goal)
         v1_total = np.linalg.norm(v1)

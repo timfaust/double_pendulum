@@ -59,22 +59,22 @@ def saturated_distance_from_target(observation, action, env_type):
 
     goal = [np.pi, 0]
     diff = y[:2] - goal
-    weight_vel = 0.01
+    weight = 0.001
 
     sigma_c = np.diag([1 / l[0], 1 / l[1]])
     #   encourage to minimize the distance
     sat_dist = np.dot(np.dot(diff.T, sigma_c), diff)
-    #sat_dist = np.linalg.norm(diff) ** 2
+
     #   encourage to have minimum torque change
-    exp_indx = - sat_dist - np.abs(np.einsum("i, ij, j", u, R, u))
+    exp_indx = - sat_dist - weight * np.abs(np.einsum("i, ij, j", u, R, u))
 
     #   encourage to have zero velocity as distance minimizes
-    exp_indx -= weight_vel * np.abs(np.linalg.norm(y[2:]) / (sat_dist + 0.0001))
+    exp_indx -= weight * np.abs(np.linalg.norm(y[2:]))
 
     exp_term = np.exp(exp_indx)
 
-    squared_dist = 1.0 - (exp_term / (sat_dist + 0.0001))
-    #print(-squared_dist * 1000)
+    squared_dist = 1.0 - (exp_term)
+
     return -squared_dist
 
 
