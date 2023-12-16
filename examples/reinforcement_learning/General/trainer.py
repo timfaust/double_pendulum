@@ -47,12 +47,13 @@ class ProgressBarManager(object):
 
 
 class Trainer:
-    def __init__(self, name, environment: Type[GeneralEnv], model: Type[BaseAlgorithm], policy: Type[BasePolicy], action_noise: Type[ActionNoise]):
+    def __init__(self, name, environment: Type[GeneralEnv], model: Type[BaseAlgorithm], policy: Type[BasePolicy], action_noise: Type[ActionNoise] = None):
         self.environment = environment
         self.log_dir = './log_data/' + name + '/' + environment.robot
         self.model = model
         self.policy = policy
         self.action_noise = action_noise
+        self.name = name
 
     def train(self, learning_rate, training_steps, max_episode_steps, eval_freq, n_envs=1, n_eval_episodes=1,
               save_freq=5000, show_progress_bar=True, same_environment=True, verbose=False, custom_param=None):
@@ -171,8 +172,7 @@ class Trainer:
 
     def simulate(self, model_path="/best_model/best_model", tf=10.0, save_video=True):
 
-        model_path = self.log_dir + model_path
-        controller = self.GeneralController(self.model, self.environment, model_path)
+        controller = self.get_controller(model_path)
         controller.init()
 
         T, X, U = controller.simulation.simulate_and_animate(
@@ -201,3 +201,20 @@ class Trainer:
             show=False,
             scale=0.5,
         )
+
+    def create_leader_board(self):
+        leaderboard_config = {
+        "csv_path": self.log_dir + "/sim_swingup.csv",
+        "name": self.name,
+        "simple_name": "SAC LQR",
+        "short_description": "Swing-up with an RL Policy learned with SAC.",
+        "readme_path": f"readmes/{self.name}.md",
+        "username": "chiniklas",
+        }
+
+        return leaderboard_config
+
+    def get_controller(self, model_path="/best_model/best_model"):
+        model_path = self.log_dir + model_path
+        controller = self.GeneralController(self.model, self.environment, model_path)
+        return controller
