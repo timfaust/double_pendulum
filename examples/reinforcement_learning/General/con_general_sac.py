@@ -24,10 +24,10 @@ name = "general_sac"
 leaderboard_config = {
     "csv_path": name + "/sim_swingup.csv",
     "name": name,
-    "simple_name": "SAC LQR",
+    "simple_name": "General SAC",
     "short_description": "Swing-up with an RL Policy learned with SAC.",
     "readme_path": f"readmes/{name}.md",
-    "username": "chiniklas",
+    "username": "erfan",
     }
 
 def general_dynamics(robot):
