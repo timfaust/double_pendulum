@@ -29,10 +29,10 @@ name = "general_sac_lqr"
 leaderboard_config = {
     "csv_path": name + "/sim_swingup.csv",
     "name": name,
-    "simple_name": "SAC LQR",
+    "simple_name": "General SAC LQR",
     "short_description": "Swing-up with an RL Policy learned with SAC.",
     "readme_path": f"readmes/{name}.md",
-    "username": "chiniklas",
+    "username": "erfan",
     }
 
 def general_dynamics(robot):
@@ -81,7 +81,7 @@ def condition2(t, x):
     diff = y[:2] - goal
     return np.linalg.norm(diff) < 0.1
 
-model_path = "../../../examples/reinforcement_learning/General/log_data/SAC_MLP_4/" + robot +"/best_model/best_model.zip"
+model_path = "../../../examples/reinforcement_learning/General/log_data/SAC_MLP_6/" + robot +"/best_model/best_model.zip"
 dynamics_function = general_dynamics(robot)
 controller1 = GeneralController(dynamics_func=dynamics_function, model_path=model_path)
 

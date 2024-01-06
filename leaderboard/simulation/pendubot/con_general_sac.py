@@ -25,10 +25,10 @@ name = "general_sac"
 leaderboard_config = {
     "csv_path": name + "/sim_swingup.csv",
     "name": name,
-    "simple_name": "SAC LQR",
+    "simple_name": "General SAC",
     "short_description": "Swing-up with an RL Policy learned with SAC.",
     "readme_path": f"readmes/{name}.md",
-    "username": "chiniklas",
+    "username": "erfan",
     }
 
 def general_dynamics(robot):
@@ -66,7 +66,7 @@ class GeneralController(AbstractController):
 
         return u
 
-model_path = "../../../examples/reinforcement_learning/General/log_data/SAC_MLP_4/" + robot +"/best_model/best_model.zip"
+model_path = "../../../examples/reinforcement_learning/General/log_data/SAC_MLP_6/" + robot +"/best_model/best_model.zip"
 dynamics_function = general_dynamics(robot)
 controller = GeneralController(dynamics_func=dynamics_function, model_path=model_path)
 
