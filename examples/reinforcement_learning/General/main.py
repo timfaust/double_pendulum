@@ -2,8 +2,8 @@ from examples.reinforcement_learning.General.dynamics_functions import default_d
 from examples.reinforcement_learning.General.environments import GeneralEnv
 from examples.reinforcement_learning.General.reward_functions import *
 from examples.reinforcement_learning.General.trainer import Trainer
-from stable_baselines3 import SAC, PPO, TD3, A2C, DDPG
-from stable_baselines3 import sac, ppo, td3, a2c, ddpg
+from sbx import SAC
+from sbx.sac.policies import SACPolicy
 from stable_baselines3.common.noise import OrnsteinUhlenbeckActionNoise
 import argparse
 
@@ -35,11 +35,11 @@ action_noise = OrnsteinUhlenbeckActionNoise(mean=np.array([0.0]), sigma=0.1 * np
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--name', default="SAC_MLP_8")
+    parser.add_argument('--name', default="SAC_MLP_1")
     parser.add_argument('--mode', default="train", choices=["train", "retrain", "simulate"])
     parser.add_argument('--model_path', default="/best_model/best_model")
-    parser.add_argument('--env_type', default="pendubot", choices=["pendubot", "acrobot"])
-    parser.add_argument('--use_custom_param', default='True', choices=["True", "False"])
+    parser.add_argument('--env_type', default="acrobot", choices=["pendubot", "acrobot"])
+    parser.add_argument('--use_custom_param', default='False', choices=["True", "False"])
     parser.add_argument('--custom_param_name', default="SAC_Custom")
 
     args = parser.parse_args()
@@ -47,7 +47,7 @@ if __name__ == '__main__':
 
     default_env = GeneralEnv(env_type, default_dynamics,
                              lambda obs, act: saturated_distance_from_target(obs, act, env_type))
-    sac = Trainer(args.name, default_env, SAC, sac.MlpPolicy, action_noise)
+    sac = Trainer(args.name, default_env, SAC, SACPolicy, action_noise)
 
     if args.mode == "train":
         custom_param = None
@@ -55,8 +55,8 @@ if __name__ == '__main__':
             custom_param = args.custom_param_name
 
         print("training new model")
-        sac.train(learning_rate=0.0001,
-                  training_steps=1e6,
+        sac.train(learning_rate=1e-2,
+                  training_steps=3e6,
                   max_episode_steps=300,
                   eval_freq=1e4,
                   n_envs=10,

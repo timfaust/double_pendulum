@@ -59,7 +59,7 @@ def saturated_distance_from_target(observation, action, env_type):
 
     goal = [np.pi, 0]
     diff = y[:2] - goal
-    weight = 0.001
+    weight = 0.01
 
     sigma_c = np.diag([1 / l[0], 1 / l[1]])
     #   encourage to minimize the distance
@@ -73,7 +73,7 @@ def saturated_distance_from_target(observation, action, env_type):
 
     exp_term = np.exp(exp_indx)
 
-    squared_dist = 1.0 - (exp_term)
+    squared_dist = 1.0 - exp_term
 
     return -squared_dist
 
