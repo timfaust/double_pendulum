@@ -209,21 +209,20 @@ class Non_mdp_reward:
         # get normal reward and state
         normal_reward = saturated_distance_from_target_with_past_knowledge(observation, action, env_type)
         y, pos1, pos2, vel1, vel2, u, _, _, _ = get_state_values(observation, action, env_type)
-        state = [pos1, pos2, vel1, vel2]
+        state = np.concatenate([pos1, pos2, vel1, vel2])
 
 
-
-        # "break the MDP" by getting past information
-        past_states = np.array(self.history_s[-10:])
-        past_reward = np.array(self.history_r[-10:])
-        past_actions = np.array(self.history_a[-10:])
-
-
-
-        if len(past_states) > 10:
+        if len(self.history_s) > 10:
 
             #### Method with Variance #########
             # calc metrics
+
+            # "break the MDP" by getting past information
+            test =1
+            past_states = np.array(self.history_s[-10:])
+            past_reward = np.array(self.history_r[-10:])
+            past_actions = np.array(self.history_a[-10:])
+
             mean_s = np.mean(past_states)
             mean_r = np.mean(past_reward)
             mean_a = np.mean(past_actions)
@@ -243,6 +242,7 @@ class Non_mdp_reward:
 
 
             reward = normal_reward - action_derivative
+            reward = reward[0]
         else: reward = normal_reward
 
 

@@ -29,7 +29,7 @@ def exponential_schedule(initial_value):
     return func
 
 
-training_steps = 1e6 * 0.1
+training_steps = 1e6
 learning_rate = exponential_schedule(0.01)
 action_noise = OrnsteinUhlenbeckActionNoise(mean=np.array([0.0]), sigma=0.1 * np.ones(1), theta=0.15, dt=1e-2)
 
@@ -61,7 +61,7 @@ if __name__ == '__main__':
         print("training new model")
         sac.train(learning_rate=1e-2,
                   training_steps=training_steps,
-                  max_episode_steps=300,
+                  max_episode_steps=200,
                   eval_freq=1e4,
                   n_envs=10,
                   show_progress_bar=False,
