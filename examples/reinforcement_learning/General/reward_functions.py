@@ -1,7 +1,6 @@
 import numpy as np
 from double_pendulum.utils.wrap_angles import wrap_angles_diff
 
-
 def get_state_values(observation, action, robot):
     l = [0.2, 0.3]
     if robot == 'pendubot':
@@ -30,6 +29,8 @@ def get_state_values(observation, action, robot):
     goal = np.array([0, -0.5])
 
     return s, x1, x2, v1, v2, action * 5, goal, 0.05, 0.005
+
+
 
 
 def future_pos_reward(observation, action, env_type):
@@ -155,3 +156,101 @@ def unholy_reward_4(observation, action, env_type):
     #else try: PID style --> "Damping"
 
     return reward
+
+
+
+################   include past knowledge ####################
+
+def saturated_distance_from_target_with_past_knowledge(observation, action, env_type):
+    l = [0.2, 0.3]
+    if env_type == 'pendubot':
+        l = [0.3, 0.2]
+
+    R = np.array([[0.0001]])
+
+    y, pos1, pos2, vel1, vel2, u, _, _, _ = get_state_values(observation, action, env_type)
+
+
+
+
+    goal = [np.pi, 0]
+    diff = y[:2] - goal
+    weight = 0.01
+
+    sigma_c = np.diag([1 / l[0], 1 / l[1]])
+    #   encourage to minimize the distance
+    sat_dist = np.dot(np.dot(diff.T, sigma_c), diff)
+
+    #   encourage to have minimum torque change
+    exp_indx = - sat_dist - np.abs(np.einsum("i, ij, j", u, R, u))
+
+    #   encourage to have zero velocity as distance minimizes
+    exp_indx -= weight * np.abs(np.linalg.norm(y[2:]))
+
+    exp_term = np.exp(exp_indx)
+
+    squared_dist = 1.0 - exp_term
+
+
+
+
+    return -squared_dist
+
+
+class Non_mdp_reward:
+    def __init__(self, training_steps=1e6 * 0.1):
+        self.training_steps = training_steps
+        self.history_s = [] #np.zeros((4, self.training_steps))  # state at t=0 up to state at t=T for each experiment
+        self.history_r = [] #np.zeros((1, self.training_steps))  # reward at t=0 up to reward at t=T for each experiment
+        self.history_a = []
+
+    def calc_non_mdp_reward(self, observation, action, env_type):
+
+        # get normal reward and state
+        normal_reward = saturated_distance_from_target_with_past_knowledge(observation, action, env_type)
+        y, pos1, pos2, vel1, vel2, u, _, _, _ = get_state_values(observation, action, env_type)
+        state = [pos1, pos2, vel1, vel2]
+
+
+
+        # "break the MDP" by getting past information
+        past_states = np.array(self.history_s[-10:])
+        past_reward = np.array(self.history_r[-10:])
+        past_actions = np.array(self.history_a[-10:])
+
+
+
+        if len(past_states) > 10:
+
+            #### Method with Variance #########
+            # calc metrics
+            mean_s = np.mean(past_states)
+            mean_r = np.mean(past_reward)
+            mean_a = np.mean(past_actions)
+
+            var_s = np.mean((past_states - mean_s) ** 2)
+            var_r = np.mean((past_reward - mean_r) ** 2)
+            var_a = np.mean((past_actions - mean_a) ** 2) #use this
+
+
+        ###### Method with Finite Differences ######
+        # for n steps
+        n = 10
+        if len(self.history_a) > n:
+            recent_actions = self.history_a[-n:]
+            all_delta_a = [recent_actions[i] - recent_actions[i-1] for i in range(len(recent_actions))]
+            action_derivative = sum([abs(diff) for diff in all_delta_a])
+
+
+            reward = normal_reward - action_derivative
+        else: reward = normal_reward
+
+
+        # append the history
+        self.history_s.append(state)
+        self.history_r.append(reward)
+        self.history_a.append(action)
+
+        return reward
+
+

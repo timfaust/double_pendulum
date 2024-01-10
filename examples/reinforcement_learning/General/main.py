@@ -29,6 +29,7 @@ def exponential_schedule(initial_value):
     return func
 
 
+training_steps = 1e6 * 0.1
 learning_rate = exponential_schedule(0.01)
 action_noise = OrnsteinUhlenbeckActionNoise(mean=np.array([0.0]), sigma=0.1 * np.ones(1), theta=0.15, dt=1e-2)
 
@@ -45,9 +46,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
     env_type = args.env_type
 
+    Non_mdp_reward_ = Non_mdp_reward()
+
     default_env = GeneralEnv(env_type, default_dynamics,
-                             lambda obs, act: saturated_distance_from_target(obs, act, env_type))
+                             lambda obs, act: Non_mdp_reward_.calc_non_mdp_reward(obs, act, env_type))
     sac = Trainer(args.name, default_env, SAC, SACPolicy, action_noise)
+
 
     if args.mode == "train":
         custom_param = None
@@ -56,7 +60,7 @@ if __name__ == '__main__':
 
         print("training new model")
         sac.train(learning_rate=1e-2,
-                  training_steps=3e6,
+                  training_steps=training_steps,
                   max_episode_steps=300,
                   eval_freq=1e4,
                   n_envs=10,
@@ -71,7 +75,7 @@ if __name__ == '__main__':
             print("retraining last model")
             sac.retrain_model(model_path=args.model_path,
                               learning_rate=learning_rate,
-                              training_steps=1e6,
+                              training_steps=training_steps,
                               max_episode_steps=300,
                               eval_freq=1e4,
                               n_envs=100,
@@ -83,3 +87,13 @@ if __name__ == '__main__':
 
     if args.mode == "simulate":
         sac.simulate(model_path=args.model_path, save_video=False)
+
+"""
+create history matrix of all states and actions 
+add every state and every action into it
+
+new reward where an altered state is introduced
+in this state a deviation regarding the past 10 states and past 10 rewards is incluedd
+if there are more than 10 past states 
+
+"""
