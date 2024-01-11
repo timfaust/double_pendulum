@@ -35,7 +35,7 @@ action_noise = OrnsteinUhlenbeckActionNoise(mean=np.array([0.0]), sigma=0.1 * np
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--name', default="SAC_MLP_1")
+    parser.add_argument('--name', default="SAC_MLP_3")
     parser.add_argument('--mode', default="train", choices=["train", "retrain", "simulate"])
     parser.add_argument('--model_path', default="/best_model/best_model")
     parser.add_argument('--env_type', default="acrobot", choices=["pendubot", "acrobot"])
@@ -56,10 +56,10 @@ if __name__ == '__main__':
 
         print("training new model")
         sac.train(learning_rate=1e-2,
-                  training_steps=3e6,
+                  training_steps=0.5e6,
                   max_episode_steps=300,
                   eval_freq=1e4,
-                  n_envs=10,
+                  n_envs=1,
                   show_progress_bar=False,
                   save_freq=1e4,
                   verbose=True,

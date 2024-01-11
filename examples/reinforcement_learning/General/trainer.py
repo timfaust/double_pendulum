@@ -1,9 +1,10 @@
 import os
 from typing import Type
-
+import flax.linen as nn
 import numpy as np
 import json
 from double_pendulum.utils.csv_trajectory import save_trajectory
+import jax
 from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.policies import BasePolicy
@@ -18,6 +19,8 @@ from stable_baselines3.common.noise import ActionNoise
 from examples.reinforcement_learning.General.environments import GeneralEnv
 from double_pendulum.controller.abstract_controller import AbstractController
 from double_pendulum.utils.plotting import plot_timeseries
+
+from examples.reinforcement_learning.General.sbx.sac.sac import SAC
 
 
 class ProgressBarCallback(BaseCallback):
@@ -45,6 +48,9 @@ class ProgressBarManager(object):
         self.pbar.update(0)
         self.pbar.close()
 
+class ReLU(nn.Module):
+    def __call__(self, x):
+        return nn.relu(x)
 
 class Trainer:
     def __init__(self, name, environment: Type[GeneralEnv], model: Type[BaseAlgorithm], policy: Type[BasePolicy], action_noise: Type[ActionNoise] = None):
@@ -67,12 +73,48 @@ class Trainer:
 
         callback_list = self.get_callback_list(eval_freq, n_envs, n_eval_episodes, save_freq, verbose)
 
-        agent = self.model(
-            self.policy,
+        # agent = self.model(
+        #     self.policy,
+        #     envs,
+        #     verbose=verbose,
+        #     tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
+        #     learning_rate=learning_rate,
+        #     action_noise=self.action_noise
+        # )
+
+        import optax
+        agent = SAC(
+            "MlpPolicy",
             envs,
             verbose=verbose,
-            tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
+            policy_kwargs=dict({
+                'activation_fn': ReLU,
+                'layer_norm': False,
+                'batch_norm': True,
+                'batch_norm_momentum': 0.9,
+                'batch_norm_mode': "bn",
+                'dropout_rate': None,
+                'n_critics': 2,
+                'optimizer_class': optax.adam,
+                'optimizer_kwargs': dict({
+                    'b1': 0.9, #0.5
+                    'b2': 0.999  # default
+                })
+            }),
+            gradient_steps=1,
+            #policy_delay=3,
+            crossq_style=True,
+            td3_mode=False,
+            use_bnstats_from_live_net=False,
+            policy_q_reduce_fn=jax.numpy.min,
+            learning_starts=5000,
             learning_rate=learning_rate,
+            qf_learning_rate=learning_rate,
+            #tau=1.0,
+            gamma=0.99,
+            buffer_size=1_000_000,
+            stats_window_size=1,  # don't smooth the episode return stats over time
+            tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
             action_noise=self.action_noise
         )
 
