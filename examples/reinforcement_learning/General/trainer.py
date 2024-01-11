@@ -96,24 +96,24 @@ class Trainer:
                 'dropout_rate': None,
                 'n_critics': 2,
                 'optimizer_class': optax.adam,
-                'optimizer_kwargs': dict({
-                    'b1': 0.9, #0.5
-                    'b2': 0.999  # default
-                })
+                # 'optimizer_kwargs': dict({
+                #     'b1': 0.9, #0.5
+                #     'b2': 0.999  # default
+                # })
             }),
-            gradient_steps=1,
-            #policy_delay=3,
-            crossq_style=True,
-            td3_mode=False,
-            use_bnstats_from_live_net=False,
-            policy_q_reduce_fn=jax.numpy.min,
-            learning_starts=5000,
+            # gradient_steps=1,
+            # policy_delay=3,
+            # crossq_style=True,
+            # td3_mode=False,
+            # use_bnstats_from_live_net=False,
+            # policy_q_reduce_fn=jax.numpy.min,
+            # learning_starts=5000,
             learning_rate=learning_rate,
-            qf_learning_rate=learning_rate,
-            #tau=1.0,
-            gamma=0.99,
-            buffer_size=1_000_000,
-            stats_window_size=1,  # don't smooth the episode return stats over time
+            # qf_learning_rate=learning_rate,
+            # tau=1.0,
+            # gamma=0.99,
+            # buffer_size=1_000_000,
+            # stats_window_size=1,  # don't smooth the episode return stats over time
             tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
             action_noise=self.action_noise
         )
