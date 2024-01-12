@@ -233,18 +233,24 @@ class Non_mdp_reward:
 
         ###### Method with Finite Differences ######
         # for n steps
-        n = 5
+        n = 3
 
         if len(self.history_a) > n:
-            recent_actions = self.history_a[-2:]
-            all_delta_a = [recent_actions[i] - recent_actions[i-1] for i in range(len(recent_actions))]
-            action_derivative = sum([abs(diff) for diff in all_delta_a])
+            #recent_actions = self.history_a[-2:]
+            delta_a = action - self.history_a[-1:]
+            #all_delta_a = [recent_actions[i] - recent_actions[i-1] for i in range(len(recent_actions))]
+            #action_derivative = sum([abs(diff) for diff in all_delta_a])
 
-# TODO: add delta action, keep last action and cal delta, put also a limit, clip it if the pendulum is nearly upright
+# TODO: add delta action, keep last action and calc delta, put also a limit, clip it if the pendulum is nearly upright
             #TODO: take data from good policy and train on that, (data has behaviour that we want)
 
-            reward = normal_reward - action_derivative * 0.2  #- var_a * 0.1 + var_r * 0.1
+            close_to_upright_pos1_x = [ 0.8 * 0.2]
+            close_to_upright_pos2_x = [0.8 * 0.5]
+
+            if pos1[0] > close_to_upright_pos1_x and pos2[0] > close_to_upright_pos2_x:
+                reward = normal_reward -  0.3 * delta_a #action_derivative * 0.2  #- var_a * 0.1 + var_r * 0.1
             #reward = reward[0] * 0.1 for action derivative, still a bug
+            else: reward = normal_reward - 0.05 * delta_a
         else: reward = normal_reward
 
 
