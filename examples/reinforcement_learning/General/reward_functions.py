@@ -212,37 +212,39 @@ class Non_mdp_reward:
         state = np.concatenate([pos1, pos2, vel1, vel2])
 
 
-        if len(self.history_s) > 10:
+        #if len(self.history_s) > 3:
 
             #### Method with Variance #########
             # calc metrics
 
             # "break the MDP" by getting past information
-            test =1
-            past_states = np.array(self.history_s[-10:])
-            past_reward = np.array(self.history_r[-10:])
-            past_actions = np.array(self.history_a[-10:])
+            #past_states = np.array(self.history_s[-10:])
+            #past_reward = np.array(self.history_r[-2:])
+            #past_actions = np.array(self.history_a[-2:])
 
-            mean_s = np.mean(past_states)
-            mean_r = np.mean(past_reward)
-            mean_a = np.mean(past_actions)
+            #mean_s = np.mean(past_states)
+            #mean_r = np.mean(past_reward)
+            #mean_a = np.mean(past_actions)
 
-            var_s = np.mean((past_states - mean_s) ** 2)
-            var_r = np.mean((past_reward - mean_r) ** 2)
-            var_a = np.mean((past_actions - mean_a) ** 2) #use this
+            #var_s = np.mean((past_states - mean_s) ** 2)
+            #var_r = np.mean((past_reward - mean_r) ** 2)
+            #var_a = np.mean((past_actions - mean_a) ** 2) #use this
 
 
         ###### Method with Finite Differences ######
         # for n steps
-        n = 10
+        n = 5
+
         if len(self.history_a) > n:
-            recent_actions = self.history_a[-n:]
+            recent_actions = self.history_a[-2:]
             all_delta_a = [recent_actions[i] - recent_actions[i-1] for i in range(len(recent_actions))]
             action_derivative = sum([abs(diff) for diff in all_delta_a])
 
+# TODO: add delta action, keep last action and cal delta, put also a limit, clip it if the pendulum is nearly upright
+            #TODO: take data from good policy and train on that, (data has behaviour that we want)
 
-            reward = normal_reward - action_derivative
-            reward = reward[0]
+            reward = normal_reward - action_derivative * 0.2  #- var_a * 0.1 + var_r * 0.1
+            #reward = reward[0] * 0.1 for action derivative, still a bug
         else: reward = normal_reward
 
 

@@ -62,7 +62,7 @@ if __name__ == '__main__':
         sac.train(learning_rate=1e-2,
                   training_steps=training_steps,
                   max_episode_steps=200,
-                  eval_freq=1e4,
+                  eval_freq=1e5,
                   n_envs=10,
                   show_progress_bar=False,
                   save_freq=1e4,
@@ -77,7 +77,7 @@ if __name__ == '__main__':
                               learning_rate=learning_rate,
                               training_steps=training_steps,
                               max_episode_steps=300,
-                              eval_freq=1e4,
+                              eval_freq=1e5,
                               n_envs=100,
                               show_progress_bar=False,
                               verbose=True,
@@ -86,14 +86,5 @@ if __name__ == '__main__':
             print(e)
 
     if args.mode == "simulate":
-        sac.simulate(model_path=args.model_path, save_video=False)
+        sac.simulate(model_path=args.model_path, save_video=True)
 
-"""
-create history matrix of all states and actions 
-add every state and every action into it
-
-new reward where an altered state is introduced
-in this state a deviation regarding the past 10 states and past 10 rewards is incluedd
-if there are more than 10 past states 
-
-"""
