@@ -1,4 +1,4 @@
-from examples.reinforcement_learning.General.dynamics_functions import default_dynamics
+from examples.reinforcement_learning.General.dynamics_functions import default_dynamics, push_dynamics, random_dynamics
 from examples.reinforcement_learning.General.environments import GeneralEnv
 from examples.reinforcement_learning.General.reward_functions import *
 from examples.reinforcement_learning.General.trainer import Trainer
@@ -35,17 +35,17 @@ action_noise = OrnsteinUhlenbeckActionNoise(mean=np.array([0.0]), sigma=0.1 * np
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--name', default="SAC_MLP_1")
+    parser.add_argument('--name', default="future_pos")
     parser.add_argument('--mode', default="train", choices=["train", "retrain", "simulate"])
     parser.add_argument('--model_path', default="/best_model/best_model")
-    parser.add_argument('--env_type', default="acrobot", choices=["pendubot", "acrobot"])
+    parser.add_argument('--env_type', default="pendubot", choices=["pendubot", "acrobot"])
     parser.add_argument('--use_custom_param', default='False', choices=["True", "False"])
     parser.add_argument('--custom_param_name', default="SAC_Custom")
 
     args = parser.parse_args()
     env_type = args.env_type
 
-    default_env = GeneralEnv(env_type, default_dynamics,
+    default_env = GeneralEnv(env_type, random_dynamics,
                              lambda obs, act: saturated_distance_from_target(obs, act, env_type))
     sac = Trainer(args.name, default_env, SAC, SACPolicy, action_noise)
 
@@ -58,12 +58,13 @@ if __name__ == '__main__':
         sac.train(learning_rate=1e-2,
                   training_steps=3e6,
                   max_episode_steps=300,
-                  eval_freq=1e4,
+                  eval_freq=1e5,
                   n_envs=10,
                   show_progress_bar=False,
                   save_freq=1e4,
                   verbose=True,
-                  custom_param=custom_param
+                  custom_param=custom_param,
+                  same_environment=False
                   )
         print("training finished")
     if args.mode == "retrain":
@@ -82,4 +83,4 @@ if __name__ == '__main__':
             print(e)
 
     if args.mode == "simulate":
-        sac.simulate(model_path=args.model_path, save_video=False)
+        sac.simulate(model_path=args.model_path, save_video=True)

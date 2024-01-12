@@ -1,12 +1,12 @@
+import time
+
 import numpy as np
 from double_pendulum.model.symbolic_plant import SymbolicDoublePendulum
 from double_pendulum.simulation.simulation import Simulator
 from double_pendulum.simulation.gym_env import double_pendulum_dynamics_func
 from double_pendulum.model.model_parameters import model_parameters
 
-
-#TODO: make random
-class RandomDoublePendulum(SymbolicDoublePendulum):
+class PushDoublePendulum(SymbolicDoublePendulum):
     def __int__(self, model_pars):
         super().__init__(model_pars=model_pars)
 
@@ -21,6 +21,11 @@ class RandomDoublePendulum(SymbolicDoublePendulum):
         Minv = np.linalg.inv(M)
 
         force = np.dot(self.B, u) - np.dot(C, vel) + G - F
+
+        if abs(x[0] - 0) < 0.1 and abs(x[1] - 1) < 0.1:
+            if np.random.uniform(0, 1) < 0.1:
+                print("push")
+                force += (0.5 - np.random.uniform(0, 1)) * np.array([5, 5])
 
         accn = Minv.dot(force)
         return accn
@@ -53,9 +58,21 @@ def load_param(robot, torque_limit=5.0):
     return mpar
 
 
-def random_dynamics(robot):
+def random_dynamics(robot, sigma=0.01):
+    start = time.time()
     mpar = load_param(robot)
-    plant = RandomDoublePendulum(model_pars=mpar)
+    mpar.g = np.random.normal(mpar.g, sigma)
+    mpar.m = np.random.normal(mpar.m, sigma)
+    mpar.l = np.random.normal(mpar.l, sigma).tolist()
+    mpar.cf = abs(np.random.normal(mpar.cf, sigma)).tolist()
+    plant = SymbolicDoublePendulum(model_pars=mpar)
+    print(time.time() - start)
+    return general_dynamics(robot, plant)
+
+
+def push_dynamics(robot):
+    mpar = load_param(robot)
+    plant = PushDoublePendulum(model_pars=mpar)
     return general_dynamics(robot, plant)
 
 
