@@ -64,18 +64,16 @@ def load_param(robot, torque_limit=5.0):
 
     return mpar
 
-
-def random_dynamics(robot, sigma=0.02, plant_class=SymbolicDoublePendulum):
+def random_dynamics(robot, sigma=0.02, plant_class=SymbolicDoublePendulum, use_random=True):
     start = time.time()
     mpar = load_param(robot)
-    mpar.g = np.random.normal(mpar.g, sigma)
-    mpar.m = np.random.normal(mpar.m, sigma)
-    mpar.l = np.random.normal(mpar.l, sigma).tolist()
-    mpar.cf = abs(np.random.normal(mpar.cf, sigma)).tolist()
+    if use_random:
+        mpar.g = np.random.normal(mpar.g, sigma)
+        mpar.m = np.random.normal(mpar.m, sigma)
+        mpar.l = np.random.normal(mpar.l, sigma).tolist()
+        mpar.cf = abs(np.random.normal(mpar.cf, sigma)).tolist()
     plant = plant_class(model_pars=mpar)
-    print(time.time() - start)
     return general_dynamics(robot, plant)
-
 
 def push_dynamics(robot):
     mpar = load_param(robot)

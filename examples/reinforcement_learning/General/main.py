@@ -35,10 +35,10 @@ action_noise = OrnsteinUhlenbeckActionNoise(mean=np.array([0.0]), sigma=0.1 * np
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--name', default="future_pos")
+    parser.add_argument('--name', default="SAC_randomdyn_lr0.1_tw_dist_0.0001_vw_dist_0.0001")
     parser.add_argument('--mode', default="train", choices=["train", "retrain", "simulate"])
     parser.add_argument('--model_path', default="/best_model/best_model")
-    parser.add_argument('--env_type', default="pendubot", choices=["pendubot", "acrobot"])
+    parser.add_argument('--env_type', default="acrobot", choices=["pendubot", "acrobot"])
     parser.add_argument('--use_custom_param', default='False', choices=["True", "False"])
     parser.add_argument('--custom_param_name', default="SAC_Custom")
 
@@ -56,12 +56,12 @@ if __name__ == '__main__':
 
         print("training new model")
         sac.train(learning_rate=1e-2,
-                  training_steps=3e6,
+                  training_steps=5e6,
                   max_episode_steps=300,
-                  eval_freq=1e5,
+                  eval_freq=1e4,
                   n_envs=10,
                   show_progress_bar=False,
-                  save_freq=1e4,
+                  save_freq=1e6,
                   verbose=True,
                   custom_param=custom_param,
                   same_environment=False
@@ -71,16 +71,17 @@ if __name__ == '__main__':
         try:
             print("retraining last model")
             sac.retrain_model(model_path=args.model_path,
-                              learning_rate=learning_rate,
-                              training_steps=1e6,
+                              learning_rate=1e-2,
+                              training_steps=3e6,
                               max_episode_steps=300,
-                              eval_freq=1e4,
-                              n_envs=100,
+                              eval_freq=1e3,
+                              n_envs=10,
                               show_progress_bar=False,
                               verbose=True,
-                              save_freq=1e4)
+                              save_freq=1e5,
+                              same_environment=False)
         except Exception as e:
             print(e)
 
     if args.mode == "simulate":
-        sac.simulate(model_path=args.model_path, save_video=True)
+        sac.simulate(model_path=args.model_path, save_video=False)
