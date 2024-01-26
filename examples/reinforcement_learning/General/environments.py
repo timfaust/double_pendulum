@@ -36,7 +36,7 @@ class GeneralEnv(CustomEnv):
             dynamics_function,
             reward_function,
             no_termination,
-            noisy_reset,
+            balanced_reset,
             gym.spaces.Box(np.array([-1.0, -1.0, -1.0, -1.0]), np.array([1.0, 1.0, 1.0, 1.0])),
             gym.spaces.Box(np.array([-1]), np.array([1])),
             max_episode_steps,

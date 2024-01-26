@@ -75,7 +75,8 @@ class Trainer:
             verbose=verbose,
             tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
             learning_rate=learning_rate,
-            action_noise=self.action_noise
+            action_noise=self.action_noise,
+            gradient_steps=3
         )
 
         if custom_param is not None:

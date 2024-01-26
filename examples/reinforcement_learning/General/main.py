@@ -36,10 +36,10 @@ action_noise = OrnsteinUhlenbeckActionNoise(mean=np.array([0.0]), sigma=0.1 * np
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--name', default="SAC_randomdyn_lr0.1_tw_dist_0.0001_vw_dist_0.0001")
+    parser.add_argument('--name', default="pendubot_old")
     parser.add_argument('--mode', default="train", choices=["train", "retrain", "simulate"])
     parser.add_argument('--model_path', default="/best_model/best_model")
-    parser.add_argument('--env_type', default="acrobot", choices=["pendubot", "acrobot"])
+    parser.add_argument('--env_type', default="pendubot", choices=["pendubot", "acrobot"])
     parser.add_argument('--use_custom_param', default='False', choices=["True", "False"])
     parser.add_argument('--custom_param_name', default="SAC_Custom")
 
@@ -47,7 +47,7 @@ if __name__ == '__main__':
     env_type = args.env_type
 
     default_env = GeneralEnv(env_type, random_dynamics,
-                             lambda obs, act: saturated_distance_from_target(obs, act, env_type))
+                             lambda obs, act: future_pos_reward(obs, act, env_type))
     sac = Trainer(args.name, default_env, SAC, SACPolicy, action_noise)
 
     if args.mode == "train":
@@ -56,10 +56,10 @@ if __name__ == '__main__':
             custom_param = args.custom_param_name
 
         print("training new model")
-        sac.train(learning_rate=1e-2,
-                  training_steps=5e6,
-                  max_episode_steps=300,
-                  eval_freq=1e4,
+        sac.train(learning_rate=1e-3,
+                  training_steps=10e6,
+                  max_episode_steps=1000,
+                  eval_freq=1e5,
                   n_envs=10,
                   show_progress_bar=False,
                   save_freq=1e6,
