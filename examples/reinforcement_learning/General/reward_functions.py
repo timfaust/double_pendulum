@@ -9,8 +9,8 @@ def get_state_values(observation, action, robot):
 
     s = np.array(
         [
-            observation[0] * np.pi + np.pi,
-            observation[1] * np.pi + np.pi,
+            observation[0] * 2 * np.pi + np.pi,
+            observation[1] * 2 * np.pi,
             observation[2] * 20,
             observation[3] * 20
         ]

@@ -19,6 +19,8 @@ from examples.reinforcement_learning.General.environments import GeneralEnv
 from double_pendulum.controller.abstract_controller import AbstractController
 from double_pendulum.utils.plotting import plot_timeseries
 
+from examples.reinforcement_learning.General.misc_helper import low_reset
+
 
 class ProgressBarCallback(BaseCallback):
     def __init__(self, pbar):
@@ -113,8 +115,9 @@ class Trainer:
 
     def get_callback_list(self, eval_freq, n_envs=1, n_eval_episodes=1, save_freq=5000, verbose=False):
 
-        eval_env = self.environment
+        eval_env = self.environment.clone()
         eval_env.render_mode = 'human'
+        eval_env.reset_func = low_reset
         eval_env = Monitor(eval_env, self.log_dir)
 
         eval_callback = EvalCallback(

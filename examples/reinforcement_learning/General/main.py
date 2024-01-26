@@ -1,5 +1,6 @@
 from examples.reinforcement_learning.General.dynamics_functions import default_dynamics, push_dynamics, random_dynamics
 from examples.reinforcement_learning.General.environments import GeneralEnv
+from examples.reinforcement_learning.General.misc_helper import low_reset
 from examples.reinforcement_learning.General.reward_functions import *
 from examples.reinforcement_learning.General.trainer import Trainer
 from sbx import SAC
@@ -64,7 +65,7 @@ if __name__ == '__main__':
                   save_freq=1e6,
                   verbose=True,
                   custom_param=custom_param,
-                  same_environment=False
+                  same_environment=True
                   )
         print("training finished")
     if args.mode == "retrain":
@@ -84,4 +85,5 @@ if __name__ == '__main__':
             print(e)
 
     if args.mode == "simulate":
-        sac.simulate(model_path=args.model_path, save_video=False)
+        sac.environment.reset_func = low_reset
+        sac.simulate(model_path=args.model_path, save_video=True)
