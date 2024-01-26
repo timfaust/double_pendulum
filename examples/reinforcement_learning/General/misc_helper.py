@@ -8,19 +8,19 @@ def general_reset(x_values, dx_values):
 
 
 def low_reset():
-    return general_reset([1, 1, 0, 0], [0.05, 0.05, 0.05, 0.05])
+    return general_reset([0.5, 0, 0, 0], [0.025, 0.025, 0.05, 0.05])
 
 
 def high_reset():
-    return general_reset([0, 1, 0, 0], [0.05, 0.05, 0.05, 0.05])
+    return general_reset([0, 0, 0, 0], [0.025, 0.025, 0.05, 0.05])
 
 
 def random_reset():
-    return general_reset([0, 0, 0, 0], [1, 1, 0.75, 0.75])
+    return general_reset([0, 0.5, 0, 0], [0.5, 0.5, 0.75, 0.75])
 
 
 def semi_random_reset():
-    return general_reset([0, 1, 0, 0], [1, 0.2, 0.5, 0.2])
+    return general_reset([0, 0, 0, 0], [0.5, 0.1, 0.5, 0.2])
 
 
 def balanced_reset():
@@ -36,9 +36,9 @@ def balanced_reset():
 
 
 def noisy_reset():
-    rand = np.random.rand(4) * 0.01
-    rand[2:] = rand[2:] - 0.05
-    observation = [-1.0, -1.0, 0.0, 0.0] + rand
+    rand = np.random.rand(4) * 0.005
+    rand[2:] = rand[2:] - 0.025
+    observation = [0.5, 0.0, 0.0, 0.0] + rand
     return observation
 
 

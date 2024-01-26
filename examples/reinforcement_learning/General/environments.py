@@ -48,6 +48,25 @@ class GeneralEnv(CustomEnv):
         self.window = None
         self.clock = None
 
+    def clone(self):
+        cloned_env = GeneralEnv(
+            robot=self.robot,
+            dynamics_function=self.dynamics_function,
+            reward_function=self.reward_function,
+            log_dir=self.log_dir,
+            max_episode_steps=self.max_episode_steps,
+            scaling=True
+        )
+
+        cloned_env.pendulum_length = self.pendulum_length
+        cloned_env.reward = self.reward
+        cloned_env.action = np.array(self.action, copy=True)
+        cloned_env.acc_reward = self.acc_reward
+        cloned_env.window = None
+        cloned_env.clock = None
+
+        return cloned_env
+
     def get_envs(self, n_envs, log_dir, same):
         if same:
             dynamics_function = self.dynamics_func
@@ -112,6 +131,8 @@ class GeneralEnv(CustomEnv):
         distance_next = np.linalg.norm(x3 - goal)
         v1_total = np.linalg.norm(v1)
         v2_total = np.linalg.norm(v2)
+        x_1 = self.observation[0]
+        x_2 = self.observation[1]
         canvas.fill((255, 255, 255))
 
         if distance_next < threshold:
@@ -127,10 +148,13 @@ class GeneralEnv(CustomEnv):
         pygame.draw.circle(canvas, (95, 2, 99), self.getXY(x3), threshold * 2 * self.pendulum_length)
 
         myFont = pygame.font.SysFont("Times New Roman", 36)
-        acc_reward = myFont.render(str(round(self.acc_reward, 5)), 1, (0, 0, 0), )
-        reward = myFont.render(str(round(self.reward, 5)), 1, (0, 0, 0), )
+        acc_reward = myFont.render(str(np.round(self.acc_reward, 5)), 1, (0, 0, 0), )
+        reward = myFont.render(str(np.round(self.reward, 5)), 1, (0, 0, 0), )
         canvas.blit(acc_reward, (10, 10))
         canvas.blit(reward, (10, 60))
+        canvas.blit(myFont.render(str(self.step_counter), 1, (0, 0, 0), ), (10, self.window_size - 320))
+        canvas.blit(myFont.render(str(round(x_1, 4)), 1, (0, 0, 0), ), (10, self.window_size - 280))
+        canvas.blit(myFont.render(str(round(x_2, 4)), 1, (0, 0, 0), ), (10, self.window_size - 240))
         canvas.blit(myFont.render(str(round(distance, 4)), 1, (0, 0, 0), ), (10, self.window_size - 200))
         canvas.blit(myFont.render(str(round(distance_next, 4)), 1, (0, 0, 0), ), (10, self.window_size - 160))
         canvas.blit(myFont.render(str(round(v1_total, 4)), 1, (0, 0, 0), ), (10, self.window_size - 120))
