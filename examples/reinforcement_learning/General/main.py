@@ -46,7 +46,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     env_type = args.env_type
 
-    default_env = GeneralEnv(env_type, random_dynamics,
+    default_env = GeneralEnv(env_type, default_dynamics,
                              lambda obs, act: future_pos_reward(obs, act, env_type))
     sac = Trainer(args.name, default_env, SAC, SACPolicy, action_noise)
 
