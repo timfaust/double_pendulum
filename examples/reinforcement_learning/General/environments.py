@@ -53,7 +53,6 @@ class GeneralEnv(CustomEnv):
             robot=self.robot,
             dynamics_function=self.dynamics_function,
             reward_function=self.reward_function,
-            log_dir=self.log_dir,
             max_episode_steps=self.max_episode_steps,
             scaling=True
         )
