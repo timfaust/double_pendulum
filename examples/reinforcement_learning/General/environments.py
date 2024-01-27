@@ -38,6 +38,7 @@ class GeneralEnv(CustomEnv):
         self.dynamics_function = dynamics_function
         self.reward_function = lambda obs, act: reward_function(obs, act, robot)
         self.max_episode_steps = self.data["max_episode_steps"]
+        self.render_every_steps = self.data["render_every_steps"]
 
         if hasattr(dynamics_function, '__code__'):
             dynamics_function, self.simulation, self.plant = dynamics_function(robot)
@@ -54,7 +55,7 @@ class GeneralEnv(CustomEnv):
         )
 
         self.window_size = 800
-        self.render_mode = None
+        self.render_mode = "None"
         self.window = None
         self.clock = None
 
@@ -95,8 +96,6 @@ class GeneralEnv(CustomEnv):
         self.reward = 0
         self.acc_reward = 0
         self.action = np.array([0, 0])
-        if self.render_mode == "human":
-            self._render_frame()
         return observation, info
 
     def step(self, action):
@@ -105,11 +104,11 @@ class GeneralEnv(CustomEnv):
             self.reward = reward
             self.acc_reward += reward
             self.action = action
-            self._render_frame()
         return observation, reward, terminated, truncated, info
 
     def render(self, mode="human"):
-        return self._render_frame()
+        if self.step_counter % self.render_every_steps == 0:
+            self._render_frame()
 
     def getXY(self, point):
         transformed = (self.window_size // 2 + point[0]*self.pendulum_length*2, self.window_size // 2 + point[1]*self.pendulum_length*2)

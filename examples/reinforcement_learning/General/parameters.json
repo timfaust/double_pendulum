@@ -45,7 +45,8 @@
         "same_eval_env": 1,
         "n_eval_episodes": 1,
         "n_eval_envs": 10,
-        "render_eval": 0,
+        "render_eval": 1,
+        "render_every_steps": 10,
 
         "verbose": 0,
         "save_freq": 1e6

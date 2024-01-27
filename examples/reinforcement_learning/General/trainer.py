@@ -85,7 +85,8 @@ class Trainer:
 
         eval_envs = self.environment.get_envs(n_envs=self.n_eval_envs, log_dir=self.log_dir, same=self.same_eval_env)
         for monitor in eval_envs.envs:
-            monitor.env.render_mode = 'human'
+            if self.render_eval:
+                monitor.env.render_mode = 'human'
             monitor.env.reset_func = low_reset
 
         eval_callback = EvalCallback(
