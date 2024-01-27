@@ -83,6 +83,7 @@ def default_dynamics(robot):
 
 
 def general_dynamics(robot, plant):
+    print("build new plant")
     simulator = Simulator(plant=plant)
     dynamics_function = custom_double_pendulum_dynamics_func(
         simulator=simulator,

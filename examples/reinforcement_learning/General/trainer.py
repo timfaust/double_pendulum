@@ -2,18 +2,16 @@ import os
 from typing import Type
 
 import numpy as np
-import json
 from double_pendulum.utils.csv_trajectory import save_trajectory
+from sbx import SAC
+from sbx.sac.policies import SACPolicy
 from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.policies import BasePolicy
 from stable_baselines3.common.callbacks import (
     EvalCallback,
     CallbackList,
-    CheckpointCallback, BaseCallback
+    CheckpointCallback
 )
-from tqdm.auto import tqdm
-from stable_baselines3.common.noise import ActionNoise
 
 from examples.reinforcement_learning.General.environments import GeneralEnv
 from double_pendulum.controller.abstract_controller import AbstractController
@@ -22,134 +20,90 @@ from double_pendulum.utils.plotting import plot_timeseries
 from examples.reinforcement_learning.General.misc_helper import low_reset
 
 
-class ProgressBarCallback(BaseCallback):
-    def __init__(self, pbar):
-        super().__init__()
-        self._pbar = pbar
-
-    def _on_step(self):
-        self._pbar.n = self.num_timesteps
-        self._pbar.update(0)
-
-
-class ProgressBarManager(object):
-    def __init__(self, total_timesteps):
-        self.pbar = None
-        self.total_timesteps = total_timesteps
-
-    def __enter__(self):
-        self.pbar = tqdm(total=self.total_timesteps)
-
-        return ProgressBarCallback(self.pbar)
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.pbar.n = self.total_timesteps
-        self.pbar.update(0)
-        self.pbar.close()
-
-
 class Trainer:
-    def __init__(self, name, environment: Type[GeneralEnv], model: Type[BaseAlgorithm], policy: Type[BasePolicy], action_noise: Type[ActionNoise] = None):
+    def __init__(self, name, environment: GeneralEnv, action_noise=None):
         self.environment = environment
         self.log_dir = './log_data/' + name + '/' + environment.robot
-        self.model = model
-        self.policy = policy
         self.action_noise = action_noise
         self.name = name
 
-    def train(self, learning_rate, training_steps, max_episode_steps, eval_freq, n_envs=1, n_eval_episodes=1,
-              save_freq=5000, show_progress_bar=True, same_environment=True, verbose=False, custom_param=None):
+        self.max_episode_steps = self.environment.data["max_episode_steps"]
+        self.training_steps = self.environment.data["training_steps"]
+        self.eval_freq = self.environment.data["eval_freq"]
+        self.save_freq = self.environment.data["save_freq"]
+        self.same_env = self.environment.data["same_env"] == 1
+        self.same_eval_env = self.environment.data["same_eval_env"] == 1
+        self.verbose = self.environment.data["verbose"] == 1
+        self.render_eval = self.environment.data["render_eval"] == 1
+        self.n_envs = self.environment.data["n_envs"]
+        self.n_eval_envs = self.environment.data["n_eval_envs"]
+        self.n_eval_episodes = self.environment.data["n_eval_episodes"]
+
+    def train(self):
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir)
 
         self.environment.render_mode = None
         self.environment.reset()
-        self.environment.max_episode_steps = max_episode_steps
-        envs = self.environment.get_envs(n_envs=n_envs, log_dir=self.log_dir, same=same_environment)
 
-        callback_list = self.get_callback_list(eval_freq, n_envs, n_eval_episodes, save_freq, verbose)
+        envs = self.environment.get_envs(n_envs=self.n_envs, log_dir=self.log_dir, same=self.same_env)
+        callback_list = self.get_callback_list()
 
-        agent = self.model(
-            self.policy,
+        agent = SAC(
+            SACPolicy,
             envs,
-            verbose=verbose,
             tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
-            learning_rate=learning_rate,
             action_noise=self.action_noise,
-            gradient_steps=3
         )
+        self.load_custom_params(agent)
 
-        if custom_param is not None:
-            self.load_custom_params(agent, custom_param)
-
-        if show_progress_bar:
-            with ProgressBarManager(training_steps) as callback:
-                agent.learn(training_steps, callback=CallbackList([callback_list, callback]))
-        else:
-            agent.learn(training_steps, callback=callback_list)
-
+        agent.learn(self.training_steps, callback=callback_list)
         agent.save(os.path.join(self.log_dir, "saved_model", "trained_model"))
 
-    def retrain_model(self, model_path, training_steps, max_episode_steps, eval_freq, n_envs=1, n_eval_episodes=1,
-                      save_freq=5000, show_progress_bar=True, same_environment=True, verbose=False, learning_rate=None):
+    def retrain_model(self, model_path):
         if not os.path.exists(self.log_dir + model_path + ".zip"):
             raise Exception("model not found")
 
         self.environment.render_mode = None
         self.environment.reset()
-        self.environment.max_episode_steps = max_episode_steps
-        envs = self.environment.get_envs(n_envs=n_envs, log_dir=self.log_dir, same=same_environment)
 
-        agent = self.model.load(self.log_dir + model_path)
+        envs = self.environment.get_envs(n_envs=self.n_envs, log_dir=self.log_dir, same=self.same_env)
+        agent = SAC.load(self.log_dir + model_path)
+        self.load_custom_params(agent)
         agent.set_env(envs)
-        if learning_rate is not None:
-            agent.learning_rate = learning_rate
 
-        callback_list = self.get_callback_list(eval_freq, n_envs, n_eval_episodes, save_freq, verbose)
+        callback_list = self.get_callback_list()
 
-        if show_progress_bar:
-            with ProgressBarManager(training_steps) as callback:
-                agent.learn(training_steps, callback=CallbackList([callback_list, callback]), reset_num_timesteps=True)
-        else:
-            agent.learn(training_steps, callback=callback_list, reset_num_timesteps=True)
+        agent.learn(self.training_steps, callback=callback_list, reset_num_timesteps=True)
         agent.save(os.path.join(self.log_dir, "saved_model", "trained_model"))
 
-    def get_callback_list(self, eval_freq, n_envs=1, n_eval_episodes=1, save_freq=5000, verbose=False):
+    def get_callback_list(self):
 
-        eval_env = self.environment.clone()
-        eval_env.render_mode = 'human'
-        eval_env.reset_func = low_reset
-        eval_env = Monitor(eval_env, self.log_dir)
+        eval_envs = self.environment.get_envs(n_envs=self.n_eval_envs, log_dir=self.log_dir, same=self.same_eval_env)
+        for monitor in eval_envs.envs:
+            monitor.env.render_mode = 'human'
+            monitor.env.reset_func = low_reset
 
         eval_callback = EvalCallback(
-            eval_env,
+            eval_envs,
             best_model_save_path=os.path.join(self.log_dir, 'best_model'),
             log_path=self.log_dir,
-            eval_freq=int(eval_freq / n_envs),
-            verbose=verbose,
-            n_eval_episodes=n_eval_episodes,
-            render=True
+            eval_freq=int(self.eval_freq / self.n_envs),
+            verbose=self.verbose,
+            n_eval_episodes=self.n_eval_episodes,
+            render=self.render_eval
         )
 
-        checkpoint_callback = CheckpointCallback(save_freq=int(save_freq / n_envs),
+        checkpoint_callback = CheckpointCallback(save_freq=int(self.save_freq / self.n_envs),
                                                  save_path=os.path.join(self.log_dir, 'saved_model'),
                                                  name_prefix="saved_model")
 
         return CallbackList([eval_callback, checkpoint_callback])
 
-    def load_custom_params(self, agent, param_name):
-        if not os.path.exists("parameters.json"):
-            print("parameter.json doesn't exist!")
-            return
-
-        data = json.load(open("parameters.json"))
-        if not param_name in data:
-            print("couldn't find key: ", param_name)
-            return
-
-        for key in data[param_name]:
+    def load_custom_params(self, agent):
+        for key in self.environment.data:
             if hasattr(agent, key):
-                setattr(agent, key, data[param_name][key])
+                setattr(agent, key, self.environment.data[key])
 
     class GeneralController(AbstractController):
         def __init__(self, model: Type[BaseAlgorithm], environment: Type[GeneralEnv], model_path):
@@ -174,7 +128,7 @@ class Trainer:
 
             return u
 
-    def simulate(self, model_path="/best_model/best_model", tf=10.0, save_video=True):
+    def simulate(self, model_path="/best_model/best_model", tf=10.0):
 
         controller = self.get_controller(model_path)
         controller.init()
@@ -183,10 +137,10 @@ class Trainer:
             t0=0.0,
             x0=[0.0, 0.0, 0.0, 0.0],
             tf=tf,
-            dt=controller.dt * 0.1,
+            dt=controller.dt,
             controller=controller,
             integrator=controller.integrator,
-            save_video=save_video,
+            save_video=True,
             video_name=os.path.join(self.log_dir, "sim_video.gif"),
             scale=0.25
         )

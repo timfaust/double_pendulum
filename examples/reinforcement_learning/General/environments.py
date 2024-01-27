@@ -1,46 +1,56 @@
+import json
+
 from stable_baselines3.common.env_util import make_vec_env
 
-from examples.reinforcement_learning.General.misc_helper import *
+from examples.reinforcement_learning.General.misc_helper import balanced_reset, no_termination, noisy_reset, low_reset, high_reset, random_reset, semi_random_reset
 from examples.reinforcement_learning.General.reward_functions import get_state_values
 from src.python.double_pendulum.simulation.gym_env import CustomEnv
 import pygame
 import numpy as np
 import gymnasium as gym
+from dynamics_functions import default_dynamics, random_dynamics, random_push_dynamics, push_dynamics
+from reward_functions import future_pos_reward, pos_reward, unholy_reward_4, saturated_distance_from_target
 
 
 class GeneralEnv(CustomEnv):
     metadata = {"render_modes": ["human"], "render_fps": 120}
 
     def __init__(
-            self,
-            robot,
-            dynamics_function,
-            reward_function,
-            max_episode_steps=0,
-            scaling=True
+        self,
+        robot,
+        param,
+        dynamics_function=None
     ):
 
+        self.param = param
         self.pendulum_length = 350
         self.reward = 0
         self.action = None
         self.acc_reward = 0
         self.robot = robot
+        self.data = json.load(open("parameters.json"))[param]
+
+        if dynamics_function is None:
+            dynamics_function = globals()[self.data["dynamics_function"]]
+        reset_function = globals()[self.data["reset_function"]]
+        reward_function = globals()[self.data["reward_function"]]
+
         self.dynamics_function = dynamics_function
-        self.reward_function = reward_function
-        self.max_episode_steps = max_episode_steps
+        self.reward_function = lambda obs, act: reward_function(obs, act, robot)
+        self.max_episode_steps = self.data["max_episode_steps"]
 
         if hasattr(dynamics_function, '__code__'):
             dynamics_function, self.simulation, self.plant = dynamics_function(robot)
 
         super().__init__(
             dynamics_function,
-            reward_function,
+            self.reward_function,
             no_termination,
-            balanced_reset,
+            reset_function,
             gym.spaces.Box(np.array([-1.0, -1.0, -1.0, -1.0]), np.array([1.0, 1.0, 1.0, 1.0])),
             gym.spaces.Box(np.array([-1]), np.array([1])),
-            max_episode_steps,
-            scaling
+            self.max_episode_steps,
+            True
         )
 
         self.window_size = 800
@@ -51,10 +61,7 @@ class GeneralEnv(CustomEnv):
     def clone(self):
         cloned_env = GeneralEnv(
             robot=self.robot,
-            dynamics_function=self.dynamics_function,
-            reward_function=self.reward_function,
-            max_episode_steps=self.max_episode_steps,
-            scaling=True
+            param=self.param
         )
 
         cloned_env.pendulum_length = self.pendulum_length
@@ -76,9 +83,8 @@ class GeneralEnv(CustomEnv):
             n_envs=n_envs,
             env_kwargs={
                 "robot": self.robot,
-                "dynamics_function": dynamics_function,
-                "reward_function": self.reward_function,
-                "max_episode_steps": self.max_episode_steps,
+                "param": self.param,
+                "dynamics_function": dynamics_function
             },
             monitor_dir=log_dir
         )
