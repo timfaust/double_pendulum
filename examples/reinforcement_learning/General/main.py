@@ -8,7 +8,7 @@ import argparse
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--name', default="pendubot_old")
+    parser.add_argument('--name', default="test")
     parser.add_argument('--mode', default="train", choices=["train", "retrain", "simulate"])
     parser.add_argument('--model_path', default="/saved_model/saved_model_5000000_steps")
     parser.add_argument('--env_type', default="pendubot", choices=["pendubot", "acrobot"])

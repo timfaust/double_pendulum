@@ -24,9 +24,10 @@ class Trainer:
     def __init__(self, name, environment: GeneralEnv, action_noise=None):
         self.environment = environment
         self.log_dir = './log_data/' + name + '/' + environment.robot
-        self.action_noise = action_noise
         self.name = name
+        self.action_noise = action_noise
 
+        self.use_action_noise = self.environment.data["use_action_noise"] == 1
         self.max_episode_steps = self.environment.data["max_episode_steps"]
         self.training_steps = self.environment.data["training_steps"]
         self.eval_freq = self.environment.data["eval_freq"]
@@ -38,6 +39,9 @@ class Trainer:
         self.n_envs = self.environment.data["n_envs"]
         self.n_eval_envs = self.environment.data["n_eval_envs"]
         self.n_eval_episodes = self.environment.data["n_eval_episodes"]
+
+        if not self.use_action_noise:
+            self.action_noise = None
 
     def train(self):
         if not os.path.exists(self.log_dir):
