@@ -40,9 +40,9 @@ class Trainer:
         if not self.use_action_noise:
             self.action_noise = None
 
-        with SummaryWriter(self.log_dir) as writer:
-            config_str = json.dumps(self.environment.data, indent=4)
-            writer.add_text("Configuration", f"```json\n{config_str}\n```", 0)
+        # with SummaryWriter(self.log_dir) as writer:
+        #     config_str = json.dumps(self.environment.data, indent=4)
+        #     writer.add_text("Configuration", f"```json\n{config_str}\n```", 0)
 
     def train(self):
         if not os.path.exists(self.log_dir):
@@ -102,7 +102,7 @@ class Trainer:
             done = False
             total_rewards = 0
             steps = 0
-            while not done:
+            while not np.all(done):
                 action, _states = agent.predict(state)
                 state, reward, done, info = eval_envs.step(action)
                 if self.render_eval:

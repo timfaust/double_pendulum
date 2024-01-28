@@ -56,6 +56,7 @@ def load_param(robot, torque_limit=5.0):
 
     return mpar
 
+
 def random_dynamics(robot, sigma=0.02, plant_class=SymbolicDoublePendulum, use_random=True):
     mpar = load_param(robot)
     if use_random:
@@ -65,6 +66,7 @@ def random_dynamics(robot, sigma=0.02, plant_class=SymbolicDoublePendulum, use_r
         mpar.cf = abs(np.random.normal(mpar.cf, sigma)).tolist()
     plant = plant_class(model_pars=mpar)
     return general_dynamics(robot, plant)
+
 
 def push_dynamics(robot):
     mpar = load_param(robot)

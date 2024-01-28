@@ -1,4 +1,3 @@
-from examples.reinforcement_learning.General.environments import GeneralEnv
 from examples.reinforcement_learning.General.misc_helper import low_reset
 from examples.reinforcement_learning.General.reward_functions import *
 from examples.reinforcement_learning.General.trainer import Trainer
@@ -40,5 +39,5 @@ if __name__ == '__main__':
             print(e)
 
     if args.mode == "simulate":
-        sac.environment.reset_func = low_reset
+        sac.environment.reset_function = low_reset
         sac.simulate(model_path=args.model_path)

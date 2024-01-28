@@ -148,7 +148,7 @@ class GeneralEnv(CustomEnv):
             self.clock = pygame.time.Clock()
 
         canvas = pygame.Surface((self.window_size, self.window_size))
-        y, x1, x2, v1, v2, action, goal, dt, threshold = get_state_values(self.observation, self.action, self.robot, [self.dynamics_function.dt, self.dynamics_function.max_velocity, self.dynamics_function.torque_limit])
+        y, x1, x2, v1, v2, action, goal, dt, threshold, u_p, u_pp = get_state_values(self.observation, self.action, self.robot, [self.dynamics_function.dt, self.dynamics_function.max_velocity, self.dynamics_function.torque_limit])
         x3 = x2 + dt * v2
         """if self.robot == "pendubot":
             action = action[0]
