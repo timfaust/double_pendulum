@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from typing import Type
 from stable_baselines3.common.callbacks import BaseCallback
 from torch.utils.tensorboard import SummaryWriter
@@ -20,13 +21,32 @@ from double_pendulum.utils.plotting import plot_timeseries
 
 
 class ProgressBarCallback(BaseCallback):
-    def __init__(self, total_steps):
+    def __init__(self, total_steps, log_dir, data):
         super(ProgressBarCallback, self).__init__()
         self.pbar = None
         self.total_steps = total_steps
+        self.log_dir = log_dir
+        self.data = data
+
+    def find_next_log_dir(self):
+        tb_log_dir = os.path.join(self.log_dir, "tb_logs")
+        os.makedirs(tb_log_dir, exist_ok=True)
+
+        sac_dirs = [d for d in os.listdir(tb_log_dir) if re.match(r'SAC_\d+', d)]
+        highest_number = 0
+        for d in sac_dirs:
+            num = int(d.split('_')[-1])
+            highest_number = max(highest_number, num)
+
+        next_sac_dir = f"SAC_{highest_number + 1}"
+        return os.path.join(tb_log_dir, next_sac_dir)
 
     def _on_training_start(self):
+        sac_log_dir = self.find_next_log_dir()
         self.pbar = tqdm(total=self.total_steps, desc='Training Progress')
+        with SummaryWriter(sac_log_dir) as writer:
+            config_str = json.dumps(self.data, indent=4)
+            writer.add_text("Configuration", f"```json\n{config_str}\n```", 0)
 
     def _on_step(self):
         self.pbar.update(1)
@@ -56,29 +76,10 @@ class Trainer:
         if not self.use_action_noise:
             self.action_noise = None
 
-        self.setup_logging_directory()
-
-    def setup_logging_directory(self):
+    def train(self):
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir)
 
-        tb_logs_dir = os.path.join(self.log_dir, "tb_logs")
-        if not os.path.exists(tb_logs_dir):
-            os.makedirs(tb_logs_dir)
-            sac_directory = "SAC_1"
-        else:
-            sac_directories = [d for d in os.listdir(tb_logs_dir)
-                               if os.path.isdir(os.path.join(tb_logs_dir, d)) and d.startswith("SAC_")]
-            sac_numbers = [int(d.split("_")[1]) for d in sac_directories]
-            next_sac_number = max(sac_numbers) + 1 if sac_numbers else 1
-            sac_directory = f"SAC_{next_sac_number}"
-
-        sac_path = os.path.join(tb_logs_dir, sac_directory)
-        with SummaryWriter(sac_path) as writer:
-            config_str = json.dumps(self.environment.data, indent=4)
-            writer.add_text("Configuration", f"```json\n{config_str}\n```", 0)
-
-    def train(self):
         self.environment.render_mode = None
         self.environment.reset()
 
@@ -172,14 +173,13 @@ class Trainer:
                                                  save_path=os.path.join(self.log_dir, 'saved_model'),
                                                  name_prefix="saved_model")
 
-        progress_bar_callback = ProgressBarCallback(self.training_steps)
+        progress_bar_callback = ProgressBarCallback(self.training_steps, self.log_dir, self.environment.data)
         return CallbackList([eval_callback, checkpoint_callback, progress_bar_callback])
 
     def load_custom_params(self, agent):
         for key in self.environment.data:
             if hasattr(agent, key):
                 setattr(agent, key, self.environment.data[key])
-
 
     class GeneralController(AbstractController):
         def __init__(self, environment: Type[GeneralEnv], model_path):
