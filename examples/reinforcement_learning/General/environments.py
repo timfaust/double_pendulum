@@ -123,9 +123,11 @@ class GeneralEnv(CustomEnv):
 
     def step(self, action):
         last_actions = self.observation[-2:]
-        self.observation = self.observation[:-2]
+        if self.actions_in_state:
+            self.observation = self.observation[:-2]
         self.observation = self.dynamics_func(self.observation, action, scaling=self.scaling)
-        self.observation = np.append(self.observation, last_actions)
+        if self.actions_in_state:
+            self.observation = np.append(self.observation, last_actions)
         reward = self.reward_func(self.observation, action)
         terminated = self.terminated_func(self.observation)
         info = {}
@@ -135,8 +137,9 @@ class GeneralEnv(CustomEnv):
             truncated = True
             self.step_counter = 0
 
-        self.observation[-1] = last_actions[0]
-        self.observation[-2] = action[0]
+        if self.actions_in_state:
+            self.observation[-1] = last_actions[0]
+            self.observation[-2] = action[0]
         if self.render_mode == "human":
             self.reward = reward
             self.acc_reward += reward
