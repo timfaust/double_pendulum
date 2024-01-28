@@ -38,7 +38,7 @@ class ProgressBarCallback(BaseCallback):
             num = int(d.split('_')[-1])
             highest_number = max(highest_number, num)
 
-        next_sac_dir = f"SAC_{highest_number + 1}"
+        next_sac_dir = f"SAC_{highest_number}"
         return os.path.join(tb_log_dir, next_sac_dir)
 
     def _on_training_start(self):
