@@ -40,13 +40,13 @@ class Trainer:
         if not self.use_action_noise:
             self.action_noise = None
 
-    def train(self):
-        if not os.path.exists(self.log_dir):
-            os.makedirs(self.log_dir)
-
         with SummaryWriter(self.log_dir) as writer:
             config_str = json.dumps(self.environment.data, indent=4)
             writer.add_text("Configuration", f"```json\n{config_str}\n```", 0)
+
+    def train(self):
+        if not os.path.exists(self.log_dir):
+            os.makedirs(self.log_dir)
 
         self.environment.render_mode = None
         self.environment.reset()
@@ -81,7 +81,6 @@ class Trainer:
 
         agent.learn(self.training_steps, callback=callback_list, reset_num_timesteps=True)
         agent.save(os.path.join(self.log_dir, "saved_model", "trained_model"))
-
 
     def evaluate(self, model_path):
         if not os.path.exists(self.log_dir + model_path + ".zip"):
