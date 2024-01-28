@@ -81,21 +81,6 @@ class GeneralEnv(CustomEnv):
             observation = np.append(observation, np.zeros(2))
         return observation
 
-    def clone(self):
-        cloned_env = GeneralEnv(
-            robot=self.robot,
-            param=self.param
-        )
-
-        cloned_env.pendulum_length = self.pendulum_length
-        cloned_env.reward = self.reward
-        cloned_env.action = np.array(self.action, copy=True)
-        cloned_env.acc_reward = self.acc_reward
-        cloned_env.window = None
-        cloned_env.clock = None
-
-        return cloned_env
-
     def get_envs(self, log_dir):
         if self.same_env:
             dynamics_function = self.dynamics_func
