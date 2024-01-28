@@ -31,12 +31,8 @@ class Trainer:
         self.training_steps = self.environment.data["training_steps"]
         self.eval_freq = self.environment.data["eval_freq"]
         self.save_freq = self.environment.data["save_freq"]
-        self.same_env = self.environment.data["same_env"] == 1
-        self.same_eval_env = self.environment.data["same_eval_env"] == 1
         self.verbose = self.environment.data["verbose"] == 1
         self.render_eval = self.environment.data["render_eval"] == 1
-        self.n_envs = self.environment.data["n_envs"]
-        self.n_eval_envs = self.environment.data["n_eval_envs"]
         self.n_eval_episodes = self.environment.data["n_eval_episodes"]
 
         if not self.use_action_noise:
@@ -49,7 +45,7 @@ class Trainer:
         self.environment.render_mode = None
         self.environment.reset()
 
-        envs = self.environment.get_envs(n_envs=self.n_envs, log_dir=self.log_dir, same=self.same_env)
+        envs = self.environment.get_envs(log_dir=self.log_dir)
         callback_list = self.get_callback_list()
 
         agent = SAC(
@@ -70,7 +66,7 @@ class Trainer:
         self.environment.render_mode = None
         self.environment.reset()
 
-        envs = self.environment.get_envs(n_envs=self.n_envs, log_dir=self.log_dir, same=self.same_env)
+        envs = self.environment.get_envs(log_dir=self.log_dir)
         agent = SAC.load(self.log_dir + model_path)
         self.load_custom_params(agent)
         agent.set_env(envs)
@@ -88,7 +84,7 @@ class Trainer:
         agent = SAC.load(self.log_dir + model_path)
         self.load_custom_params(agent)
 
-        eval_envs = self.eval_environment.get_envs(n_envs=self.n_eval_envs, log_dir=self.log_dir, same=self.same_eval_env)
+        eval_envs = self.eval_environment.get_envs(log_dir=self.log_dir)
         for i in range(len(eval_envs.envs)):
             monitor = eval_envs.envs[i]
             if self.render_eval and i % self.eval_environment.render_every_envs == 0:
@@ -120,7 +116,7 @@ class Trainer:
 
     def get_callback_list(self):
 
-        eval_envs = self.eval_environment.get_envs(n_envs=self.n_eval_envs, log_dir=self.log_dir, same=self.same_eval_env)
+        eval_envs = self.eval_environment.get_envs(log_dir=self.log_dir)
         for i in range(len(eval_envs.envs)):
             monitor = eval_envs.envs[i]
             if self.render_eval and i % self.eval_environment.render_every_envs == 0:
@@ -130,13 +126,13 @@ class Trainer:
             eval_envs,
             best_model_save_path=os.path.join(self.log_dir, 'best_model'),
             log_path=self.log_dir,
-            eval_freq=int(self.eval_freq / self.n_envs),
+            eval_freq=int(self.eval_freq / self.environment.n_envs),
             verbose=self.verbose,
             n_eval_episodes=self.n_eval_episodes,
             render=self.render_eval
         )
 
-        checkpoint_callback = CheckpointCallback(save_freq=int(self.save_freq / self.n_envs),
+        checkpoint_callback = CheckpointCallback(save_freq=int(self.save_freq / self.environment.n_envs),
                                                  save_path=os.path.join(self.log_dir, 'saved_model'),
                                                  name_prefix="saved_model")
 

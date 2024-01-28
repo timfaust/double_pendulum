@@ -32,14 +32,17 @@ class GeneralEnv(CustomEnv):
         self.robot = robot
         self.data = json.load(open("parameters.json"))[param]
 
-        type = "train"
+        type = "train_env"
         if self.eval:
-            type = "eval"
+            type = "eval_env"
 
         if dynamics_function is None:
             dynamics_function = globals()[self.data[type]["dynamics_function"]]
         reset_function = globals()[self.data[type]["reset_function"]]
         reward_function = globals()[self.data[type]["reward_function"]]
+
+        self.n_envs = self.data[type]["n_envs"]
+        self.same_env = self.data[type]["same_env"]
 
         self.dynamics_function = dynamics_function
         self.reward_function = lambda obs, act: reward_function(obs, act, robot)
@@ -81,14 +84,14 @@ class GeneralEnv(CustomEnv):
 
         return cloned_env
 
-    def get_envs(self, n_envs, log_dir, same):
-        if same:
+    def get_envs(self, log_dir):
+        if self.same_env:
             dynamics_function = self.dynamics_func
         else:
             dynamics_function = self.dynamics_function
         envs = make_vec_env(
             env_id=GeneralEnv,
-            n_envs=n_envs,
+            n_envs=self.n_envs,
             env_kwargs={
                 "robot": self.robot,
                 "param": self.param,
