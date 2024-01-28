@@ -148,19 +148,25 @@ class Trainer:
             if hasattr(agent, key):
                 setattr(agent, key, self.environment.data[key])
 
+
     class GeneralController(AbstractController):
-        def __init__(self, model: Type[BaseAlgorithm], environment: Type[GeneralEnv], model_path):
+        def __init__(self, environment: Type[GeneralEnv], model_path):
             super().__init__()
 
-            self.model = model.load(model_path)
+            self.model = SAC.load(model_path)
             self.simulation = environment.simulation
             self.dynamics_func = environment.dynamics_func
-            self.model.predict([0.0, 0.0, 0.0, 0.0])
             self.dt = environment.dynamics_func.dt
             self.scaling = environment.dynamics_func.scaling
             self.integrator = environment.dynamics_func.integrator
+            self.actions_in_state = environment.actions_in_state
+            self.last_actions = [0, 0]
 
         def get_control_output_(self, x, t=None):
+
+            if self.actions_in_state:
+                x = np.append(x, self.last_actions)
+
             if self.scaling:
                 obs = self.dynamics_func.normalize_state(x)
                 action = self.model.predict(obs)
@@ -169,18 +175,23 @@ class Trainer:
                 action = self.model.predict(x)
                 u = self.dynamics_func.unscale_action(action)
 
+            if self.actions_in_state:
+                self.last_actions[-1] = self.last_actions[-2]
+                self.last_actions[-2] = u[u != 0][0]
+
             return u
 
     def simulate(self, model_path="/best_model/best_model", tf=10.0):
 
         controller = self.get_controller(model_path)
         controller.init()
+        controller.simulation.set_state(0, [0, 0, 0, 0])
 
         T, X, U = controller.simulation.simulate_and_animate(
             t0=0.0,
             x0=[0.0, 0.0, 0.0, 0.0],
             tf=tf,
-            dt=controller.dt,
+            dt=controller.dt * 0.1,
             controller=controller,
             integrator=controller.integrator,
             save_video=True,
@@ -217,5 +228,5 @@ class Trainer:
 
     def get_controller(self, model_path="/best_model/best_model"):
         model_path = self.log_dir + model_path
-        controller = self.GeneralController(self.model, self.environment, model_path)
+        controller = self.GeneralController(self.environment, model_path)
         return controller

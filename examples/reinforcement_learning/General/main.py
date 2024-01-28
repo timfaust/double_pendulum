@@ -1,4 +1,3 @@
-from examples.reinforcement_learning.General.misc_helper import low_reset
 from examples.reinforcement_learning.General.reward_functions import *
 from examples.reinforcement_learning.General.trainer import Trainer
 from stable_baselines3.common.noise import OrnsteinUhlenbeckActionNoise
@@ -7,9 +6,9 @@ import argparse
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--name', default="test")
+    parser.add_argument('--name', default="6_states")
     parser.add_argument('--mode', default="train", choices=["train", "retrain", "evaluate", "simulate"])
-    parser.add_argument('--model_path', default="/saved_model/saved_model_5000000_steps")
+    parser.add_argument('--model_path', default="/best_model/best_model")
     parser.add_argument('--env_type', default="pendubot", choices=["pendubot", "acrobot"])
     parser.add_argument('--param', default="test")
 
@@ -39,5 +38,4 @@ if __name__ == '__main__':
             print(e)
 
     if args.mode == "simulate":
-        sac.environment.reset_function = low_reset
         sac.simulate(model_path=args.model_path)
