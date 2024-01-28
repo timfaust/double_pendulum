@@ -56,7 +56,7 @@
         "n_eval_envs": 10,
         "render_eval": 1,
         "render_every_steps": 10,
-        "render_every_env": 10,
+        "render_every_envs": 10,
 
         "verbose": 0,
         "save_freq": 1e6
