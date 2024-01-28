@@ -1,3 +1,4 @@
+import json
 import os
 from typing import Type
 
@@ -12,6 +13,7 @@ from stable_baselines3.common.callbacks import (
     CallbackList,
     CheckpointCallback
 )
+from torch.utils.tensorboard import SummaryWriter
 
 from examples.reinforcement_learning.General.environments import GeneralEnv
 from double_pendulum.controller.abstract_controller import AbstractController
@@ -41,6 +43,10 @@ class Trainer:
     def train(self):
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir)
+
+        with SummaryWriter(self.log_dir) as writer:
+            config_str = json.dumps(self.environment.data, indent=4)
+            writer.add_text("Configuration", f"```json\n{config_str}\n```", 0)
 
         self.environment.render_mode = None
         self.environment.reset()
