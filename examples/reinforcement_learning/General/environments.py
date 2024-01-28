@@ -38,7 +38,7 @@ class GeneralEnv(CustomEnv):
 
         if dynamics_function is None:
             dynamics_function = globals()[self.data[type]["dynamics_function"]]
-        reset_function = globals()[self.data[type]["reset_function"]]
+        self.reset_function = globals()[self.data[type]["reset_function"]]
         reward_function = globals()[self.data[type]["reward_function"]]
 
         self.n_envs = self.data[type]["n_envs"]
@@ -49,16 +49,22 @@ class GeneralEnv(CustomEnv):
         self.max_episode_steps = self.data["max_episode_steps"]
         self.render_every_steps = self.data["render_every_steps"]
         self.render_every_envs = self.data["render_every_envs"]
+        self.actions_in_state = self.data["actions_in_state"] == 1
 
         if hasattr(dynamics_function, '__code__'):
             dynamics_function, self.simulation, self.plant = dynamics_function(robot)
+
+        if not self.actions_in_state:
+            obs_space = gym.spaces.Box(np.array([-1.0, -1.0, -1.0, -1.0]), np.array([1.0, 1.0, 1.0, 1.0]))
+        else:
+            obs_space = gym.spaces.Box(np.array([-1.0, -1.0, -1.0, -1.0, -1.0, -1.0]), np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0]))
 
         super().__init__(
             dynamics_function,
             self.reward_function,
             no_termination,
-            reset_function,
-            gym.spaces.Box(np.array([-1.0, -1.0, -1.0, -1.0]), np.array([1.0, 1.0, 1.0, 1.0])),
+            self.custom_reset,
+            obs_space,
             gym.spaces.Box(np.array([-1]), np.array([1])),
             self.max_episode_steps,
             True
@@ -68,6 +74,12 @@ class GeneralEnv(CustomEnv):
         self.render_mode = "None"
         self.window = None
         self.clock = None
+
+    def custom_reset(self):
+        observation = self.reset_function()
+        if self.actions_in_state:
+            observation = np.append(observation, np.zeros(2))
+        return observation
 
     def clone(self):
         cloned_env = GeneralEnv(
@@ -110,12 +122,26 @@ class GeneralEnv(CustomEnv):
         return observation, info
 
     def step(self, action):
-        observation, reward, terminated, truncated, info = super().step(action)
+        last_actions = self.observation[-2:]
+        self.observation = self.observation[:-2]
+        self.observation = self.dynamics_func(self.observation, action, scaling=self.scaling)
+        self.observation = np.append(self.observation, last_actions)
+        reward = self.reward_func(self.observation, action)
+        terminated = self.terminated_func(self.observation)
+        info = {}
+        truncated = False
+        self.step_counter += 1
+        if self.step_counter >= self.max_episode_steps:
+            truncated = True
+            self.step_counter = 0
+
+        self.observation[-1] = last_actions[0]
+        self.observation[-2] = action/self.dynamics_function.torque_limit
         if self.render_mode == "human":
             self.reward = reward
             self.acc_reward += reward
             self.action = action
-        return observation, reward, terminated, truncated, info
+        return self.observation, reward, terminated, truncated, info
 
     def render(self, mode="human"):
         if self.step_counter % self.render_every_steps == 0:

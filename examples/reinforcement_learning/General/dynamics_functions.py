@@ -118,6 +118,8 @@ class custom_double_pendulum_dynamics_func(double_pendulum_dynamics_func):
                     observation[5] * self.max_velocity,
                 ]
             )
+        if len(observation) > 4:
+            return np.append(x, observation[-2:]*self.torque_limit)
         return x
 
     def normalize_state(self, state):
