@@ -58,7 +58,7 @@
         "render_every_steps": 10,
         "render_every_envs": 10,
 
-        "verbose": 0,
+        "verbose": 1,
         "save_freq": 1e6
     }
 }

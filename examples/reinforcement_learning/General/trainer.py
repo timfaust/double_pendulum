@@ -1,23 +1,39 @@
 import json
 import os
 from typing import Type
-
+from stable_baselines3.common.callbacks import BaseCallback
+from torch.utils.tensorboard import SummaryWriter
+from tqdm.auto import tqdm
 import numpy as np
 from double_pendulum.utils.csv_trajectory import save_trajectory
 from sbx import SAC
 from sbx.sac.policies import SACPolicy
-from stable_baselines3.common.base_class import BaseAlgorithm
-from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.callbacks import (
     EvalCallback,
     CallbackList,
     CheckpointCallback
 )
-from torch.utils.tensorboard import SummaryWriter
 
 from examples.reinforcement_learning.General.environments import GeneralEnv
 from double_pendulum.controller.abstract_controller import AbstractController
 from double_pendulum.utils.plotting import plot_timeseries
+
+
+class ProgressBarCallback(BaseCallback):
+    def __init__(self, total_steps):
+        super(ProgressBarCallback, self).__init__()
+        self.pbar = None
+        self.total_steps = total_steps
+
+    def _on_training_start(self):
+        self.pbar = tqdm(total=self.total_steps, desc='Training Progress')
+
+    def _on_step(self):
+        self.pbar.update(1)
+        return True
+
+    def _on_training_end(self):
+        self.pbar.close()
 
 
 class Trainer:
@@ -40,14 +56,29 @@ class Trainer:
         if not self.use_action_noise:
             self.action_noise = None
 
-        # with SummaryWriter(self.log_dir) as writer:
-        #     config_str = json.dumps(self.environment.data, indent=4)
-        #     writer.add_text("Configuration", f"```json\n{config_str}\n```", 0)
+        self.setup_logging_directory()
 
-    def train(self):
+    def setup_logging_directory(self):
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir)
 
+        tb_logs_dir = os.path.join(self.log_dir, "tb_logs")
+        if not os.path.exists(tb_logs_dir):
+            os.makedirs(tb_logs_dir)
+            sac_directory = "SAC_1"
+        else:
+            sac_directories = [d for d in os.listdir(tb_logs_dir)
+                               if os.path.isdir(os.path.join(tb_logs_dir, d)) and d.startswith("SAC_")]
+            sac_numbers = [int(d.split("_")[1]) for d in sac_directories]
+            next_sac_number = max(sac_numbers) + 1 if sac_numbers else 1
+            sac_directory = f"SAC_{next_sac_number}"
+
+        sac_path = os.path.join(tb_logs_dir, sac_directory)
+        with SummaryWriter(sac_path) as writer:
+            config_str = json.dumps(self.environment.data, indent=4)
+            writer.add_text("Configuration", f"```json\n{config_str}\n```", 0)
+
+    def train(self):
         self.environment.render_mode = None
         self.environment.reset()
 
@@ -141,7 +172,8 @@ class Trainer:
                                                  save_path=os.path.join(self.log_dir, 'saved_model'),
                                                  name_prefix="saved_model")
 
-        return CallbackList([eval_callback, checkpoint_callback])
+        progress_bar_callback = ProgressBarCallback(self.training_steps)
+        return CallbackList([eval_callback, checkpoint_callback, progress_bar_callback])
 
     def load_custom_params(self, agent):
         for key in self.environment.data:
