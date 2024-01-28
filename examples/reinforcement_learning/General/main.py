@@ -9,7 +9,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--name', default="test")
-    parser.add_argument('--mode', default="train", choices=["train", "retrain", "simulate"])
+    parser.add_argument('--mode', default="train", choices=["train", "retrain", "evaluate", "simulate"])
     parser.add_argument('--model_path', default="/saved_model/saved_model_5000000_steps")
     parser.add_argument('--env_type', default="pendubot", choices=["pendubot", "acrobot"])
     parser.add_argument('--param', default="test")
@@ -18,8 +18,7 @@ if __name__ == '__main__':
     env_type = args.env_type
     action_noise = OrnsteinUhlenbeckActionNoise(mean=np.array([0.0]), sigma=0.1 * np.ones(1), theta=0.15, dt=1e-2)
 
-    env = GeneralEnv(env_type, args.param)
-    sac = Trainer(args.name, env, action_noise)
+    sac = Trainer(args.name, env_type, args.param, action_noise)
 
     if args.mode == "train":
         print("training new model")
@@ -29,7 +28,14 @@ if __name__ == '__main__':
     if args.mode == "retrain":
         try:
             print("retraining last model")
-            sac.retrain_model(model_path=args.model_path)
+            sac.retrain(model_path=args.model_path)
+        except Exception as e:
+            print(e)
+
+    if args.mode == "evaluate":
+        try:
+            print("evaluate model")
+            sac.evaluate(model_path=args.model_path)
         except Exception as e:
             print(e)
 

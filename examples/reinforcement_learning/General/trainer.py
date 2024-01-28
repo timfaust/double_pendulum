@@ -17,13 +17,12 @@ from examples.reinforcement_learning.General.environments import GeneralEnv
 from double_pendulum.controller.abstract_controller import AbstractController
 from double_pendulum.utils.plotting import plot_timeseries
 
-from examples.reinforcement_learning.General.misc_helper import low_reset
-
 
 class Trainer:
-    def __init__(self, name, environment: GeneralEnv, action_noise=None):
-        self.environment = environment
-        self.log_dir = './log_data/' + name + '/' + environment.robot
+    def __init__(self, name, env_type, param, action_noise=None):
+        self.environment = GeneralEnv(env_type, param)
+        self.eval_environment = GeneralEnv(env_type, param, eval=True)
+        self.log_dir = './log_data/' + name + '/' + env_type
         self.name = name
         self.action_noise = action_noise
 
@@ -64,7 +63,7 @@ class Trainer:
         agent.learn(self.training_steps, callback=callback_list)
         agent.save(os.path.join(self.log_dir, "saved_model", "trained_model"))
 
-    def retrain_model(self, model_path):
+    def retrain(self, model_path):
         if not os.path.exists(self.log_dir + model_path + ".zip"):
             raise Exception("model not found")
 
@@ -81,13 +80,51 @@ class Trainer:
         agent.learn(self.training_steps, callback=callback_list, reset_num_timesteps=True)
         agent.save(os.path.join(self.log_dir, "saved_model", "trained_model"))
 
+
+    def evaluate(self, model_path):
+        if not os.path.exists(self.log_dir + model_path + ".zip"):
+            raise Exception("model not found")
+
+        agent = SAC.load(self.log_dir + model_path)
+        self.load_custom_params(agent)
+
+        eval_envs = self.eval_environment.get_envs(n_envs=self.n_eval_envs, log_dir=self.log_dir, same=self.same_eval_env)
+        for i in range(len(eval_envs.envs)):
+            monitor = eval_envs.envs[i]
+            if self.render_eval and i % self.eval_environment.render_every_envs == 0:
+                monitor.env.render_mode = 'human'
+
+        episode_rewards = []
+        episode_lengths = []
+        for episode in range(self.n_eval_episodes):
+            state = eval_envs.reset()
+            done = False
+            total_rewards = 0
+            steps = 0
+            while not done:
+                action, _states = agent.predict(state)
+                state, reward, done, info = eval_envs.step(action)
+                if self.render_eval:
+                    eval_envs.render()
+                total_rewards += reward
+                steps += 1
+
+            episode_rewards.append(total_rewards)
+            episode_lengths.append(steps)
+
+        eval_envs.close()
+
+        print(f"Average reward: {np.mean(episode_rewards)} +/- {np.std(episode_rewards)}")
+        print(f"Average episode length: {np.mean(episode_lengths)}")
+        return episode_rewards, episode_lengths
+
     def get_callback_list(self):
 
-        eval_envs = self.environment.get_envs(n_envs=self.n_eval_envs, log_dir=self.log_dir, same=self.same_eval_env)
-        for monitor in eval_envs.envs:
-            if self.render_eval:
+        eval_envs = self.eval_environment.get_envs(n_envs=self.n_eval_envs, log_dir=self.log_dir, same=self.same_eval_env)
+        for i in range(len(eval_envs.envs)):
+            monitor = eval_envs.envs[i]
+            if self.render_eval and i % self.eval_environment.render_every_envs == 0:
                 monitor.env.render_mode = 'human'
-            monitor.env.reset_func = low_reset
 
         eval_callback = EvalCallback(
             eval_envs,

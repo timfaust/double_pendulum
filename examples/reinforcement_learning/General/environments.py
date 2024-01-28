@@ -19,9 +19,11 @@ class GeneralEnv(CustomEnv):
         self,
         robot,
         param,
+        eval=False,
         dynamics_function=None
     ):
 
+        self.eval = eval
         self.param = param
         self.pendulum_length = 350
         self.reward = 0
@@ -30,15 +32,20 @@ class GeneralEnv(CustomEnv):
         self.robot = robot
         self.data = json.load(open("parameters.json"))[param]
 
+        type = "train"
+        if self.eval:
+            type = "eval"
+
         if dynamics_function is None:
-            dynamics_function = globals()[self.data["dynamics_function"]]
-        reset_function = globals()[self.data["reset_function"]]
-        reward_function = globals()[self.data["reward_function"]]
+            dynamics_function = globals()[self.data[type]["dynamics_function"]]
+        reset_function = globals()[self.data[type]["reset_function"]]
+        reward_function = globals()[self.data[type]["reward_function"]]
 
         self.dynamics_function = dynamics_function
         self.reward_function = lambda obs, act: reward_function(obs, act, robot)
         self.max_episode_steps = self.data["max_episode_steps"]
         self.render_every_steps = self.data["render_every_steps"]
+        self.render_every_envs = self.data["render_every_envs"]
 
         if hasattr(dynamics_function, '__code__'):
             dynamics_function, self.simulation, self.plant = dynamics_function(robot)
@@ -85,7 +92,8 @@ class GeneralEnv(CustomEnv):
             env_kwargs={
                 "robot": self.robot,
                 "param": self.param,
-                "dynamics_function": dynamics_function
+                "dynamics_function": dynamics_function,
+                "eval": self.eval
             },
             monitor_dir=log_dir
         )

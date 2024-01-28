@@ -28,25 +28,35 @@
         "_init_setup_model": true
     },
     "test": {
-        "dynamics_function": "default_dynamics",
-        "reset_function": "balanced_reset",
-        "reward_function": "future_pos_reward",
+
+        "train": {
+            "dynamics_function": "random_dynamics",
+            "reset_function": "balanced_reset",
+            "reward_function": "future_pos_reward"
+        },
+
+        "eval": {
+            "dynamics_function": "random_dynamics",
+            "reset_function": "balanced_reset",
+            "reward_function": "future_pos_reward"
+        },
 
         "learning_rate": 1e-3,
         "n_envs": 10,
         "gradient_steps": 2,
         "max_episode_steps": 1000,
 
-        "same_env": 1,
+        "same_env": 0,
         "training_steps": 1e7,
         "use_action_noise": 1,
 
         "eval_freq": 1e5,
-        "same_eval_env": 1,
+        "same_eval_env": 0,
         "n_eval_episodes": 1,
         "n_eval_envs": 10,
         "render_eval": 1,
         "render_every_steps": 10,
+        "render_every_env": 10,
 
         "verbose": 0,
         "save_freq": 1e6
