@@ -2,7 +2,11 @@ import numpy as np
 from double_pendulum.utils.wrap_angles import wrap_angles_diff
 
 
-def get_state_values(observation, action, robot):
+def get_state_values(observation, action, robot, dynamics):
+    dt = dynamics[0]
+    max_velocity = dynamics[1]
+    torque_limit = dynamics[2][0]
+
     l = [0.2, 0.3]
     if robot == 'pendubot':
         l = [0.3, 0.2]
@@ -11,8 +15,8 @@ def get_state_values(observation, action, robot):
         [
             observation[0] * 2 * np.pi + np.pi,
             observation[1] * 2 * np.pi,
-            observation[2] * 20,
-            observation[3] * 20
+            observation[2] * max_velocity,
+            observation[3] * max_velocity
         ]
     )
 
@@ -29,33 +33,41 @@ def get_state_values(observation, action, robot):
     #goal for cartesian end effector position
     goal = np.array([0, -0.5])
 
-    return s, x1, x2, v1, v2, action * 5, goal, 0.05, 0.005
+    dt_goal = 0.05
+    threshold_distance = 0.005
+
+    u_p, u_pp = 0, 0
+    if len(observation) > 4:
+        u_p = (action - observation[-2]) / dt
+        u_pp = (action - 2 * observation[-2] + observation[-1])/(dt * dt)
+
+    return s, x1, x2, v1, v2, action * torque_limit, goal, dt_goal, threshold_distance, u_p * torque_limit, u_pp * torque_limit
 
 
-def future_pos_reward(observation, action, env_type):
-    y, x1, x2, v1, v2, action, goal, dt, threshold = get_state_values(observation, action, env_type)
-    distance = np.linalg.norm(x2 + dt * v2 - goal)
+def future_pos_reward(observation, action, env_type, dynamics):
+    y, x1, x2, v1, v2, action, goal, dt_goal, threshold_distance, u_p, u_pp = get_state_values(observation, action, env_type, dynamics)
+    distance = np.linalg.norm(x2 + dt_goal * v2 - goal)
     reward = 1 / (distance + 0.01)
-    if distance < threshold:
-        v_total = np.linalg.norm(v1) + np.linalg.norm(v2) + np.linalg.norm(action)
+    if distance < threshold_distance:
+        v_total = np.linalg.norm(v1) + np.linalg.norm(v2) + np.linalg.norm(action) + np.linalg.norm(u_p)
         reward += 1 / (v_total + 0.001)
     return reward
 
 
-def pos_reward(observation, action, env_type):
-    y, x1, x2, v1, v2, action, goal, dt, threshold = get_state_values(observation, action, env_type)
+def pos_reward(observation, action, env_type, dynamics):
+    y, x1, x2, v1, v2, action, goal, dt, threshold, _, _ = get_state_values(observation, action, env_type, dynamics)
     distance = np.linalg.norm(x2 - goal)
     return 1 / (distance + 0.0001)
 
 
-def saturated_distance_from_target(observation, action, env_type):
+def saturated_distance_from_target(observation, action, env_type, dynamics):
     l = [0.2, 0.3]
     if env_type == 'pendubot':
         l = [0.3, 0.2]
 
     R = np.array([[0.0001]])
 
-    y, pos1, pos2, vel1, vel2, u, _, _, _ = get_state_values(observation, action, env_type)
+    y, pos1, pos2, vel1, vel2, u, _, _, _, _, _ = get_state_values(observation, action, env_type, dynamics)
 
     goal = [np.pi, 0]
     diff = y[:2] - goal
@@ -80,7 +92,7 @@ def saturated_distance_from_target(observation, action, env_type):
 
 
 
-def unholy_reward_4(observation, action, env_type):
+def unholy_reward_4(observation, action, env_type, dynamics):
     #quadtratic cost and quadtratic penalties
     l = [0.2, 0.3]
     if env_type == 'pendubot':
@@ -97,7 +109,7 @@ def unholy_reward_4(observation, action, env_type):
 
 
 
-    y, x1, x2, v1, v2, action, goal, dt, threshold = get_state_values(observation, action, env_type)
+    y, x1, x2, v1, v2, action, goal, dt, threshold, _, _ = get_state_values(observation, action, env_type, dynamics)
 
 
     #defining custom goal for state (pos1, pos2, angl_vel1, angl_vel2)

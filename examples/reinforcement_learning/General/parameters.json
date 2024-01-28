@@ -30,7 +30,7 @@
     "test": {
 
         "train_env": {
-            "dynamics_function": "random_dynamics",
+            "dynamics_function": "default_dynamics",
             "reset_function": "balanced_reset",
             "reward_function": "future_pos_reward",
             "same_env": 1,
@@ -38,7 +38,7 @@
         },
 
         "eval_env": {
-            "dynamics_function": "random_dynamics",
+            "dynamics_function": "default_dynamics",
             "reset_function": "balanced_reset",
             "reward_function": "future_pos_reward",
             "same_env": 1,

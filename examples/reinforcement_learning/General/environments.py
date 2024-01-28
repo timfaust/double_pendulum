@@ -45,7 +45,7 @@ class GeneralEnv(CustomEnv):
         self.same_env = self.data[type]["same_env"]
 
         self.dynamics_function = dynamics_function
-        self.reward_function = lambda obs, act: reward_function(obs, act, robot)
+        self.reward_function = lambda obs, act: reward_function(obs, act, robot, [self.dynamics_function.dt, self.dynamics_function.max_velocity, self.dynamics_function.torque_limit])
         self.max_episode_steps = self.data["max_episode_steps"]
         self.render_every_steps = self.data["render_every_steps"]
         self.render_every_envs = self.data["render_every_envs"]
@@ -136,7 +136,7 @@ class GeneralEnv(CustomEnv):
             self.step_counter = 0
 
         self.observation[-1] = last_actions[0]
-        self.observation[-2] = action/self.dynamics_function.torque_limit
+        self.observation[-2] = action[0]
         if self.render_mode == "human":
             self.reward = reward
             self.acc_reward += reward
