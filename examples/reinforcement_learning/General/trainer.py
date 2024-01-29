@@ -7,8 +7,8 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm.auto import tqdm
 import numpy as np
 from double_pendulum.utils.csv_trajectory import save_trajectory
-from sbx import SAC
-from sbx.sac.policies import SACPolicy
+from stable_baselines3 import SAC
+from stable_baselines3.sac.policies import SACPolicy
 from stable_baselines3.common.callbacks import (
     EvalCallback,
     CallbackList,
@@ -18,6 +18,27 @@ from stable_baselines3.common.callbacks import (
 from examples.reinforcement_learning.General.environments import GeneralEnv
 from double_pendulum.controller.abstract_controller import AbstractController
 from double_pendulum.utils.plotting import plot_timeseries
+
+
+def linear_schedule(initial_value):
+    if isinstance(initial_value, str):
+        initial_value = float(initial_value)
+
+    def func(progress):
+        return progress * initial_value
+
+    return func
+
+
+def exponential_schedule(initial_value):
+    if isinstance(initial_value, str):
+        initial_value = float(initial_value)
+
+    def func(progress):
+        k = 5
+        return initial_value * np.exp(-k * (1 - progress))
+
+    return func
 
 
 class ProgressBarCallback(BaseCallback):
@@ -182,38 +203,6 @@ class Trainer:
             if hasattr(agent, key):
                 setattr(agent, key, self.environment.data[key])
 
-    class GeneralController(AbstractController):
-        def __init__(self, environment: Type[GeneralEnv], model_path):
-            super().__init__()
-
-            self.model = SAC.load(model_path, print_system_info=True)
-            self.simulation = environment.simulation
-            self.dynamics_func = environment.dynamics_func
-            self.dt = environment.dynamics_func.dt
-            self.scaling = environment.dynamics_func.scaling
-            self.integrator = environment.dynamics_func.integrator
-            self.actions_in_state = environment.actions_in_state
-            self.last_actions = [0, 0]
-
-        def get_control_output_(self, x, t=None):
-
-            if self.actions_in_state:
-                x = np.append(x, self.last_actions)
-
-            if self.scaling:
-                obs = self.dynamics_func.normalize_state(x)
-                action = self.model.predict(obs)
-                u = self.dynamics_func.unscale_action(action)
-            else:
-                action = self.model.predict(x)
-                u = self.dynamics_func.unscale_action(action)
-
-            if self.actions_in_state:
-                self.last_actions[-1] = self.last_actions[-2]
-                self.last_actions[-2] = u[u != 0][0]
-
-            return u
-
     def simulate(self, model_path="/best_model/best_model", tf=10.0):
 
         controller = self.get_controller(model_path)
@@ -247,19 +236,40 @@ class Trainer:
             scale=0.5,
         )
 
-    def create_leader_board(self):
-        leaderboard_config = {
-        "csv_path": self.log_dir + "/sim_swingup.csv",
-        "name": self.name,
-        "simple_name": "SAC LQR",
-        "short_description": "Swing-up with an RL Policy learned with SAC.",
-        "readme_path": f"readmes/{self.name}.md",
-        "username": "chiniklas",
-        }
-
-        return leaderboard_config
-
     def get_controller(self, model_path="/best_model/best_model"):
         model_path = self.log_dir + model_path
-        controller = self.GeneralController(self.environment, model_path)
+        controller = GeneralController(self.environment, model_path)
         return controller
+
+
+class GeneralController(AbstractController):
+    def __init__(self, environment: Type[GeneralEnv], model_path):
+        super().__init__()
+
+        self.model = SAC.load(model_path, print_system_info=True)
+        self.simulation = environment.simulation
+        self.dynamics_func = environment.dynamics_func
+        self.dt = environment.dynamics_func.dt
+        self.scaling = environment.dynamics_func.scaling
+        self.integrator = environment.dynamics_func.integrator
+        self.actions_in_state = environment.actions_in_state
+        self.last_actions = [0, 0]
+
+    def get_control_output_(self, x, t=None):
+
+        if self.actions_in_state:
+            x = np.append(x, self.last_actions)
+
+        if self.scaling:
+            obs = self.dynamics_func.normalize_state(x)
+            action = self.model.predict(obs)
+            u = self.dynamics_func.unscale_action(action)
+        else:
+            action = self.model.predict(x)
+            u = self.dynamics_func.unscale_action(action)
+
+        if self.actions_in_state:
+            self.last_actions[-1] = self.last_actions[-2]
+            self.last_actions[-2] = u[u != 0][0]
+
+        return u

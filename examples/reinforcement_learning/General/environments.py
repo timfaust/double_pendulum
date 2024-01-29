@@ -8,8 +8,8 @@ from src.python.double_pendulum.simulation.gym_env import CustomEnv
 import pygame
 import numpy as np
 import gymnasium as gym
-from dynamics_functions import default_dynamics, random_dynamics, random_push_dynamics, push_dynamics
-from reward_functions import future_pos_reward, pos_reward, unholy_reward_4, saturated_distance_from_target
+from examples.reinforcement_learning.General.dynamics_functions import default_dynamics, random_dynamics, random_push_dynamics, push_dynamics
+from examples.reinforcement_learning.General.reward_functions import future_pos_reward, pos_reward, unholy_reward_4, saturated_distance_from_target
 
 
 class GeneralEnv(CustomEnv):
