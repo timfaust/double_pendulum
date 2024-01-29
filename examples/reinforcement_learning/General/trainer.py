@@ -21,12 +21,13 @@ from double_pendulum.utils.plotting import plot_timeseries
 
 
 class ProgressBarCallback(BaseCallback):
-    def __init__(self, total_steps, log_dir, data):
+    def __init__(self, total_steps, log_dir, data, n_envs):
         super(ProgressBarCallback, self).__init__()
         self.pbar = None
         self.total_steps = total_steps
         self.log_dir = log_dir
         self.data = data
+        self.n_envs = n_envs
 
     def find_next_log_dir(self):
         tb_log_dir = os.path.join(self.log_dir, "tb_logs")
@@ -49,7 +50,7 @@ class ProgressBarCallback(BaseCallback):
             writer.add_text("Configuration", f"```json\n{config_str}\n```", 0)
 
     def _on_step(self):
-        self.pbar.update(1)
+        self.pbar.update(self.n_envs)
         return True
 
     def _on_training_end(self):
@@ -173,7 +174,7 @@ class Trainer:
                                                  save_path=os.path.join(self.log_dir, 'saved_model'),
                                                  name_prefix="saved_model")
 
-        progress_bar_callback = ProgressBarCallback(self.training_steps, self.log_dir, self.environment.data)
+        progress_bar_callback = ProgressBarCallback(self.training_steps, self.log_dir, self.environment.data, self.environment.n_envs)
         return CallbackList([eval_callback, checkpoint_callback, progress_bar_callback])
 
     def load_custom_params(self, agent):
