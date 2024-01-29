@@ -31,7 +31,7 @@
 
         "train_env": {
             "dynamics_function": "default_dynamics",
-            "reset_function": "balanced_reset",
+            "reset_function": "debug_reset",
             "reward_function": "future_pos_reward",
             "same_env": 1,
             "n_envs": 10
@@ -39,7 +39,7 @@
 
         "eval_env": {
             "dynamics_function": "default_dynamics",
-            "reset_function": "low_reset",
+            "reset_function": "debug_reset",
             "reward_function": "future_pos_reward",
             "same_env": 1,
             "n_envs": 10
@@ -49,7 +49,7 @@
         "actions_in_state": 1,
         "gradient_steps": 2,
         "max_episode_steps": 1000,
-        "training_steps": 1e7,
+        "training_steps": 2e7,
         "use_action_noise": 1,
 
         "eval_freq": 1e5,

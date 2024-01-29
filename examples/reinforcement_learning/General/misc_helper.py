@@ -11,6 +11,10 @@ def low_reset():
     return general_reset([-0.5, 0, 0, 0], [0.025, 0.025, 0.05, 0.05])
 
 
+def debug_reset():
+    return general_reset([-0.5, 0, 0, 0], [0.0, 0.0, 0.0, 0.0])
+
+
 def high_reset():
     return general_reset([0, 0, 0, 0], [0.025, 0.025, 0.05, 0.05])
 
