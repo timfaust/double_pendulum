@@ -29,12 +29,14 @@ def semi_random_reset():
 
 def balanced_reset():
     r = np.random.random()
-    if r < 0.25:
+    if r < 0.2:
         return high_reset()
-    elif r < 0.5:
+    elif r < 0.4:
         return low_reset()
-    elif r < 0.75:
+    elif r < 0.6:
         return semi_random_reset()
+    elif r < 0.8:
+        return debug_reset()
     else:
         return random_reset()
 

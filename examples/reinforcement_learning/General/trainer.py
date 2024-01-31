@@ -127,7 +127,7 @@ class Trainer:
         self.environment.reset()
 
         envs = self.environment.get_envs(log_dir=self.log_dir)
-        agent = SAC.load(self.log_dir + model_path, print_system_info=True)
+        agent = SAC.load(self.log_dir + model_path)
         self.load_custom_params(agent)
         agent.set_env(envs)
 
@@ -140,7 +140,7 @@ class Trainer:
         if not os.path.exists(self.log_dir + model_path + ".zip"):
             raise Exception("model not found")
 
-        agent = SAC.load(self.log_dir + model_path, print_system_info=True)
+        agent = SAC.load(self.log_dir + model_path)
         self.load_custom_params(agent)
 
         eval_envs = self.eval_environment.get_envs(log_dir=self.log_dir)
@@ -157,7 +157,7 @@ class Trainer:
             total_rewards = 0
             steps = 0
             while not np.all(done):
-                action, _states = agent.predict(state)
+                action, _states = agent.predict(observation=state, deterministic=True)
                 state, reward, done, info = eval_envs.step(action)
                 if self.render_eval:
                     eval_envs.render()
@@ -246,7 +246,7 @@ class GeneralController(AbstractController):
     def __init__(self, environment: Type[GeneralEnv], model_path):
         super().__init__()
 
-        self.model = SAC.load(model_path, print_system_info=True)
+        self.model = SAC.load(model_path)
         self.simulation = environment.simulation
         self.dynamics_func = environment.dynamics_func
         self.dt = environment.dynamics_func.dt
@@ -262,10 +262,10 @@ class GeneralController(AbstractController):
 
         if self.scaling:
             obs = self.dynamics_func.normalize_state(x)
-            action = self.model.predict(obs)
+            action = self.model.predict(observation=obs, deterministic=True)
             u = self.dynamics_func.unscale_action(action)
         else:
-            action = self.model.predict(x)
+            action = self.model.predict(observation=x, deterministic=True)
             u = self.dynamics_func.unscale_action(action)
 
         if self.actions_in_state:
