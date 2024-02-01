@@ -108,13 +108,15 @@ class Trainer:
         envs = self.environment.get_envs(log_dir=self.log_dir)
         callback_list = self.get_callback_list()
 
+        valid_keys = ['gradient_steps', 'ent_coef', 'learning_rate']
+        filtered_data = {key: value for key, value in self.environment.data.items() if key in valid_keys}
         agent = SAC(
             SACPolicy,
             envs,
             tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
             action_noise=self.action_noise,
+            **filtered_data
         )
-        self.load_custom_params(agent)
 
         agent.learn(self.training_steps, callback=callback_list)
         agent.save(os.path.join(self.log_dir, "saved_model", "trained_model"))
@@ -128,7 +130,6 @@ class Trainer:
 
         envs = self.environment.get_envs(log_dir=self.log_dir)
         agent = SAC.load(self.log_dir + model_path)
-        self.load_custom_params(agent)
         agent.set_env(envs)
 
         callback_list = self.get_callback_list()
@@ -141,7 +142,6 @@ class Trainer:
             raise Exception("model not found")
 
         agent = SAC.load(self.log_dir + model_path)
-        self.load_custom_params(agent)
 
         eval_envs = self.eval_environment.get_envs(log_dir=self.log_dir)
         for i in range(len(eval_envs.envs)):
@@ -197,11 +197,6 @@ class Trainer:
 
         progress_bar_callback = ProgressBarCallback(self.training_steps, self.log_dir, self.environment.data, self.environment.n_envs)
         return CallbackList([eval_callback, checkpoint_callback, progress_bar_callback])
-
-    def load_custom_params(self, agent):
-        for key in self.environment.data:
-            if hasattr(agent, key):
-                setattr(agent, key, self.environment.data[key])
 
     def simulate(self, model_path="/best_model/best_model", tf=10.0):
 
