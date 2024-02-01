@@ -7,8 +7,8 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm.auto import tqdm
 import numpy as np
 from double_pendulum.utils.csv_trajectory import save_trajectory
-from stable_baselines3 import SAC
-from stable_baselines3.sac.policies import SACPolicy
+from sbx import SAC
+from sbx.sac.policies import SACPolicy
 from stable_baselines3.common.callbacks import (
     EvalCallback,
     CallbackList,

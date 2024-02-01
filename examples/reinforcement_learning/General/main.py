@@ -6,7 +6,7 @@ import argparse
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--name', default="6states")
+    parser.add_argument('--name', default="6states_fut")
     parser.add_argument('--mode', default="train", choices=["train", "retrain", "evaluate", "simulate"])
     parser.add_argument('--model_path', default="/best_model/best_model")
     parser.add_argument('--env_type', default="acrobot", choices=["pendubot", "acrobot"])
