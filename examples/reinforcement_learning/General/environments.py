@@ -78,7 +78,7 @@ class GeneralEnv(CustomEnv):
         self.clock = None
 
         self.mpar = load_param(robot, self.dynamics_func.torque_limit)
-        self.state_dict = {"T": [], "X_meas": [], "U_con": [], "mpar": self.mpar, "max_episode_steps": self.max_episode_steps}
+        self.state_dict = {"T": [], "X_meas": [], "U_con": [], "plant": self.dynamics_func.simulator.plant, "max_episode_steps": self.max_episode_steps}
 
     def custom_reset(self):
         observation = self.reset_function()
@@ -107,7 +107,7 @@ class GeneralEnv(CustomEnv):
     def reset(self, seed=None, options=None):
         observation, info = super().reset(seed, options)
         for key in self.state_dict:
-            if key != 'mpar' and key != 'max_episode_steps':
+            if key != 'plant' and key != 'max_episode_steps':
                 self.state_dict[key].clear()
         self.reward = 0
         self.acc_reward = 0

@@ -1,7 +1,34 @@
 import numpy as np
 from double_pendulum.utils.wrap_angles import wrap_angles_diff
-from src.python.double_pendulum.analysis.leaderboard import get_swingup_time, get_max_tau, get_energy, \
+from src.python.double_pendulum.analysis.leaderboard import get_max_tau, get_energy, \
     get_integrated_torque, get_torque_cost, get_tau_smoothness, get_velocity_cost
+
+
+def get_swingup_time(
+    T,
+    X,
+    plant=None,
+    height=0.9,
+):
+    fk = plant.forward_kinematics(X.T[:2])
+    ee_pos_y = fk[1][1]
+
+    goal_height = height * (plant.l[0] + plant.l[1])
+
+    up = np.where(ee_pos_y > goal_height, True, False)
+
+    time_index = len(T) - 1
+    for i in range(len(up) - 2, 0, -1):
+        if up[i]:
+            time_index = i
+        else:
+            break
+
+    else:
+        time_index = np.argwhere(up)[0][0]
+    time = T[time_index]
+
+    return time
 
 
 def get_score(state_dict):
@@ -12,7 +39,8 @@ def get_score(state_dict):
     return 0
 
 
-def calculate_score(state_dict):
+def calculate_score(state_dict, verbose=False):
+    print("calculate_score")
     normalize = {
         "swingup_time": 10.0,
         "max_tau": 6.0,
@@ -35,14 +63,14 @@ def calculate_score(state_dict):
     T = np.array(state_dict["T"])
     X = np.array(state_dict["X_meas"])
     U = np.array(state_dict["U_con"])
-    swingup_time = get_swingup_time(T=T, X=X, has_to_stay=True, mpar=state_dict["mpar"], method="height", height=0.9)
+
+    swingup_time = get_swingup_time(T=T, X=X, plant=state_dict["plant"], height=0.9)
     max_tau = get_max_tau(U)
     energy = get_energy(X, U)
     integ_tau = get_integrated_torque(T, U)
     tau_cost = get_torque_cost(T, U)
     tau_smoothness = get_tau_smoothness(U)
     velocity_cost = get_velocity_cost(T, X)
-
     success = int(swingup_time < T[-1])
 
     score = success * (
@@ -64,6 +92,16 @@ def calculate_score(state_dict):
             )
     )
 
+    if verbose:
+        print("swingup_time: " + str(swingup_time))
+        print("max_tau: " + str(max_tau))
+        print("energy: " + str(energy))
+        print("integ_tau: " + str(integ_tau))
+        print("tau_cost: " + str(tau_cost))
+        print("tau_smoothness: " + str(tau_smoothness))
+        print("velocity_cost: " + str(velocity_cost))
+        print("success: " + str(success))
+        print("score: " + str(score))
     return score
 
 
