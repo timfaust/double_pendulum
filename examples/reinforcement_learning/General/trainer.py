@@ -265,6 +265,10 @@ class GeneralController(AbstractController):
 
         if self.actions_in_state:
             self.last_actions[-1] = self.last_actions[-2]
-            self.last_actions[-2] = u[u != 0][0]
+            if not np.all(u == 0):
+                max_abs_value_index = np.abs(u).argmax()
+                self.last_actions[-2] = u[max_abs_value_index]
+            else:
+                self.last_actions[-2] = 0
 
         return u

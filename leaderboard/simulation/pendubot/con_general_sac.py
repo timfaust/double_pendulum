@@ -18,6 +18,6 @@ leaderboard_config = {
     }
 
 model_path = "../../../examples/reinforcement_learning/General/log_data/" + name + "/" + robot + "/best_model/best_model.zip"
-controller = GeneralController(GeneralEnv(robot, "test"), model_path=model_path)
+controller = GeneralController(GeneralEnv(robot, "test", "../../../examples/reinforcement_learning/General/parameters.json"), model_path=model_path)
 
 controller.init()

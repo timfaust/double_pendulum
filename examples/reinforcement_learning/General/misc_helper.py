@@ -39,6 +39,14 @@ def balanced_reset():
         return random_reset()
 
 
+def updown_reset():
+    r = np.random.random()
+    if r < 0.25:
+        return high_reset()
+    else:
+        return low_reset()
+
+
 def noisy_reset():
     rand = np.random.rand(4) * 0.005
     rand[2:] = rand[2:] - 0.025

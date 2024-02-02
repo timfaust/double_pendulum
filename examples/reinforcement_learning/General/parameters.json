@@ -31,7 +31,7 @@
 
         "train_env": {
             "dynamics_function": "default_dynamics",
-            "reset_function": "balanced_reset",
+            "reset_function": "updown_reset",
             "reward_function": "future_pos_reward",
             "same_env": 1,
             "n_envs": 10
