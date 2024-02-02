@@ -27,7 +27,7 @@
         "device": "auto",
         "_init_setup_model": true
     },
-    "test": {
+    "default": {
 
         "train_env": {
             "dynamics_function": "default_dynamics",
@@ -39,16 +39,53 @@
 
         "eval_env": {
             "dynamics_function": "default_dynamics",
-            "reset_function": "low_reset",
+            "reset_function": "debug_reset",
             "reward_function": "future_pos_reward",
             "same_env": 1,
-            "n_envs": 20
+            "n_envs": 5
         },
 
         "dt": 0.01,
         "max_torque": 5,
 
         "learning_rate": 1e-3,
+        "actions_in_state": 1,
+        "gradient_steps": 1,
+        "max_episode_steps": 500,
+        "training_steps": 2e7,
+        "use_action_noise": 1,
+
+        "eval_freq": 1e5,
+        "n_eval_episodes": 10,
+        "render_eval": 1,
+        "render_every_steps": 10,
+        "render_every_envs": 10,
+
+        "verbose": 0,
+        "save_freq": 1e6
+    },
+    "score": {
+
+        "train_env": {
+            "dynamics_function": "default_dynamics",
+            "reset_function": "debug_reset",
+            "reward_function": "score_reward",
+            "same_env": 1,
+            "n_envs": 1
+        },
+
+        "eval_env": {
+            "dynamics_function": "default_dynamics",
+            "reset_function": "debug_reset",
+            "reward_function": "score_reward",
+            "same_env": 1,
+            "n_envs": 1
+        },
+
+        "dt": 0.001,
+        "max_torque": 5,
+
+        "learning_rate": 1e-4,
         "actions_in_state": 1,
         "gradient_steps": 1,
         "max_episode_steps": 500,
