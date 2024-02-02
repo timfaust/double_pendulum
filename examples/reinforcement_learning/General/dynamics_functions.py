@@ -30,7 +30,7 @@ class PushDoublePendulum(SymbolicDoublePendulum):
         return accn
 
 
-def load_param(robot, torque_limit=5.0):
+def load_param(robot, torque_limit):
     if robot == "pendubot":
         design = "design_A.0"
         model = "model_2.0"
@@ -57,43 +57,43 @@ def load_param(robot, torque_limit=5.0):
     return mpar
 
 
-def random_dynamics(robot, sigma=0.02, plant_class=SymbolicDoublePendulum, use_random=True):
-    mpar = load_param(robot)
+def random_dynamics(robot, dt, max_torque, sigma=0.02, plant_class=SymbolicDoublePendulum, use_random=True):
+    mpar = load_param(robot, max_torque)
     if use_random:
         mpar.g = np.random.normal(mpar.g, sigma)
         mpar.m = np.random.normal(mpar.m, sigma)
         mpar.l = np.random.normal(mpar.l, sigma).tolist()
         mpar.cf = abs(np.random.normal(mpar.cf, sigma)).tolist()
     plant = plant_class(model_pars=mpar)
-    return general_dynamics(robot, plant)
+    return general_dynamics(robot, plant, dt, max_torque)
 
 
-def push_dynamics(robot):
-    mpar = load_param(robot)
+def push_dynamics(robot, dt, max_torque):
+    mpar = load_param(robot, max_torque)
     plant = PushDoublePendulum(model_pars=mpar)
-    return general_dynamics(robot, plant)
+    return general_dynamics(robot, plant, dt, max_torque)
 
 
-def random_push_dynamics(robot, sigma=0.02):
-    return random_dynamics(robot, sigma, PushDoublePendulum)
+def random_push_dynamics(robot, dt, max_torque, sigma=0.02):
+    return random_dynamics(robot, dt, max_torque, sigma, PushDoublePendulum)
 
 
-def default_dynamics(robot):
-    mpar = load_param(robot)
+def default_dynamics(robot, dt, max_torque):
+    mpar = load_param(robot, max_torque)
     plant = SymbolicDoublePendulum(model_pars=mpar)
-    return general_dynamics(robot, plant)
+    return general_dynamics(robot, plant, dt, max_torque)
 
 
-def general_dynamics(robot, plant):
+def general_dynamics(robot, plant, dt, max_torque):
     print("build new plant")
     simulator = Simulator(plant=plant)
     dynamics_function = custom_double_pendulum_dynamics_func(
         simulator=simulator,
         robot=robot,
-        dt=0.01,
+        dt=dt,
         integrator="runge_kutta",
         max_velocity=20.0,
-        torque_limit=[5.0, 5.0],
+        torque_limit=[max_torque, max_torque],
         scaling=True
     )
     return dynamics_function, simulator, plant

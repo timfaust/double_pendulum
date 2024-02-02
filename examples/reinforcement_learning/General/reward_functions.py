@@ -1,5 +1,70 @@
 import numpy as np
 from double_pendulum.utils.wrap_angles import wrap_angles_diff
+from src.python.double_pendulum.analysis.leaderboard import get_swingup_time, get_max_tau, get_energy, \
+    get_integrated_torque, get_torque_cost, get_tau_smoothness, get_velocity_cost
+
+
+def get_score(state_dict):
+    step = len(state_dict["T"])
+    max_episode_steps = state_dict["max_episode_steps"]
+    if step == max_episode_steps:
+        return calculate_score(state_dict)
+    return step
+
+
+def calculate_score(state_dict):
+    normalize = {
+        "swingup_time": 10.0,
+        "max_tau": 6.0,
+        "energy": 100.0,
+        "integ_tau": 60.0,
+        "tau_cost": 360.0,
+        "tau_smoothness": 12.0,
+        "velocity_cost": 1000,
+    }
+    weights = {
+        "swingup_time": 0.2,
+        "max_tau": 0.1,
+        "energy": 0.1,
+        "integ_tau": 0.1,
+        "tau_cost": 0.1,
+        "tau_smoothness": 0.2,
+        "velocity_cost": 0.2,
+    }
+
+    T = np.array(state_dict["T"])
+    X = np.array(state_dict["X_meas"])
+    U = np.array(state_dict["U_con"])
+    swingup_time = get_swingup_time(T=T, X=X, has_to_stay=True, mpar=state_dict["mpar"], method="height", height=0.9)
+    max_tau = get_max_tau(U)
+    energy = get_energy(X, U)
+    integ_tau = get_integrated_torque(T, U)
+    tau_cost = get_torque_cost(T, U)
+    tau_smoothness = get_tau_smoothness(U)
+    velocity_cost = get_velocity_cost(T, X)
+
+    success = int(swingup_time < T[-1])
+
+    score = success * (
+            1.0
+            - (
+                    weights["swingup_time"]
+                    * swingup_time
+                    / normalize["swingup_time"]
+                    + weights["max_tau"] * max_tau / normalize["max_tau"]
+                    + weights["energy"] * energy / normalize["energy"]
+                    + weights["integ_tau"] * integ_tau / normalize["integ_tau"]
+                    + weights["tau_cost"] * tau_cost / normalize["tau_cost"]
+                    + weights["tau_smoothness"]
+                    * tau_smoothness
+                    / normalize["tau_smoothness"]
+                    + weights["velocity_cost"]
+                    * velocity_cost
+                    / normalize["velocity_cost"]
+            )
+    )
+
+    return score
 
 
 def get_state_values(observation, action, robot, dynamics):
@@ -44,7 +109,7 @@ def get_state_values(observation, action, robot, dynamics):
     return s, x1, x2, v1, v2, action * torque_limit, goal, dt_goal, threshold_distance, u_p * torque_limit, u_pp * torque_limit
 
 
-def future_pos_reward(observation, action, env_type, dynamics):
+def future_pos_reward(observation, action, env_type, dynamics, state_dict):
     y, x1, x2, v1, v2, action, goal, dt_goal, threshold_distance, u_p, u_pp = get_state_values(observation, action, env_type, dynamics)
     distance = np.linalg.norm(x2 + dt_goal * v2 - goal)
     reward = 1 / (distance + 0.01)
@@ -54,13 +119,13 @@ def future_pos_reward(observation, action, env_type, dynamics):
     return reward
 
 
-def pos_reward(observation, action, env_type, dynamics):
+def pos_reward(observation, action, env_type, dynamics, state_dict):
     y, x1, x2, v1, v2, action, goal, dt, threshold, _, _ = get_state_values(observation, action, env_type, dynamics)
     distance = np.linalg.norm(x2 - goal)
     return 1 / (distance + 0.0001)
 
 
-def saturated_distance_from_target(observation, action, env_type, dynamics):
+def saturated_distance_from_target(observation, action, env_type, dynamics, state_dict):
     l = [0.2, 0.3]
     if env_type == 'pendubot':
         l = [0.3, 0.2]
@@ -92,7 +157,7 @@ def saturated_distance_from_target(observation, action, env_type, dynamics):
 
 
 
-def unholy_reward_4(observation, action, env_type, dynamics):
+def unholy_reward_4(observation, action, env_type, dynamics, state_dict):
     #quadtratic cost and quadtratic penalties
     l = [0.2, 0.3]
     if env_type == 'pendubot':

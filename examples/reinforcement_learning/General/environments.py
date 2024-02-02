@@ -8,7 +8,8 @@ from src.python.double_pendulum.simulation.gym_env import CustomEnv
 import pygame
 import numpy as np
 import gymnasium as gym
-from examples.reinforcement_learning.General.dynamics_functions import default_dynamics, random_dynamics, random_push_dynamics, push_dynamics
+from examples.reinforcement_learning.General.dynamics_functions import default_dynamics, random_dynamics, \
+    random_push_dynamics, push_dynamics, load_param
 from examples.reinforcement_learning.General.reward_functions import future_pos_reward, pos_reward, unholy_reward_4, saturated_distance_from_target
 
 
@@ -46,14 +47,14 @@ class GeneralEnv(CustomEnv):
         self.same_env = self.data[type]["same_env"]
 
         self.dynamics_function = dynamics_function
-        self.reward_function = lambda obs, act: reward_function(obs, act, robot, [self.dynamics_func.dt, self.dynamics_func.max_velocity, self.dynamics_func.torque_limit])
+        self.reward_function = lambda obs, act, state_dict: reward_function(obs, act, robot, [self.dynamics_func.dt, self.dynamics_func.max_velocity, self.dynamics_func.torque_limit], state_dict)
         self.max_episode_steps = self.data["max_episode_steps"]
         self.render_every_steps = self.data["render_every_steps"]
         self.render_every_envs = self.data["render_every_envs"]
         self.actions_in_state = self.data["actions_in_state"] == 1
 
         if hasattr(dynamics_function, '__code__'):
-            dynamics_function, self.simulation, self.plant = dynamics_function(robot)
+            dynamics_function, self.simulation, self.plant = dynamics_function(robot, self.data["dt"], self.data["max_torque"])
 
         if not self.actions_in_state:
             obs_space = gym.spaces.Box(np.array([-1.0, -1.0, -1.0, -1.0]), np.array([1.0, 1.0, 1.0, 1.0]))
@@ -75,6 +76,9 @@ class GeneralEnv(CustomEnv):
         self.render_mode = "None"
         self.window = None
         self.clock = None
+
+        self.mpar = load_param(robot, self.dynamics_func.torque_limit)
+        self.state_dict = {"T": [], "X_meas": [], "U_con": [], "mpar": self.mpar, "max_episode_steps": self.max_episode_steps}
 
     def custom_reset(self):
         observation = self.reset_function()
@@ -102,6 +106,9 @@ class GeneralEnv(CustomEnv):
 
     def reset(self, seed=None, options=None):
         observation, info = super().reset(seed, options)
+        for key in self.state_dict:
+            if key != 'mpar' and key != 'max_episode_steps':
+                self.state_dict[key].clear()
         self.reward = 0
         self.acc_reward = 0
         self.action = np.array([0, 0])
@@ -111,10 +118,18 @@ class GeneralEnv(CustomEnv):
         last_actions = self.observation[-2:]
         if self.actions_in_state:
             self.observation = self.observation[:-2]
+
         self.observation = self.dynamics_func(self.observation, action, scaling=self.scaling)
+        time = self.dynamics_func.dt
+        if len(self.state_dict["T"]) > 0:
+            time = time + self.state_dict["T"][-1]
+        self.state_dict["T"].append(time)
+        self.state_dict["U_con"].append(self.dynamics_func.unscale_action(action))
+        self.state_dict["X_meas"].append(self.dynamics_func.unscale_state(self.observation))
+
         if self.actions_in_state:
             self.observation = np.append(self.observation, last_actions)
-        reward = self.reward_func(self.observation, action)
+        reward = self.reward_func(self.observation, action, self.state_dict)
         terminated = self.terminated_func(self.observation)
         info = {}
         truncated = False
