@@ -19,6 +19,8 @@ from examples.reinforcement_learning.General.environments import GeneralEnv
 from double_pendulum.controller.abstract_controller import AbstractController
 from double_pendulum.utils.plotting import plot_timeseries
 
+from examples.reinforcement_learning.General.reward_functions import calculate_score
+
 
 def linear_schedule(initial_value):
     if isinstance(initial_value, str):
@@ -39,6 +41,20 @@ def exponential_schedule(initial_value):
         return initial_value * np.exp(-k * (1 - progress))
 
     return func
+
+
+class ScoreCallback(BaseCallback):
+    def __init__(self, verbose=0):
+        super(ScoreCallback, self).__init__(verbose)
+
+    def _on_step(self) -> bool:
+        if len(self.training_env.get_attr('state_dict')[0]['T']) == self.training_env.get_attr('max_episode_steps')[0] - 1:
+            sum = 0
+            state_dicts = self.training_env.get_attr('state_dict')
+            for state_dict in state_dicts:
+                sum += calculate_score(state_dict)
+            self.logger.record("rollout/score_mean", sum/len(state_dicts))
+        return True
 
 
 class ProgressBarCallback(BaseCallback):
@@ -199,7 +215,7 @@ class Trainer:
                                                  name_prefix="saved_model")
 
         progress_bar_callback = ProgressBarCallback(self.training_steps, self.log_dir, self.environment.data, self.environment.n_envs)
-        return CallbackList([eval_callback, checkpoint_callback, progress_bar_callback])
+        return CallbackList([eval_callback, checkpoint_callback, progress_bar_callback, ScoreCallback()])
 
     def simulate(self, model_path="/best_model/best_model", tf=10.0):
 
