@@ -34,7 +34,7 @@
             "reset_function": "updown_reset",
             "reward_function": "future_pos_reward",
             "same_env": 1,
-            "n_envs": 10
+            "n_envs": 20
         },
 
         "eval_env": {
@@ -42,7 +42,7 @@
             "reset_function": "low_reset",
             "reward_function": "future_pos_reward",
             "same_env": 1,
-            "n_envs": 30
+            "n_envs": 20
         },
 
         "dt": 0.01,
