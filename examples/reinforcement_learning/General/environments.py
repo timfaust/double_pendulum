@@ -10,7 +10,7 @@ import numpy as np
 import gymnasium as gym
 from examples.reinforcement_learning.General.dynamics_functions import default_dynamics, random_dynamics, \
     random_push_dynamics, push_dynamics, load_param
-from examples.reinforcement_learning.General.reward_functions import future_pos_reward, pos_reward, unholy_reward_4, saturated_distance_from_target
+from examples.reinforcement_learning.General.reward_functions import future_pos_reward, pos_reward, unholy_reward_4, saturated_distance_from_target, score_reward
 
 
 class GeneralEnv(CustomEnv):

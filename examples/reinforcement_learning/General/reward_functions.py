@@ -40,7 +40,6 @@ def get_score(state_dict):
 
 
 def calculate_score(state_dict, verbose=False):
-    print("calculate_score")
     normalize = {
         "swingup_time": 10.0,
         "max_tau": 6.0,
@@ -93,6 +92,7 @@ def calculate_score(state_dict, verbose=False):
     )
 
     if verbose:
+        print("calculate_score")
         print("swingup_time: " + str(swingup_time))
         print("max_tau: " + str(max_tau))
         print("energy: " + str(energy))
@@ -145,6 +145,10 @@ def get_state_values(observation, action, robot, dynamics):
         u_pp = (action - 2 * observation[-2] + observation[-1])/(dt * dt)
 
     return s, x1, x2, v1, v2, action * torque_limit, goal, dt_goal, threshold_distance, u_p * torque_limit, u_pp * torque_limit
+
+
+def score_reward(observation, action, env_type, dynamics, state_dict):
+    return get_score(state_dict)
 
 
 def future_pos_reward(observation, action, env_type, dynamics, state_dict):
