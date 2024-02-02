@@ -9,7 +9,7 @@ def get_score(state_dict):
     max_episode_steps = state_dict["max_episode_steps"]
     if step == max_episode_steps:
         return calculate_score(state_dict)
-    return step
+    return 0
 
 
 def calculate_score(state_dict):
