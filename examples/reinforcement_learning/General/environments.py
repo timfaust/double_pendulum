@@ -9,9 +9,9 @@ import pygame
 import numpy as np
 import gymnasium as gym
 from examples.reinforcement_learning.General.dynamics_functions import default_dynamics, random_dynamics, \
-    random_push_dynamics, push_dynamics, load_param
+    random_push_dynamics, push_dynamics, load_param, custom_dynamics_func_PI, custom_dynamics_func_4PI
 from examples.reinforcement_learning.General.reward_functions import future_pos_reward, pos_reward, unholy_reward_4, saturated_distance_from_target, score_reward
-
+from double_pendulum.simulation.simulation import Simulator
 
 class GeneralEnv(CustomEnv):
     metadata = {"render_modes": ["human"], "render_fps": 120}
@@ -22,7 +22,8 @@ class GeneralEnv(CustomEnv):
         param,
         path="parameters.json",
         eval=False,
-        dynamics_function=None
+        dynamics_function=None,
+        plant=None
     ):
 
         self.eval = eval
@@ -40,34 +41,47 @@ class GeneralEnv(CustomEnv):
 
         if dynamics_function is None:
             dynamics_function = globals()[self.data[type]["dynamics_function"]]
-        self.reset_function = globals()[self.data[type]["reset_function"]]
+        reset_function = globals()[self.data[type]["reset_function"]]
+        dynamic_class_name = self.data["dynamic_class"]
+        low_pos = [-0.5, 0, 0, 0]
+        if dynamic_class_name == "custom_dynamics_func_PI":
+            low_pos = [1.0, 0, 0, 0]
+        self.reset_function = lambda: reset_function(low_pos)
         reward_function = globals()[self.data[type]["reward_function"]]
 
         self.n_envs = self.data[type]["n_envs"]
         self.same_env = self.data[type]["same_env"]
 
         self.dynamics_function = dynamics_function
-        self.reward_function = lambda obs, act, state_dict: reward_function(obs, act, robot, [self.dynamics_func.dt, self.dynamics_func.max_velocity, self.dynamics_func.torque_limit], state_dict)
+        self.reward_function = lambda obs, act, state_dict: reward_function(obs, act, robot, self.dynamics_func, state_dict)
         self.max_episode_steps = self.data["max_episode_steps"]
         self.render_every_steps = self.data["render_every_steps"]
         self.render_every_envs = self.data["render_every_envs"]
         self.actions_in_state = self.data["actions_in_state"] == 1
+        self.use_sim = self.data["use_sim_values"] == 1
+        self.simulation = None
+        if not plant is None:
+            self.plant = plant
+            self.simulation = Simulator(plant=plant)
 
         if hasattr(dynamics_function, '__code__'):
-            dynamics_function, self.simulation, self.plant = dynamics_function(robot, self.data["dt"], self.data["max_torque"])
+            dynamics_function, self.simulation, self.plant = dynamics_function(robot, self.data["dt"], self.data["max_torque"], globals()[dynamic_class_name])
 
         if not self.actions_in_state:
             obs_space = gym.spaces.Box(np.array([-1.0, -1.0, -1.0, -1.0]), np.array([1.0, 1.0, 1.0, 1.0]))
         else:
             obs_space = gym.spaces.Box(np.array([-1.0, -1.0, -1.0, -1.0, -1.0, -1.0]), np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0]))
 
+        act_space = gym.spaces.Box(np.array([-0.5]), np.array([0.5]))
+        if robot == "acrobot":
+            act_space = gym.spaces.Box(np.array([-0.6]), np.array([0.6]))
         super().__init__(
             dynamics_function,
             self.reward_function,
             no_termination,
-            self.custom_reset,
+            self.reset_function,
             obs_space,
-            gym.spaces.Box(np.array([-1]), np.array([1])),
+            act_space,
             self.max_episode_steps,
             True
         )
@@ -80,17 +94,14 @@ class GeneralEnv(CustomEnv):
         self.mpar = load_param(robot, self.dynamics_func.torque_limit)
         self.state_dict = {"T": [], "X_meas": [], "U_con": [], "plant": self.dynamics_func.simulator.plant, "max_episode_steps": self.max_episode_steps}
 
-    def custom_reset(self):
-        observation = self.reset_function()
-        if self.actions_in_state:
-            observation = np.append(observation, np.zeros(2))
-        return observation
-
     def get_envs(self, log_dir):
         if self.same_env:
             dynamics_function = self.dynamics_func
+            plant = self.plant
         else:
             dynamics_function = self.dynamics_function
+            plant = None
+
         envs = make_vec_env(
             env_id=GeneralEnv,
             n_envs=self.n_envs,
@@ -98,7 +109,8 @@ class GeneralEnv(CustomEnv):
                 "robot": self.robot,
                 "param": self.param,
                 "dynamics_function": dynamics_function,
-                "eval": self.eval
+                "eval": self.eval,
+                "plant": plant
             },
             monitor_dir=log_dir
         )
@@ -106,6 +118,12 @@ class GeneralEnv(CustomEnv):
 
     def reset(self, seed=None, options=None):
         observation, info = super().reset(seed, options)
+
+        if self.actions_in_state:
+            observation = np.append(observation, np.zeros(2))
+
+        if self.simulation is not None:
+            self.simulation.reset()
         for key in self.state_dict:
             if key != 'plant' and key != 'max_episode_steps':
                 self.state_dict[key].clear()
@@ -120,6 +138,12 @@ class GeneralEnv(CustomEnv):
             self.observation = self.observation[:-2]
 
         self.observation = self.dynamics_func(self.observation, action, scaling=self.scaling)
+
+        if not self.simulation is None and self.use_sim:
+            self.simulation.step(self.dynamics_func.unscale_action(action), self.dynamics_func.dt)
+            t, x = self.simulation.get_state()
+            self.observation = self.dynamics_func.normalize_state(x)
+
         time = self.dynamics_func.dt
         if len(self.state_dict["T"]) > 0:
             time = time + self.state_dict["T"][-1]
@@ -164,7 +188,7 @@ class GeneralEnv(CustomEnv):
             self.clock = pygame.time.Clock()
 
         canvas = pygame.Surface((self.window_size, self.window_size))
-        y, x1, x2, v1, v2, action, goal, dt, threshold, u_p, u_pp = get_state_values(self.observation, self.action, self.robot, [self.dynamics_func.dt, self.dynamics_func.max_velocity, self.dynamics_func.torque_limit])
+        y, x1, x2, v1, v2, action, goal, dt, threshold, u_p, u_pp = get_state_values(self.observation, self.action, self.robot, self.dynamics_func)
         x3 = x2 + dt * v2
         """if self.robot == "pendubot":
             action = action[0]

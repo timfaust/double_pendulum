@@ -105,23 +105,13 @@ def calculate_score(state_dict, verbose=False):
     return score
 
 
-def get_state_values(observation, action, robot, dynamics):
-    dt = dynamics[0]
-    max_velocity = dynamics[1]
-    torque_limit = dynamics[2][0]
+def get_state_values(observation, action, robot, dynamic_func):
 
     l = [0.2, 0.3]
     if robot == 'pendubot':
         l = [0.3, 0.2]
 
-    s = np.array(
-        [
-            observation[0] * 2 * np.pi + np.pi,
-            observation[1] * 2 * np.pi,
-            observation[2] * max_velocity,
-            observation[3] * max_velocity
-        ]
-    )
+    s = dynamic_func.unscale_state(observation)
 
     y = wrap_angles_diff(s) #now both angles from -pi to pi
 
@@ -139,6 +129,8 @@ def get_state_values(observation, action, robot, dynamics):
     dt_goal = 0.05
     threshold_distance = 0.005
 
+    dt = dynamic_func.dt
+    torque_limit = dynamic_func.torque_limit
     u_p, u_pp = 0, 0
     if len(observation) > 4:
         u_p = (action - observation[-2]) / dt
@@ -147,12 +139,12 @@ def get_state_values(observation, action, robot, dynamics):
     return s, x1, x2, v1, v2, action * torque_limit, goal, dt_goal, threshold_distance, u_p * torque_limit, u_pp * torque_limit
 
 
-def score_reward(observation, action, env_type, dynamics, state_dict):
+def score_reward(observation, action, env_type, dynamic_func, state_dict):
     return get_score(state_dict)
 
 
-def future_pos_reward(observation, action, env_type, dynamics, state_dict):
-    y, x1, x2, v1, v2, action, goal, dt_goal, threshold_distance, u_p, u_pp = get_state_values(observation, action, env_type, dynamics)
+def future_pos_reward(observation, action, env_type, dynamic_func, state_dict):
+    y, x1, x2, v1, v2, action, goal, dt_goal, threshold_distance, u_p, u_pp = get_state_values(observation, action, env_type, dynamic_func)
     distance = np.linalg.norm(x2 + dt_goal * v2 - goal)
     reward = 1 / (distance + 0.01)
     if distance < threshold_distance:
@@ -161,45 +153,42 @@ def future_pos_reward(observation, action, env_type, dynamics, state_dict):
     return reward
 
 
-def pos_reward(observation, action, env_type, dynamics, state_dict):
-    y, x1, x2, v1, v2, action, goal, dt, threshold, _, _ = get_state_values(observation, action, env_type, dynamics)
+def pos_reward(observation, action, env_type, dynamic_func, state_dict):
+    y, x1, x2, v1, v2, action, goal, dt, threshold, _, _ = get_state_values(observation, action, env_type, dynamic_func)
     distance = np.linalg.norm(x2 - goal)
     return 1 / (distance + 0.0001)
 
 
-def saturated_distance_from_target(observation, action, env_type, dynamics, state_dict):
+def saturated_distance_from_target(observation, action, env_type, dynamic_func, state_dict):
     l = [0.2, 0.3]
     if env_type == 'pendubot':
         l = [0.3, 0.2]
 
-    R = np.array([[0.0001]])
+    u = dynamic_func.unscale_action(action)
 
-    y, pos1, pos2, vel1, vel2, u, _, _, _, _, _ = get_state_values(observation, action, env_type, dynamics)
+    #   get actual state
+    x = dynamic_func.unscale_state(observation)
 
+    #   set goal state and get diff to goal
     goal = [np.pi, 0]
-    diff = y[:2] - goal
-    weight_vel = 1
-    weight_torque = 1
+    diff = x[:2] - goal
+    diff = wrap_angles_diff(diff)
 
-    sigma_c = np.diag([1 / l[0], 1 / l[1]])
     #   encourage to minimize the distance
-    sat_dist = np.dot(np.dot(diff.T, sigma_c), diff)
+    sat_dist = np.dot(diff.T, diff)
 
-    #   encourage to have minimum torque change
-    exp_indx = - sat_dist - weight_torque * np.abs(np.einsum("i, ij, j", u, R, u)) / (sat_dist + 0.01)
-
-    #   encourage to have zero velocity as distance minimizes
-    exp_indx -= weight_vel * np.abs(np.linalg.norm(y[2:])) / (sat_dist + 0.0001)
+    #   encourage to minimize torque
+    exp_indx = -sat_dist - np.linalg.norm(u)
 
     exp_term = np.exp(exp_indx)
 
-    squared_dist = 1.0 - exp_term
+    reward = exp_term - 1.0
 
-    return -squared_dist
+    return reward
 
 
 
-def unholy_reward_4(observation, action, env_type, dynamics, state_dict):
+def unholy_reward_4(observation, action, env_type, dynamic_func, state_dict):
     #quadtratic cost and quadtratic penalties
     l = [0.2, 0.3]
     if env_type == 'pendubot':
@@ -216,7 +205,7 @@ def unholy_reward_4(observation, action, env_type, dynamics, state_dict):
 
 
 
-    y, x1, x2, v1, v2, action, goal, dt, threshold, _, _ = get_state_values(observation, action, env_type, dynamics)
+    y, x1, x2, v1, v2, action, goal, dt, threshold, _, _ = get_state_values(observation, action, env_type, dynamic_func)
 
 
     #defining custom goal for state (pos1, pos2, angl_vel1, angl_vel2)
