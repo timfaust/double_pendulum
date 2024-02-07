@@ -6,16 +6,15 @@ import argparse
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--name', default="6states_fut")
-    parser.add_argument('--mode', default="train", choices=["train", "retrain", "evaluate", "simulate"])
+    parser.add_argument('--name', default="best_models")
+    parser.add_argument('--mode', default="simulate", choices=["train", "retrain", "evaluate", "simulate"])
     parser.add_argument('--model_path', default="/best_model/best_model")
     parser.add_argument('--env_type', default="pendubot", choices=["pendubot", "acrobot"])
-    parser.add_argument('--param', default="default")
+    parser.add_argument('--param', default="erfan_custom")
 
     args = parser.parse_args()
     env_type = args.env_type
     action_noise = OrnsteinUhlenbeckActionNoise(mean=np.array([0.0]), sigma=0.1 * np.ones(1), theta=0.15, dt=1e-2)
-
     sac = Trainer(args.name, env_type, args.param, action_noise)
 
     if args.mode == "train":

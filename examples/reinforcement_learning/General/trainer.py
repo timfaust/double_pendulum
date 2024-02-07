@@ -110,6 +110,7 @@ class Trainer:
         self.verbose = self.environment.data["verbose"] == 1
         self.render_eval = self.environment.data["render_eval"] == 1
         self.n_eval_episodes = self.environment.data["n_eval_episodes"]
+        self.show_progressBar = self.environment.data["show_progress_bar"]
 
         if not self.use_action_noise:
             self.action_noise = None
@@ -216,7 +217,10 @@ class Trainer:
                                                  name_prefix="saved_model")
 
         progress_bar_callback = ProgressBarCallback(self.training_steps, self.log_dir, self.environment.data, self.environment.n_envs)
-        return CallbackList([eval_callback, checkpoint_callback, progress_bar_callback])
+        if self.show_progressBar:
+            return CallbackList([eval_callback, checkpoint_callback, progress_bar_callback])
+        else:
+            return CallbackList([eval_callback, checkpoint_callback])
 
     def simulate(self, model_path="/best_model/best_model", tf=10.0):
 

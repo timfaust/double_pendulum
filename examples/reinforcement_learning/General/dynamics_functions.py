@@ -57,49 +57,54 @@ def load_param(robot, torque_limit):
     return mpar
 
 
-def random_dynamics(robot, dt, max_torque, sigma=0.02, plant_class=SymbolicDoublePendulum, use_random=True):
+def random_dynamics(robot, dt, max_torque, class_obj, sigma=0.02, plant_class=SymbolicDoublePendulum, use_random=True):
     mpar = load_param(robot, max_torque)
     if use_random:
         mpar.g = np.random.normal(mpar.g, sigma)
         mpar.m = np.random.normal(mpar.m, sigma)
         mpar.l = np.random.normal(mpar.l, sigma).tolist()
         mpar.cf = abs(np.random.normal(mpar.cf, sigma)).tolist()
+        mpar.damping = abs(np.random.normal(mpar.cf, sigma)).tolist()
     plant = plant_class(model_pars=mpar)
-    return general_dynamics(robot, plant, dt, max_torque)
+    return general_dynamics(robot, plant, dt, max_torque, class_obj)
 
 
-def push_dynamics(robot, dt, max_torque):
+def push_dynamics(robot, dt, max_torque, class_obj):
     mpar = load_param(robot, max_torque)
     plant = PushDoublePendulum(model_pars=mpar)
-    return general_dynamics(robot, plant, dt, max_torque)
+    return general_dynamics(robot, plant, dt, max_torque, class_obj)
 
 
-def random_push_dynamics(robot, dt, max_torque, sigma=0.02):
-    return random_dynamics(robot, dt, max_torque, sigma, PushDoublePendulum)
+def random_push_dynamics(robot, dt, max_torque, class_obj, sigma=0.02):
+    return random_dynamics(robot, dt, max_torque, class_obj, sigma, PushDoublePendulum)
 
 
-def default_dynamics(robot, dt, max_torque):
+def default_dynamics(robot, dt, max_torque, class_obj):
     mpar = load_param(robot, max_torque)
     plant = SymbolicDoublePendulum(model_pars=mpar)
-    return general_dynamics(robot, plant, dt, max_torque)
+    return general_dynamics(robot, plant, dt, max_torque, class_obj)
 
 
-def general_dynamics(robot, plant, dt, max_torque):
+def general_dynamics(robot, plant, dt, max_torque, class_obj):
     print("build new plant")
     simulator = Simulator(plant=plant)
-    dynamics_function = custom_double_pendulum_dynamics_func(
+    max_vel = 20.0
+    if robot == "acrobot":
+        max_vel = 50.0
+
+    dynamics_function = class_obj(
         simulator=simulator,
         robot=robot,
         dt=dt,
         integrator="runge_kutta",
-        max_velocity=20.0,
+        max_velocity=max_vel,
         torque_limit=[max_torque, max_torque],
         scaling=True
     )
     return dynamics_function, simulator, plant
 
 
-class custom_double_pendulum_dynamics_func(double_pendulum_dynamics_func):
+class custom_dynamics_func_4PI(double_pendulum_dynamics_func):
 
     def unscale_state(self, observation):
         if self.state_representation == 2:
@@ -112,14 +117,7 @@ class custom_double_pendulum_dynamics_func(double_pendulum_dynamics_func):
                 ]
             )
         elif self.state_representation == 3:
-            x = np.array(
-                [
-                    np.arctan2(observation[0], observation[1]),
-                    np.arctan2(observation[2], observation[3]),
-                    observation[4] * self.max_velocity,
-                    observation[5] * self.max_velocity,
-                ]
-            )
+            x = super().unscale_state(observation)
         if len(observation) > 4:
             return np.append(x, observation[-2:]*self.torque_limit)
         return x
@@ -137,18 +135,51 @@ class custom_double_pendulum_dynamics_func(double_pendulum_dynamics_func):
                 ]
             )
         elif self.state_representation == 3:
+            observation = super().normalize_state(state)
+        if len(state) > 4:
+            return np.append(observation, state[-2:]/self.torque_limit)
+        return observation
+
+class custom_dynamics_func_PI(double_pendulum_dynamics_func):
+    def unscale_state(self, observation):
+        """
+        scale the state
+        [-1, 1] -> [-limit, +limit]
+        """
+        if self.state_representation == 2:
+            x = np.array(
+                [
+                    observation[0] * np.pi + np.pi,
+                    observation[1] * np.pi,
+                    observation[2] * self.max_velocity,
+                    observation[3] * self.max_velocity,
+                ]
+            )
+        else:
+            x = super().unscale_state(observation)
+        if len(observation) > 4:
+            return np.append(x, observation[-2:]*self.torque_limit)
+        return x
+
+    def normalize_state(self, state):
+        """
+        rescale state:
+        [-limit, limit] -> [-1, 1]
+        """
+        if self.state_representation == 2:
             observation = np.array(
                 [
-                    np.cos(state[0]),
-                    np.sin(state[0]),
-                    np.cos(state[1]),
-                    np.sin(state[1]),
+                    (state[0] % (2 * np.pi) - np.pi) / np.pi,
+                    ((state[1] - np.pi) % (2 * np.pi) - np.pi) / np.pi,
                     np.clip(state[2], -self.max_velocity, self.max_velocity)
                     / self.max_velocity,
                     np.clip(state[3], -self.max_velocity, self.max_velocity)
                     / self.max_velocity,
                 ]
             )
+        else:
+            observation = super().normalize_state(state)
+
         if len(state) > 4:
             return np.append(observation, state[-2:]/self.torque_limit)
         return observation
