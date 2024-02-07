@@ -207,7 +207,8 @@ class Trainer:
             eval_freq=int(self.eval_freq / self.environment.n_envs),
             verbose=self.verbose,
             n_eval_episodes=self.n_eval_episodes,
-            render=self.render_eval
+            render=self.render_eval,
+            deterministic=True
         )
 
         checkpoint_callback = CheckpointCallback(save_freq=int(self.save_freq / self.environment.n_envs),
@@ -215,7 +216,7 @@ class Trainer:
                                                  name_prefix="saved_model")
 
         progress_bar_callback = ProgressBarCallback(self.training_steps, self.log_dir, self.environment.data, self.environment.n_envs)
-        return CallbackList([eval_callback, checkpoint_callback, progress_bar_callback, ScoreCallback()])
+        return CallbackList([eval_callback, checkpoint_callback, progress_bar_callback])
 
     def simulate(self, model_path="/best_model/best_model", tf=10.0):
 

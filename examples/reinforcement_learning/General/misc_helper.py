@@ -43,6 +43,8 @@ def updown_reset():
     r = np.random.random()
     if r < 0.25:
         return high_reset()
+    elif r < 0.5:
+        return debug_reset()
     else:
         return low_reset()
 

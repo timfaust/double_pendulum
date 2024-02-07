@@ -40,7 +40,7 @@
         "eval_env": {
             "dynamics_function": "default_dynamics",
             "reset_function": "debug_reset",
-            "reward_function": "future_pos_reward",
+            "reward_function": "score_reward",
             "same_env": 1,
             "n_envs": 1
         },
@@ -58,7 +58,7 @@
         "eval_freq": 1e5,
         "n_eval_episodes": 1,
         "render_eval": 1,
-        "render_every_steps": 10,
+        "render_every_steps": 2,
         "render_every_envs": 10,
 
         "verbose": 0,
