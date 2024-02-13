@@ -72,14 +72,12 @@ class GeneralEnv(CustomEnv):
         else:
             obs_space = gym.spaces.Box(np.array([-1.0, -1.0, -1.0, -1.0, -1.0, -1.0]), np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0]))
 
-        act_space = gym.spaces.Box(np.array([-0.5]), np.array([0.5]))
-        if robot == "acrobot":
-            act_space = gym.spaces.Box(np.array([-0.6]), np.array([0.6]))
+        act_space = gym.spaces.Box(np.array([-1.0]), np.array([1.0]))
         super().__init__(
             dynamics_function,
             self.reward_function,
             no_termination,
-            self.reset_function,
+            self.custom_reset,
             obs_space,
             act_space,
             self.max_episode_steps,
@@ -93,6 +91,12 @@ class GeneralEnv(CustomEnv):
 
         self.mpar = load_param(robot, self.dynamics_func.torque_limit)
         self.state_dict = {"T": [], "X_meas": [], "U_con": [], "plant": self.dynamics_func.simulator.plant, "max_episode_steps": self.max_episode_steps}
+
+    def custom_reset(self):
+        observation = self.reset_function()
+        if self.actions_in_state:
+            observation = np.append(observation, np.zeros(2))
+        return observation
 
     def get_envs(self, log_dir):
         if self.same_env:
@@ -118,9 +122,6 @@ class GeneralEnv(CustomEnv):
 
     def reset(self, seed=None, options=None):
         observation, info = super().reset(seed, options)
-
-        if self.actions_in_state:
-            observation = np.append(observation, np.zeros(2))
 
         if self.simulation is not None:
             self.simulation.reset()

@@ -130,7 +130,7 @@ def get_state_values(observation, action, robot, dynamic_func):
     threshold_distance = 0.005
 
     dt = dynamic_func.dt
-    torque_limit = dynamic_func.torque_limit
+    torque_limit = dynamic_func.torque_limit[0]
     u_p, u_pp = 0, 0
     if len(observation) > 4:
         u_p = (action - observation[-2]) / dt
