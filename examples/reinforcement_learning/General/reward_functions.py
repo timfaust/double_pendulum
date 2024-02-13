@@ -188,7 +188,7 @@ def saturated_distance_from_target(observation, action, env_type, dynamic_func, 
 
 
 
-def unholy_reward_4(observation, action, env_type, dynamic_func, state_dict):
+def quadratic_rew(observation, action, env_type, dynamic_func, state_dict):
     #quadtratic cost and quadtratic penalties
     l = [0.2, 0.3]
     if env_type == 'pendubot':
@@ -257,10 +257,6 @@ def unholy_reward_4(observation, action, env_type, dynamic_func, state_dict):
 
     reward = -1 * cost1 - 1 * cost2
 
-    #try x.T Q x, then try vector norms
 
-    #general:
-    #try: LQR style --> Quadratic Costfunctions
-    #else try: PID style --> "Damping"
 
     return reward
