@@ -54,7 +54,7 @@
         "actions_in_state": 1,
         "gradient_steps": 1,
         "max_episode_steps": 500,
-        "training_steps": 2e7,
+        "training_steps": 2e6,
         "use_action_noise": 1,
 
         "eval_freq": 1e5,

@@ -20,12 +20,14 @@ class GeneralEnv(CustomEnv):
         self,
         robot,
         param,
+        seed,
         path="parameters.json",
         eval=False,
         dynamics_function=None,
         plant=None
     ):
 
+        self.seed = seed
         self.eval = eval
         self.param = param
         self.pendulum_length = 350
@@ -114,9 +116,11 @@ class GeneralEnv(CustomEnv):
                 "param": self.param,
                 "dynamics_function": dynamics_function,
                 "eval": self.eval,
-                "plant": plant
+                "plant": plant,
+                "seed": self.seed
             },
-            monitor_dir=log_dir
+            monitor_dir=log_dir,
+            seed=self.seed
         )
         return envs
 
@@ -154,7 +158,7 @@ class GeneralEnv(CustomEnv):
 
         if self.actions_in_state:
             self.observation = np.append(self.observation, last_actions)
-        reward = self.reward_func(self.observation, action, self.state_dict)
+        reward = self.reward_func(self.observation, action, self.state_dict)/self.max_episode_steps
         terminated = self.terminated_func(self.observation)
         info = {}
         truncated = False

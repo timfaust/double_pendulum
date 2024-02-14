@@ -95,9 +95,9 @@ class ProgressBarCallback(BaseCallback):
 
 
 class Trainer:
-    def __init__(self, name, env_type, param, action_noise=None):
-        self.environment = GeneralEnv(env_type, param)
-        self.eval_environment = GeneralEnv(env_type, param, eval=True)
+    def __init__(self, name, env_type, param, seed, action_noise=None):
+        self.environment = GeneralEnv(env_type, param, seed=seed)
+        self.eval_environment = GeneralEnv(env_type, param, eval=True, seed=seed)
         self.log_dir = './log_data/' + name + '/' + env_type
         self.name = name
         self.action_noise = action_noise

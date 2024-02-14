@@ -140,7 +140,7 @@ def get_state_values(observation, action, robot, dynamic_func):
 
 
 def score_reward(observation, action, env_type, dynamic_func, state_dict):
-    return get_score(state_dict)
+    return get_score(state_dict) * int(state_dict["max_episode_steps"])
 
 
 def future_pos_reward(observation, action, env_type, dynamic_func, state_dict):
