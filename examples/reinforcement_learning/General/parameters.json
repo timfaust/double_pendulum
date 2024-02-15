@@ -47,14 +47,14 @@
 
         "dynamic_class": "custom_dynamics_func_4PI",
         "dt": 0.01,
-        "max_torque": 4,
+        "max_torque": 3.85,
         "use_sim_values": 0,
 
         "learning_rate": 1e-3,
         "actions_in_state": 1,
-        "gradient_steps": 1,
+        "gradient_steps": 5,
         "max_episode_steps": 500,
-        "training_steps": 2e6,
+        "training_steps": 10e6,
         "use_action_noise": 1,
 
         "eval_freq": 1e5,
