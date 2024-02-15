@@ -119,7 +119,7 @@ def get_state_values(observation, action, robot, dynamic_func):
     x1 = np.array([np.sin(y[0]), np.cos(y[0])]) * l[0]
     x2 = x1 + np.array([np.sin(y[0] + y[1]), np.cos(y[0] + y[1])]) * l[1]
 
-    #angular velocities of the joints
+    #cartesian velocities of the joints
     v1 = np.array([np.cos(y[0]), -np.sin(y[0])]) * y[2] * l[0]
     v2 = v1 + np.array([np.cos(y[0] + y[1]), -np.sin(y[0] + y[1])]) * (y[2] + y[3]) * l[1]
 
