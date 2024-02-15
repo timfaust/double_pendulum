@@ -30,7 +30,7 @@ class PushDoublePendulum(SymbolicDoublePendulum):
         return accn
 
 
-def load_param(robot, torque_limit):
+def load_param(robot, torque_limit, simplify=True):
     if robot == "pendubot":
         design = "design_A.0"
         model = "model_2.0"
@@ -50,21 +50,22 @@ def load_param(robot, torque_limit):
     )
     mpar = model_parameters(filepath=model_par_path)
     mpar.set_torque_limit(torque_limit=torque_array)
-    mpar.set_motor_inertia(0.0)
-    mpar.set_damping([0., 0.])
-    mpar.set_cfric([0., 0.])
+    if simplify:
+        mpar.set_motor_inertia(0.0)
+        mpar.set_damping([0., 0.])
+        mpar.set_cfric([0., 0.])
 
     return mpar
 
 
-def random_dynamics(robot, dt, max_torque, class_obj, sigma=0.02, plant_class=SymbolicDoublePendulum, use_random=True):
-    mpar = load_param(robot, max_torque)
+def random_dynamics(robot, dt, max_torque, class_obj, sigma=0.05, plant_class=SymbolicDoublePendulum, use_random=True):
+    mpar = load_param(robot, max_torque, simplify=False)
     if use_random:
-        mpar.g = np.random.normal(mpar.g, sigma)
-        mpar.m = np.random.normal(mpar.m, sigma)
-        mpar.l = np.random.normal(mpar.l, sigma).tolist()
-        mpar.cf = abs(np.random.normal(mpar.cf, sigma)).tolist()
-        mpar.damping = abs(np.random.normal(mpar.cf, sigma)).tolist()
+        mpar.g = np.random.normal(mpar.g, sigma * mpar.g)
+        mpar.m = np.random.normal(mpar.m, sigma * mpar.m)
+        mpar.l = np.random.normal(mpar.l, sigma * mpar.m).tolist()
+        mpar.cf = abs(np.random.normal(mpar.cf, sigma * mpar.cf)).tolist()
+        mpar.damping = abs(np.random.normal(mpar.damping, sigma * mpar.damping)).tolist()
     plant = plant_class(model_pars=mpar)
     return general_dynamics(robot, plant, dt, max_torque, class_obj)
 
@@ -75,7 +76,7 @@ def push_dynamics(robot, dt, max_torque, class_obj):
     return general_dynamics(robot, plant, dt, max_torque, class_obj)
 
 
-def random_push_dynamics(robot, dt, max_torque, class_obj, sigma=0.02):
+def random_push_dynamics(robot, dt, max_torque, class_obj, sigma=0.05):
     return random_dynamics(robot, dt, max_torque, class_obj, sigma, PushDoublePendulum)
 
 
