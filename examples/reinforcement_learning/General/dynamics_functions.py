@@ -58,14 +58,14 @@ def load_param(robot, torque_limit, simplify=True):
     return mpar
 
 
-def random_dynamics(robot, dt, max_torque, class_obj, sigma=0.05, plant_class=SymbolicDoublePendulum, use_random=True):
+def random_dynamics(robot, dt, max_torque, class_obj, sigma=0.02, plant_class=SymbolicDoublePendulum, use_random=True):
     mpar = load_param(robot, max_torque, simplify=False)
     if use_random:
         mpar.g = np.random.normal(mpar.g, sigma * mpar.g)
-        mpar.m = np.random.normal(mpar.m, sigma * mpar.m)
-        mpar.l = np.random.normal(mpar.l, sigma * mpar.m).tolist()
-        mpar.cf = abs(np.random.normal(mpar.cf, sigma * mpar.cf)).tolist()
-        mpar.damping = abs(np.random.normal(mpar.damping, sigma * mpar.damping)).tolist()
+        mpar.m = np.random.normal(mpar.m, sigma * np.array(mpar.m)).tolist()
+        mpar.l = np.random.normal(mpar.l, sigma * np.array(mpar.l)).tolist()
+        mpar.cf = abs(np.random.normal(mpar.cf, sigma * np.array(mpar.cf))).tolist()
+        mpar.b = abs(np.random.normal(mpar.b, sigma * np.array(mpar.b))).tolist()
     plant = plant_class(model_pars=mpar)
     return general_dynamics(robot, plant, dt, max_torque, class_obj)
 
@@ -76,7 +76,7 @@ def push_dynamics(robot, dt, max_torque, class_obj):
     return general_dynamics(robot, plant, dt, max_torque, class_obj)
 
 
-def random_push_dynamics(robot, dt, max_torque, class_obj, sigma=0.05):
+def random_push_dynamics(robot, dt, max_torque, class_obj, sigma=0.02):
     return random_dynamics(robot, dt, max_torque, class_obj, sigma, PushDoublePendulum)
 
 
