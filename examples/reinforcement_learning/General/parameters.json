@@ -145,5 +145,46 @@
         "verbose": 1,
         "show_progress_bar": 0,
         "save_freq": 1e6
+    },
+        "habib_custom": {
+        "train_env": {
+            "dynamics_function": "default_dynamics",
+            "reset_function": "low_reset",
+            "reward_function": "saturated_distance_from_target",
+            "same_env": 1,
+            "n_envs": 10
+        },
+
+        "eval_env": {
+            "dynamics_function": "default_dynamics",
+            "reset_function": "low_reset",
+            "reward_function": "saturated_distance_from_target",
+            "same_env": 1,
+            "n_envs": 1
+        },
+
+        "dynamic_class": "custom_dynamics_func_PI",
+        "dt": 0.01,
+        "max_torque": 5,
+        "use_sim_values": 0,
+
+        "learning_rate": 1e-3,
+        "actions_in_state": 0,
+        "gradient_steps": 3,
+        "max_episode_steps": 500,
+        "training_steps": 3e6,
+        "use_action_noise": 1,
+
+        "eval_freq": 1e4,
+        "n_eval_episodes": 1,
+        "render_eval": 1,
+        "render_every_steps": 1,
+        "render_every_envs": 10,
+
+        "verbose": 1,
+        "show_progress_bar": 0,
+        "save_freq": 1e6
     }
+
+
 }
