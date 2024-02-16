@@ -39,7 +39,7 @@ def get_score(state_dict):
     return 0
 
 
-def calculate_score(state_dict, verbose=False):
+def calculate_score(state_dict, verbose=False, step=False):
     normalize = {
         "swingup_time": 10.0,
         "max_tau": 6.0,
@@ -63,14 +63,24 @@ def calculate_score(state_dict, verbose=False):
     X = np.array(state_dict["X_meas"])
     U = np.array(state_dict["U_con"])
 
-    swingup_time = get_swingup_time(T=T, X=X, plant=state_dict["plant"], height=0.9)
+    if step:
+        if len(np.array(state_dict["T"])) < 2:
+            return 0
+        T = np.copy(T)[-2:]
+        X = np.copy(X)[-2:]
+        U = np.copy(U)[-2:]
+        success = 1
+        swingup_time = 0
+    else:
+        swingup_time = get_swingup_time(T=T, X=X, plant=state_dict["plant"], height=0.9)
+        success = int(swingup_time < T[-1])
+
     max_tau = get_max_tau(U)
     energy = get_energy(X, U)
     integ_tau = get_integrated_torque(T, U)
     tau_cost = get_torque_cost(T, U)
     tau_smoothness = get_tau_smoothness(U)
     velocity_cost = get_velocity_cost(T, X)
-    success = int(swingup_time < T[-1])
 
     score = success * (
             1.0
