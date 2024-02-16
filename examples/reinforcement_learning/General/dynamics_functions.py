@@ -8,20 +8,24 @@ class PushDoublePendulum(SymbolicDoublePendulum):
     def __init__(self, model_pars):
         super().__init__(model_pars=model_pars)
 
-    @staticmethod
-    def normalize_angle(angle):
-        normalized_angle = (angle / np.pi) - 1
-        while normalized_angle < -1:
-            normalized_angle += 2
-        return normalized_angle
+    def normalize_state(self, state):
+        observation = np.array(
+            [
+                ((state[0] + np.pi) % (4 * np.pi) - 2 * np.pi) / (2 * np.pi),
+                ((state[1] + 2 * np.pi) % (4 * np.pi) - 2 * np.pi) / (2 * np.pi),
+
+            ]
+        )
+        return observation
 
     def forward_dynamics(self, x, u):
         accn = super().forward_dynamics(x, u)
 
-        angle_1_norm = self.normalize_angle(x[0])
-        angle_2_norm = self.normalize_angle(x[1])
+        angle = self.normalize_state(x)
+        angle_1_norm = angle[0]
+        angle_2_norm = angle[1]
 
-        if np.all(np.abs([angle_1_norm, angle_2_norm]) < 0.1):
+        if np.all(np.abs([angle_1_norm, angle_2_norm]) < 0.05):
             if np.random.uniform(0, 1) < 1.0 / 200.0:
                 f = np.random.uniform(2, 10) * np.random.choice([-1, 1])
                 force = np.array([(self.l[0] + self.l[1]) * f, self.l[1] * f])
