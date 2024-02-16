@@ -132,6 +132,7 @@ class Trainer:
             envs,
             tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
             action_noise=self.action_noise,
+            seed=self.environment.seed,
             **filtered_data
         )
         self.load_custom_params(agent)
