@@ -4,7 +4,12 @@ from double_pendulum.simulation.simulation import Simulator
 from double_pendulum.simulation.gym_env import double_pendulum_dynamics_func
 from double_pendulum.model.model_parameters import model_parameters
 
+from src.python.double_pendulum.utils.wrap_angles import wrap_angles_diff
+
+
 class PushDoublePendulum(SymbolicDoublePendulum):
+    state_dict = None
+
     def __init__(self, model_pars):
         super().__init__(model_pars=model_pars)
 
@@ -20,18 +25,70 @@ class PushDoublePendulum(SymbolicDoublePendulum):
 
     def forward_dynamics(self, x, u):
         accn = super().forward_dynamics(x, u)
+        push = self.check_push()
 
-        angle = self.normalize_state(x)
-        angle_1_norm = angle[0]
-        angle_2_norm = angle[1]
-
-        if np.all(np.abs([angle_1_norm, angle_2_norm]) < 0.05):
-            if np.random.uniform(0, 1) < 1.0 / 200.0:
-                f = np.random.uniform(2, 10) * np.random.choice([-1, 1])
-                force = np.array([(self.l[0] + self.l[1]) * f, self.l[1] * f])
-                accn += np.linalg.inv(self.mass_matrix(x)).dot(force)
+        if push:
+            f = np.array(self.state_dict["current_force"])
+            angle = wrap_angles_diff(x)
+            l_00 = np.sin(angle[0]) * self.l[0]
+            l_01 = np.cos(angle[0]) * self.l[0]
+            l_10 = np.sin(angle[1]) * self.l[1]
+            l_11 = np.cos(angle[1]) * self.l[1]
+            force = np.array([(l_00 + l_10) * f[0] + (l_01 + l_11) * f[1], l_10 * f[0] + l_11 * f[1]])
+            accn += np.linalg.inv(self.mass_matrix(x)).dot(force)
 
         return accn
+
+    def check_push(self, start_time=2, sigma_start=0.25, end_time=0.2, sigma_end=0.05, force=[1,5]):
+        def random_force():
+            angle = np.random.uniform(0, 2 * np.pi)
+            x = np.cos(angle)
+            y = np.sin(angle)
+            return np.array([x, y]) * np.sqrt(np.random.uniform(force[0], force[1]))
+
+        push_list = self.state_dict["push"]
+        if len(push_list) > len(self.state_dict["T"]):
+            return push_list[-1]
+
+        push_value = False
+        if len(push_list) > 0:
+            consecutive_falses = 0
+            consecutive_trues = 0
+
+            for value in reversed(push_list):
+                if not value:
+                    consecutive_falses += 1
+                else:
+                    break
+
+            for value in reversed(push_list):
+                if value:
+                    consecutive_trues += 1
+                else:
+                    break
+
+            false_time = self.state_dict["T"][-1] - self.state_dict["T"][-consecutive_falses]
+            true_time = self.state_dict["T"][-1] - self.state_dict["T"][-consecutive_trues]
+            if consecutive_falses == 0:
+                false_time = 0
+            if consecutive_trues == 0:
+                true_time = 0
+
+            start_push_probability = np.exp(-((false_time - start_time) ** 2) / (2 * sigma_start ** 2))
+            end_push_probability = np.exp(-((true_time - end_time) ** 2) / (2 * sigma_end ** 2))
+
+            if np.random.rand() < start_push_probability:
+                self.state_dict["current_force"] = random_force().tolist()
+                push_value = True
+
+            elif np.random.rand() < end_push_probability:
+                push_value = False
+
+            else:
+                push_value = push_list[-1]
+
+        push_list.append(push_value)
+        return push_value
 
 
 def load_param(robot, torque_limit, simplify=True):

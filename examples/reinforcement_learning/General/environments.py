@@ -92,7 +92,8 @@ class GeneralEnv(CustomEnv):
         self.clock = None
 
         self.mpar = load_param(robot, self.dynamics_func.torque_limit)
-        self.state_dict = {"T": [], "X_meas": [], "U_con": [], "plant": self.dynamics_func.simulator.plant, "max_episode_steps": self.max_episode_steps}
+        self.state_dict = {"T": [], "X_meas": [], "U_con": [], "push": [], "plant": self.dynamics_func.simulator.plant, "max_episode_steps": self.max_episode_steps, "current_force": []}
+        self.dynamics_func.simulator.plant.state_dict = self.state_dict
 
     def custom_reset(self):
         observation = self.reset_function()

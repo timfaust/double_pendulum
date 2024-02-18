@@ -5,7 +5,7 @@ from sim_parameters import (
     robot,
 )
 
-name = "best_model"
+name = "fut_5t_6s_random"
 controller_name = "general_sac"
 
 leaderboard_config = {
@@ -18,6 +18,6 @@ leaderboard_config = {
     }
 
 model_path = "../../../examples/reinforcement_learning/General/log_data/" + name + "/" + robot + "/best_model/best_model.zip"
-controller = GeneralController(GeneralEnv(robot, "default", 42,"../../../examples/reinforcement_learning/General/parameters.json"), model_path=model_path)
+controller = GeneralController(GeneralEnv(robot, "random", 42,"../../../examples/reinforcement_learning/General/parameters.json"), model_path=model_path)
 
 controller.init()
