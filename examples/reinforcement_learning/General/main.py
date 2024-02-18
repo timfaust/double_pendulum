@@ -15,11 +15,12 @@ if __name__ == '__main__':
     random.seed(seed)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--name', default="fut_385t_6s_long")
-    parser.add_argument('--mode', default="train", choices=["train", "retrain", "evaluate", "simulate"])
+
+    parser.add_argument('--name', default="sat_0.001_5_2.5")
+    parser.add_argument('--mode', default="evaluate", choices=["train", "retrain", "evaluate", "simulate"])
     parser.add_argument('--model_path', default="/best_model/best_model")
     parser.add_argument('--env_type', default="pendubot", choices=["pendubot", "acrobot"])
-    parser.add_argument('--param', default="default")
+    parser.add_argument('--param', default="erfan_custom")
 
     args = parser.parse_args()
     env_type = args.env_type

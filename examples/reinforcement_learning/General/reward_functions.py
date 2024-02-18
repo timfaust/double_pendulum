@@ -173,10 +173,6 @@ def pos_reward(observation, action, env_type, dynamic_func, state_dict):
 
 
 def saturated_distance_from_target(observation, action, env_type, dynamic_func, state_dict):
-    l = [0.2, 0.3]
-    if env_type == 'pendubot':
-        l = [0.3, 0.2]
-
     u = dynamic_func.unscale_action(action)
 
     #   get actual state

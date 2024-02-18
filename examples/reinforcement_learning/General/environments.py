@@ -50,7 +50,7 @@ class GeneralEnv(CustomEnv):
             low_pos = [1.0, 0, 0, 0]
         self.reset_function = lambda: reset_function(low_pos)
         reward_function = globals()[self.data[type]["reward_function"]]
-
+        self.reward_name = self.data[type]["reward_function"]
         self.n_envs = self.data[type]["n_envs"]
         self.same_env = self.data[type]["same_env"]
 
@@ -158,7 +158,10 @@ class GeneralEnv(CustomEnv):
 
         if self.actions_in_state:
             self.observation = np.append(self.observation, last_actions)
-        reward = self.reward_func(self.observation, action, self.state_dict)/self.max_episode_steps
+        if self.reward_name == "saturated_distance_from_target":
+            reward = self.reward_func(self.observation, action, self.state_dict)
+        else:
+            reward = self.reward_func(self.observation, action, self.state_dict)/self.max_episode_steps
         terminated = self.terminated_func(self.observation)
         info = {}
         truncated = False

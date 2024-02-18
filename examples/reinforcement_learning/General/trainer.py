@@ -271,7 +271,7 @@ class GeneralController(AbstractController):
     def __init__(self, environment: Type[GeneralEnv], model_path):
         super().__init__()
 
-        self.model = SAC.load(model_path)
+        self.model = SAC.load(model_path, print_system_info=False)
         self.simulation = environment.simulation
         self.dynamics_func = environment.dynamics_func
         self.dt = environment.dynamics_func.dt
