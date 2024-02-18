@@ -148,7 +148,8 @@ class Trainer:
         self.environment.reset()
 
         envs = self.environment.get_envs(log_dir=self.log_dir)
-        agent = SAC.load(self.log_dir + model_path)
+
+        agent = SAC.load(self.log_dir + model_path, print_system_info=True)
         self.load_custom_params(agent)
         agent.set_env(envs)
 
@@ -161,7 +162,7 @@ class Trainer:
         if not os.path.exists(self.log_dir + model_path + ".zip"):
             raise Exception("model not found")
 
-        agent = SAC.load(self.log_dir + model_path)
+        agent = SAC.load(self.log_dir + model_path, print_system_info=True)
         self.load_custom_params(agent)
 
         eval_envs = self.eval_environment.get_envs(log_dir=self.log_dir)
@@ -271,7 +272,7 @@ class GeneralController(AbstractController):
     def __init__(self, environment: Type[GeneralEnv], model_path):
         super().__init__()
 
-        self.model = SAC.load(model_path, print_system_info=False)
+        self.model = SAC.load(model_path, print_system_info=True)
         self.simulation = environment.simulation
         self.dynamics_func = environment.dynamics_func
         self.dt = environment.dynamics_func.dt
