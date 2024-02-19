@@ -117,7 +117,7 @@
       "learning_rate": 0.001,
       "actions_in_state": 1,
       "gradient_steps": 5,
-      "max_episode_steps": 10000,
+      "max_episode_steps": 5000,
       "training_steps": 10000000,
       "use_action_noise": 1,
       "eval_freq": 100000,
