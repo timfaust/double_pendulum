@@ -40,7 +40,7 @@ class PushDoublePendulum(SymbolicDoublePendulum):
 
         return accn
 
-    def check_push(self, start_time=4, sigma_start=0.5, end_time=0.5, sigma_end=0.1, force=[5,25]):
+    def check_push(self, start_time=8, sigma_start=1, end_time=0.5, sigma_end=0.1, force=[5,25]):
         def random_force():
             angle = np.random.uniform(0, 2 * np.pi)
             x = np.cos(angle)
