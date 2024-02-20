@@ -2,7 +2,8 @@ import json
 
 from stable_baselines3.common.env_util import make_vec_env
 
-from examples.reinforcement_learning.General.misc_helper import updown_reset, balanced_reset, no_termination, noisy_reset, low_reset, high_reset, random_reset, semi_random_reset, debug_reset
+from examples.reinforcement_learning.General.misc_helper import updown_reset, balanced_reset, no_termination, \
+    noisy_reset, low_reset, high_reset, random_reset, semi_random_reset, debug_reset, kill_switch
 from examples.reinforcement_learning.General.reward_functions import get_state_values
 from src.python.double_pendulum.simulation.gym_env import CustomEnv
 import pygame
@@ -78,7 +79,7 @@ class GeneralEnv(CustomEnv):
         super().__init__(
             dynamics_function,
             self.reward_function,
-            no_termination,
+            kill_switch,
             self.custom_reset,
             obs_space,
             act_space,

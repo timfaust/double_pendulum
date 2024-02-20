@@ -120,9 +120,8 @@ def calculate_score(state_dict, verbose=False, step=False, check_swingup=True):
 
 def get_state_values(observation, action, robot, dynamic_func):
 
+
     l = [0.2, 0.3]
-    if robot == 'pendubot':
-        l = [0.3, 0.2]
 
     s = dynamic_func.unscale_state(observation)
 

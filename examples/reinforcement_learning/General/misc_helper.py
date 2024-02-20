@@ -8,7 +8,7 @@ def general_reset(x_values, dx_values):
 
 
 def low_reset(low_pos=[-0.5, 0, 0, 0]):
-    return general_reset(low_pos, [0.025, 0.025, 0.05, 0.05])
+    return general_reset(low_pos, [0.01, 0.01, 0.01, 0.01])
 
 
 def debug_reset(low_pos=[-0.5, 0, 0, 0]):
@@ -58,3 +58,10 @@ def noisy_reset(low_pos=[-0.5, 0, 0, 0]):
 
 def no_termination(observation):
     return False
+
+
+def kill_switch(observation):
+    vel = np.max([np.abs(observation[2]), np.abs(observation[3])]) * 20
+    if vel < 19:
+        return False
+    return True
