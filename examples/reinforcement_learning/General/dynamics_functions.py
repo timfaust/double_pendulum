@@ -3,6 +3,7 @@ from double_pendulum.model.symbolic_plant import SymbolicDoublePendulum
 from double_pendulum.simulation.simulation import Simulator
 from double_pendulum.simulation.gym_env import double_pendulum_dynamics_func
 from double_pendulum.model.model_parameters import model_parameters
+from scipy.stats import norm
 
 from src.python.double_pendulum.utils.wrap_angles import wrap_angles_diff
 
@@ -39,7 +40,7 @@ class PushDoublePendulum(SymbolicDoublePendulum):
 
         return accn
 
-    def check_push(self, start_time=2, sigma_start=0.25, end_time=0.2, sigma_end=0.05, force=[1,5]):
+    def check_push(self, start_time=8, sigma_start=1, end_time=0.5, sigma_end=0.1, force=[5,25]):
         def random_force():
             angle = np.random.uniform(0, 2 * np.pi)
             x = np.cos(angle)
@@ -74,8 +75,8 @@ class PushDoublePendulum(SymbolicDoublePendulum):
             if consecutive_trues == 0:
                 true_time = 0
 
-            start_push_probability = np.exp(-((false_time - start_time) ** 2) / (2 * sigma_start ** 2))
-            end_push_probability = np.exp(-((true_time - end_time) ** 2) / (2 * sigma_end ** 2))
+            start_push_probability = norm.cdf(false_time, loc=start_time, scale=sigma_start)
+            end_push_probability = norm.cdf(true_time, loc=end_time, scale=sigma_end)
 
             if np.random.rand() < start_push_probability:
                 self.state_dict["current_force"] = random_force().tolist()
