@@ -174,6 +174,9 @@ def pos_reward(observation, action, env_type, dynamic_func, state_dict):
 
 def saturated_distance_from_target(observation, action, env_type, dynamic_func, state_dict):
     u = dynamic_func.unscale_action(action)
+    u_diff = 0
+    if len(observation) > 4:
+        u_diff = action - observation[-2]
 
     #   get actual state
     x = dynamic_func.unscale_state(observation)
@@ -183,11 +186,16 @@ def saturated_distance_from_target(observation, action, env_type, dynamic_func, 
     diff = x[:2] - goal
     diff = wrap_angles_diff(diff)
 
+    l = [0.2, 0.3]
+    if env_type == 'pendubot':
+        l = [0.3, 0.2]
+
+    sigma_c = np.diag([1 / l[0], 1 / l[1]])
     #   encourage to minimize the distance
-    sat_dist = np.dot(diff.T, diff)
+    sat_dist = np.dot(np.dot(diff.T, sigma_c), diff)
 
     #   encourage to minimize torque
-    exp_indx = -sat_dist - np.linalg.norm(u)
+    exp_indx = -sat_dist - np.linalg.norm(u) - np.linalg.norm(u_diff) - np.linalg.norm(observation[2:4])
 
     exp_term = np.exp(exp_indx)
 
