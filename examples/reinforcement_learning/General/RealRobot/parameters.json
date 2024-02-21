@@ -1,8 +1,0 @@
-{
-    "real_robot_1": {
-        "dynamic_class": "custom_dynamics_func_PI",
-        "dt": 0.01,
-        "max_torque": 4,
-        "actions_in_state": 0
-    }
-}
