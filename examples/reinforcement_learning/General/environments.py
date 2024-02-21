@@ -10,7 +10,7 @@ import pygame
 import numpy as np
 import gymnasium as gym
 from examples.reinforcement_learning.General.dynamics_functions import default_dynamics, random_dynamics, \
-    random_push_dynamics, push_dynamics, load_param, custom_dynamics_func_PI, custom_dynamics_func_4PI
+    random_push_dynamics, push_dynamics, load_param, custom_dynamics_func_PI, custom_dynamics_func_4PI, real_robot
 from examples.reinforcement_learning.General.reward_functions import future_pos_reward, pos_reward, quadratic_rew, saturated_distance_from_target, score_reward
 from double_pendulum.simulation.simulation import Simulator
 
@@ -79,7 +79,7 @@ class GeneralEnv(CustomEnv):
         super().__init__(
             dynamics_function,
             self.reward_function,
-            kill_switch,
+            no_termination,
             self.custom_reset,
             obs_space,
             act_space,
@@ -165,6 +165,10 @@ class GeneralEnv(CustomEnv):
         else:
             reward = self.reward_func(self.observation, action, self.state_dict)/self.max_episode_steps
         terminated = self.terminated_func(self.observation)
+
+        if np.max(np.abs(self.observation[2:4])) * 20 > 18:
+            print(self.observation)
+
         info = {}
         truncated = False
         self.step_counter += 1

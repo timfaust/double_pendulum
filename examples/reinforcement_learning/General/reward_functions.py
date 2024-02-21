@@ -185,22 +185,21 @@ def saturated_distance_from_target(observation, action, env_type, dynamic_func, 
     diff = x[:2] - goal
     diff = wrap_angles_diff(diff)
 
-    l = [0.2, 0.3]
-    if env_type == 'pendubot':
-        l = [0.3, 0.2]
+    #l = [0.2, 0.3]
 
-    sigma_c = np.diag([1 / l[0], 1 / l[1]])
+    #sigma_c = np.diag([1 / l[0], 1 / l[1]])
     #   encourage to minimize the distance
-    sat_dist = np.dot(np.dot(diff.T, sigma_c), diff)
-
+    #sat_dist = np.dot(np.dot(diff.T, sigma_c), diff)
+    sat_dist = np.dot(diff.T, diff)
     #   encourage to minimize torque
-    exp_indx = -sat_dist - np.linalg.norm(u) - np.linalg.norm(u_diff) - np.linalg.norm(observation[2:4])
+
+    exp_indx = -sat_dist - np.linalg.norm(u) - np.linalg.norm(u_diff)
+    if np.max(np.abs(x[2:4])) > 18:
+        print(x)
+        return 0.0
 
     exp_term = np.exp(exp_indx)
-
-    reward = exp_term - 1.0
-
-    return reward
+    return exp_term
 
 
 

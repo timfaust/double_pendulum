@@ -92,7 +92,7 @@ class PushDoublePendulum(SymbolicDoublePendulum):
         return push_value
 
 
-def load_param(robot, torque_limit, simplify=False):
+def load_param(robot, torque_limit, simplify=True, real_robot=False):
     if robot == "pendubot":
         design = "design_C.1"
         model = "model_1.0"
@@ -102,6 +102,11 @@ def load_param(robot, torque_limit, simplify=False):
         design = "design_C.1"
         model = "model_1.0"
         torque_array = [0.0, torque_limit]
+
+    if real_robot:
+        design = "design_C.1"
+        model = "model_1.0"
+        torque_array = [torque_limit, torque_limit]
 
     model_par_path = (
             "../../../data/system_identification/identified_parameters/"
@@ -147,11 +152,17 @@ def default_dynamics(robot, dt, max_torque, class_obj):
     plant = SymbolicDoublePendulum(model_pars=mpar)
     return general_dynamics(robot, plant, dt, max_torque, class_obj)
 
+def real_robot(robot, dt, max_torque, class_obj):
+    mpar = load_param(robot, max_torque, simplify=False, real_robot=True)
+    plant = SymbolicDoublePendulum(model_pars=mpar)
+    return general_dynamics(robot, plant, dt, max_torque, class_obj)
 
 def general_dynamics(robot, plant, dt, max_torque, class_obj):
     print("build new plant")
     simulator = Simulator(plant=plant)
-    max_vel = 20
+    max_vel = 20.0
+    if robot == "acrobot":
+        max_vel = 50.0
 
     dynamics_function = class_obj(
         simulator=simulator,

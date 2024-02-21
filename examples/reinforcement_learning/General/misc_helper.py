@@ -59,6 +59,11 @@ def noisy_reset(low_pos=[-0.5, 0, 0, 0]):
 def no_termination(observation):
     return False
 
+def terminate_vel(observation):
+    if np.max(np.abs(observation[2:4])) * 20 > 18:
+        return True
+    return False
+
 
 def kill_switch(observation):
     vel = np.max([np.abs(observation[2]), np.abs(observation[3])]) * 20
