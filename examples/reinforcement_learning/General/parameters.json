@@ -30,17 +30,17 @@
     "default": {
       "train_env": {
         "dynamics_function": "default_dynamics",
-        "reset_function": "updown_reset",
+        "reset_function": "balanced_reset",
         "reward_function": "future_pos_reward",
         "same_env": 1,
         "n_envs": 20
       },
       "eval_env": {
         "dynamics_function": "default_dynamics",
-        "reset_function": "debug_reset",
+        "reset_function": "low_reset",
         "reward_function": "future_pos_reward",
         "same_env": 1,
-        "n_envs": 1
+        "n_envs": 20
       },
       "dynamic_class": "custom_dynamics_func_4PI",
       "dt": 0.01,
@@ -64,14 +64,14 @@
     "random": {
       "train_env": {
         "dynamics_function": "random_dynamics",
-        "reset_function": "updown_reset",
+        "reset_function": "balanced_reset",
         "reward_function": "future_pos_reward",
         "same_env": 0,
         "n_envs": 50
       },
       "eval_env": {
         "dynamics_function": "random_dynamics",
-        "reset_function": "debug_reset",
+        "reset_function": "low_reset",
         "reward_function": "future_pos_reward",
         "same_env": 0,
         "n_envs": 50
@@ -98,14 +98,14 @@
     "push": {
       "train_env": {
         "dynamics_function": "push_dynamics",
-        "reset_function": "updown_reset",
+        "reset_function": "balanced_reset",
         "reward_function": "future_pos_reward",
         "same_env": 1,
         "n_envs": 20
       },
       "eval_env": {
         "dynamics_function": "push_dynamics",
-        "reset_function": "debug_reset",
+        "reset_function": "low_reset",
         "reward_function": "future_pos_reward",
         "same_env": 1,
         "n_envs": 20
