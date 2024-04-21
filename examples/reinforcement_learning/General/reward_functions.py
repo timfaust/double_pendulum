@@ -151,11 +151,11 @@ def get_state_values(observation, action, robot, dynamic_func):
     return s, x1, x2, v1, v2, action * torque_limit, goal, dt_goal, threshold_distance, u_p * torque_limit, u_pp * torque_limit
 
 
-def score_reward(observation, action, env_type, dynamic_func, state_dict):
+def score_reward(observation, action, env_type, dynamic_func, state_dict, state_tracking):
     return get_score(state_dict) * int(state_dict["max_episode_steps"])
 
 
-def future_pos_reward(observation, action, env_type, dynamic_func, state_dict):
+def future_pos_reward(observation, action, env_type, dynamic_func, state_dict, state_tracking):
     y, x1, x2, v1, v2, action, goal, dt_goal, threshold_distance, u_p, u_pp = get_state_values(observation, action, env_type, dynamic_func)
     distance = np.linalg.norm(x2 + dt_goal * v2 - goal)
     reward = 1 / (distance + 0.01)
@@ -165,45 +165,38 @@ def future_pos_reward(observation, action, env_type, dynamic_func, state_dict):
     return reward
 
 
-def pos_reward(observation, action, env_type, dynamic_func, state_dict):
+def pos_reward(observation, action, env_type, dynamic_func, state_dict, state_tracking):
     y, x1, x2, v1, v2, action, goal, dt, threshold, _, _ = get_state_values(observation, action, env_type, dynamic_func)
     distance = np.linalg.norm(x2 - goal)
     return 1 / (distance + 0.0001)
 
 
-def saturated_distance_from_target(observation, action, env_type, dynamic_func, state_dict):
+def saturated_distance_from_target(observation, action, env_type, dynamic_func, state_dict, state_tracking):
     u = dynamic_func.unscale_action(action)
     u_diff = 0
     if len(observation) > 4:
         u_diff = action - observation[-2]
 
-    #   get actual state
     x = dynamic_func.unscale_state(observation)
 
-    #   set goal state and get diff to goal
     goal = [np.pi, 0]
     diff = x[:2] - goal
     diff = wrap_angles_diff(diff)
 
-    #l = [0.2, 0.3]
-
-    #sigma_c = np.diag([1 / l[0], 1 / l[1]])
-    #   encourage to minimize the distance
-    #sat_dist = np.dot(np.dot(diff.T, sigma_c), diff)
     sat_dist = np.dot(diff.T, diff)
-    #   encourage to minimize torque
-
     exp_indx = -sat_dist - np.linalg.norm(u) - np.linalg.norm(u_diff)
     if np.max(np.abs(x[2:4])) > 18:
-        print(x)
         return 0.0
+
+    """if np.max(np.abs(state_tracking[:2])) > 1.1 * np.pi and env_type == "acrobot":
+        return 0.0"""
 
     exp_term = np.exp(exp_indx)
     return exp_term
 
 
 
-def quadratic_rew(observation, action, env_type, dynamic_func, state_dict):
+def quadratic_rew(observation, action, env_type, dynamic_func, state_dict, state_tracking):
     #quadtratic cost and quadtratic penalties
     l = [0.2, 0.3]
     if env_type == 'pendubot':

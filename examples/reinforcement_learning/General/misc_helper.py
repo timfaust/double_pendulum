@@ -59,14 +59,12 @@ def noisy_reset(low_pos=[-0.5, 0, 0, 0]):
 def no_termination(observation):
     return False
 
-def terminate_vel(observation):
+
+def kill_switch(observation, new_state, ignore_state=True):
+    if np.max(np.abs(new_state[:2])) > 2 * np.pi and not ignore_state:
+        print("Terminated at state: ", new_state)
+        return True
     if np.max(np.abs(observation[2:4])) * 20 > 18:
+        print("Terminated at velocity: ", observation[2:4] * 20)
         return True
     return False
-
-
-def kill_switch(observation):
-    vel = np.max([np.abs(observation[2]), np.abs(observation[3])]) * 20
-    if vel < 19:
-        return False
-    return True

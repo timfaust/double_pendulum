@@ -40,7 +40,7 @@ class PushDoublePendulum(SymbolicDoublePendulum):
 
         return accn
 
-    def check_push(self, start_time=8, sigma_start=1, end_time=0.5, sigma_end=0.1, force=[5,25]):
+    def check_push(self, start_time=8, sigma_start=1, end_time=0.5, sigma_end=0.1, force=[5, 25]):
         def random_force():
             angle = np.random.uniform(0, 2 * np.pi)
             x = np.cos(angle)
@@ -92,7 +92,7 @@ class PushDoublePendulum(SymbolicDoublePendulum):
         return push_value
 
 
-def load_param(robot, torque_limit, simplify=True, real_robot=False):
+def load_param(robot, torque_limit, simplify=True, real_robot=True):
     if robot == "pendubot":
         design = "design_C.1"
         model = "model_1.0"
@@ -125,7 +125,7 @@ def load_param(robot, torque_limit, simplify=True, real_robot=False):
     return mpar
 
 
-def random_dynamics(robot, dt, max_torque, class_obj, sigma=0.02, plant_class=SymbolicDoublePendulum, use_random=True):
+def random_dynamics(robot, dt, max_torque, class_obj, sigma=0.03, plant_class=SymbolicDoublePendulum, use_random=True):
     mpar = load_param(robot, max_torque, simplify=False)
     if use_random:
         mpar.g = np.random.normal(mpar.g, sigma * mpar.g)
@@ -152,10 +152,12 @@ def default_dynamics(robot, dt, max_torque, class_obj):
     plant = SymbolicDoublePendulum(model_pars=mpar)
     return general_dynamics(robot, plant, dt, max_torque, class_obj)
 
+
 def real_robot(robot, dt, max_torque, class_obj):
     mpar = load_param(robot, max_torque, simplify=False, real_robot=True)
     plant = SymbolicDoublePendulum(model_pars=mpar)
     return general_dynamics(robot, plant, dt, max_torque, class_obj)
+
 
 def general_dynamics(robot, plant, dt, max_torque, class_obj):
     print("build new plant")
@@ -191,7 +193,7 @@ class custom_dynamics_func_4PI(double_pendulum_dynamics_func):
         elif self.state_representation == 3:
             x = super().unscale_state(observation)
         if len(observation) > 4:
-            return np.append(x, observation[-2:]*self.torque_limit)
+            return np.append(x, observation[-2:] * self.torque_limit)
         return x
 
     def normalize_state(self, state):
@@ -209,10 +211,23 @@ class custom_dynamics_func_4PI(double_pendulum_dynamics_func):
         elif self.state_representation == 3:
             observation = super().normalize_state(state)
         if len(state) > 4:
-            return np.append(observation, state[-2:]/self.torque_limit)
+            return np.append(observation, state[-2:] / self.torque_limit)
         return observation
 
+
 class custom_dynamics_func_PI(double_pendulum_dynamics_func):
+    virtual_sensor_state = [0.0, 0.0]
+    def __call__(self, state, action, scaling=True):
+        if scaling:
+            x = self.unscale_state(state)
+            u = self.unscale_action(action)
+            xn = self.integration(x, u)
+            self.virtual_sensor_state = wrap_angles_diff(xn - x)[:2]
+            obs = self.normalize_state(xn)
+            return np.array(obs, dtype=np.float32)
+        else:
+            super().__call__(state, action, scaling)
+
     def unscale_state(self, observation):
         """
         scale the state
@@ -230,7 +245,7 @@ class custom_dynamics_func_PI(double_pendulum_dynamics_func):
         else:
             x = super().unscale_state(observation)
         if len(observation) > 4:
-            return np.append(x, observation[-2:]*self.torque_limit)
+            return np.append(x, observation[-2:] * self.torque_limit)
         return x
 
     def normalize_state(self, state):
@@ -253,5 +268,5 @@ class custom_dynamics_func_PI(double_pendulum_dynamics_func):
             observation = super().normalize_state(state)
 
         if len(state) > 4:
-            return np.append(observation, state[-2:]/self.torque_limit)
+            return np.append(observation, state[-2:] / self.torque_limit)
         return observation
