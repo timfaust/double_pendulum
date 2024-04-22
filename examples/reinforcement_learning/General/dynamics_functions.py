@@ -125,7 +125,7 @@ def load_param(robot, torque_limit, simplify=True, real_robot=True):
     return mpar
 
 
-def random_dynamics(robot, dt, max_torque, class_obj, sigma=0.03, plant_class=SymbolicDoublePendulum, use_random=True):
+def random_dynamics(robot, dt, max_torque, class_obj, sigma=0.05, plant_class=SymbolicDoublePendulum, use_random=True):
     mpar = load_param(robot, max_torque, simplify=False)
     if use_random:
         mpar.g = np.random.normal(mpar.g, sigma * mpar.g)

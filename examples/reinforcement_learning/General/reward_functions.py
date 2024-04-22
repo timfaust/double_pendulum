@@ -185,11 +185,6 @@ def saturated_distance_from_target(observation, action, env_type, dynamic_func, 
 
     sat_dist = np.dot(diff.T, diff)
     exp_indx = -sat_dist - np.linalg.norm(u) - np.linalg.norm(u_diff)
-    if np.max(np.abs(x[2:4])) > 18:
-        return 0.0
-
-    """if np.max(np.abs(state_tracking[:2])) > 1.1 * np.pi and env_type == "acrobot":
-        return 0.0"""
 
     exp_term = np.exp(exp_indx)
     return exp_term

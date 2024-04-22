@@ -48,7 +48,7 @@ class GeneralEnv(CustomEnv):
         dynamic_class_name = self.data["dynamic_class"]
         low_pos = [-0.5, 0, 0, 0]
         if dynamic_class_name == "custom_dynamics_func_PI":
-            low_pos = [1.0, 0, 0, 0]
+            low_pos = [-1.0, 0, 0, 0]
         self.reset_function = lambda: reset_function(low_pos)
         reward_function = globals()[self.data[type]["reward_function"]]
         self.reward_name = self.data[type]["reward_function"]
@@ -56,12 +56,12 @@ class GeneralEnv(CustomEnv):
         self.same_env = self.data[type]["same_env"]
 
         self.dynamics_function = dynamics_function
-        self.reward_function = lambda obs, act, state_dict: reward_function(obs, act, robot, self.dynamics_func, state_dict)
+        self.reward_function = lambda obs, act, state_dict: reward_function(obs, act, robot, self.dynamics_func, state_dict, self.virtual_sensor_state_tracking)
         self.max_episode_steps = self.data["max_episode_steps"]
         self.render_every_steps = self.data["render_every_steps"]
         self.render_every_envs = self.data["render_every_envs"]
         self.actions_in_state = self.data["actions_in_state"] == 1
-        self.use_sim = self.data["use_sim_values"] == 1
+        self.virtual_sensor_state_tracking = [0.0, 0.0]
         self.simulation = None
         if not plant is None:
             self.plant = plant
@@ -79,7 +79,7 @@ class GeneralEnv(CustomEnv):
         super().__init__(
             dynamics_function,
             self.reward_function,
-            no_termination,
+            kill_switch,
             self.custom_reset,
             obs_space,
             act_space,
@@ -128,7 +128,8 @@ class GeneralEnv(CustomEnv):
 
     def reset(self, seed=None, options=None):
         observation, info = super().reset(seed, options)
-
+        self.dynamics_func.virtual_sensor_state = [0.0, 0.0]
+        self.virtual_sensor_state_tracking = [0.0, 0.0]
         if self.simulation is not None:
             self.simulation.reset()
         for key in self.state_dict:
@@ -146,11 +147,6 @@ class GeneralEnv(CustomEnv):
 
         self.observation = self.dynamics_func(self.observation, action, scaling=self.scaling)
 
-        if not self.simulation is None and self.use_sim:
-            self.simulation.step(self.dynamics_func.unscale_action(action), self.dynamics_func.dt)
-            t, x = self.simulation.get_state()
-            self.observation = self.dynamics_func.normalize_state(x)
-
         time = self.dynamics_func.dt
         if len(self.state_dict["T"]) > 0:
             time = time + self.state_dict["T"][-1]
@@ -160,14 +156,19 @@ class GeneralEnv(CustomEnv):
 
         if self.actions_in_state:
             self.observation = np.append(self.observation, last_actions)
+
         if self.reward_name == "saturated_distance_from_target":
             reward = self.reward_func(self.observation, action, self.state_dict)
         else:
             reward = self.reward_func(self.observation, action, self.state_dict)/self.max_episode_steps
-        terminated = self.terminated_func(self.observation)
 
-        if np.max(np.abs(self.observation[2:4])) * 20 > 18:
-            print(self.observation)
+        ignore_state = True
+        if self.data["dynamic_class"] == "custom_dynamics_func_PI":
+            self.virtual_sensor_state_tracking += self.dynamics_func.virtual_sensor_state
+            if self.robot == "acrobot":
+                ignore_state = False
+
+        terminated = self.terminated_func(self.observation, self.virtual_sensor_state_tracking, ignore_state)
 
         info = {}
         truncated = False
@@ -204,10 +205,6 @@ class GeneralEnv(CustomEnv):
         canvas = pygame.Surface((self.window_size, self.window_size))
         y, x1, x2, v1, v2, action, goal, dt, threshold, u_p, u_pp = get_state_values(self.observation, self.action, self.robot, self.dynamics_func)
         x3 = x2 + dt * v2
-        """if self.robot == "pendubot":
-            action = action[0]
-        else:
-            action = action[1]"""
 
         action = action[0]
         distance = np.linalg.norm(x2 - goal)
@@ -235,6 +232,7 @@ class GeneralEnv(CustomEnv):
         reward = myFont.render(str(np.round(self.reward, 5)), 1, (0, 0, 0), )
         canvas.blit(acc_reward, (10, 10))
         canvas.blit(reward, (10, 60))
+
         canvas.blit(myFont.render(str(self.step_counter), 1, (0, 0, 0), ), (10, self.window_size - 320))
         canvas.blit(myFont.render(str(round(x_1, 4)), 1, (0, 0, 0), ), (10, self.window_size - 280))
         canvas.blit(myFont.render(str(round(x_2, 4)), 1, (0, 0, 0), ), (10, self.window_size - 240))
