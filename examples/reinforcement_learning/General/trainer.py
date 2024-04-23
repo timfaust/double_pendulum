@@ -4,6 +4,8 @@ import re
 from typing import Type
 from stable_baselines3.common.callbacks import BaseCallback
 from torch.utils.tensorboard import SummaryWriter
+import optax
+import gymnasium as gym
 from tqdm.auto import tqdm
 import numpy as np
 from double_pendulum.utils.csv_trajectory import save_trajectory
@@ -125,11 +127,32 @@ class Trainer:
         envs = self.environment.get_envs(log_dir=self.log_dir)
         callback_list = self.get_callback_list()
 
-        valid_keys = ['gradient_steps', 'ent_coef', 'learning_rate']
+        valid_keys = ['gradient_steps', 'ent_coef', 'learning_rate', 'qf_learning_rate']
         filtered_data = {key: value for key, value in self.environment.data.items() if key in valid_keys}
+
+        # CrossQ adoption
+        net_arch = {'pi': [256, 256], 'qf': [2048, 2048]}
+        dropout_rate, layer_norm = None, False
+
+
         agent = SAC(
-            SACPolicy,
+            "MultiInputPolicy" if isinstance(self.environment.observation_space, gym.spaces.Dict) else "MlpPolicy",
             envs,
+            policy_kwargs=dict({
+            'layer_norm': layer_norm,
+            'batch_norm': True,
+            'batch_norm_momentum': 0.99,
+            'batch_norm_mode': 'brn_actor',
+            'dropout_rate': dropout_rate,
+            'n_critics': 2,
+            'net_arch': net_arch,
+            'optimizer_class': optax.adam,
+            'optimizer_kwargs': dict({
+                'b1': 0.5,
+                'b2': 0.999 # default
+            })
+        }),
+            policy_delay=1,
             tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
             action_noise=self.action_noise,
             seed=self.environment.seed,

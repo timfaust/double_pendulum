@@ -61,7 +61,7 @@ def no_termination(observation):
 
 
 def kill_switch(observation, new_state, ignore_state=True):
-    if np.max(np.abs(new_state[:2])) > 2 * np.pi and not ignore_state:
+    if np.max(np.abs(new_state[:2])) > 1.9 * np.pi and not ignore_state:
         print("Terminated at state: ", new_state)
         return True
     if np.max(np.abs(observation[2:4])) * 20 > 18:

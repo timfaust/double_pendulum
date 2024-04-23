@@ -1,10 +1,11 @@
 {
     "SAC_Defaults": {
-        "learning_rate": 0.0003,
+        "learning_rate": 0.001,
+        "qf_learning_rate": 0.001,
         "buffer_size": 1000000,
-        "learning_starts": 100,
+        "learning_starts": 5000,
         "batch_size": 256,
-        "tau": 0.005,
+        "tau": 1.0,
         "gamma": 0.99,
         "train_freq": 1,
         "gradient_steps": 1,
@@ -20,6 +21,7 @@
         "use_sde_at_warmup": false,
         "random_exploration": 0.0,
         "stats_window_size": 100,
+        "policy_delay": 3,
         "tensorboard_log": null,
         "policy_kwargs": null,
         "verbose": 0,
@@ -224,13 +226,13 @@
 
         "dynamic_class": "custom_dynamics_func_PI",
         "dt": 0.01,
-        "max_torque": 3.5,
+        "max_torque": 3.0,
 
         "learning_rate": 1e-3,
         "actions_in_state": 0,
-        "gradient_steps": 4,
+        "gradient_steps": 1,
         "max_episode_steps": 500,
-        "training_steps": 7e6,
+        "training_steps": 5e6,
         "use_action_noise": 1,
 
         "eval_freq": 3e4,
