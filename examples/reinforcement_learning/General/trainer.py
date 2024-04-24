@@ -10,6 +10,7 @@ from tqdm.auto import tqdm
 import numpy as np
 from double_pendulum.utils.csv_trajectory import save_trajectory
 from sbx import SAC
+from cross_q_sac import CROSSQ_SAC
 from sbx.sac.policies import SACPolicy
 from stable_baselines3.common.callbacks import (
     EvalCallback,
@@ -135,14 +136,11 @@ class Trainer:
         dropout_rate, layer_norm = None, False
 
 
-        agent = SAC(
+        agent = CROSSQ_SAC(
             "MultiInputPolicy" if isinstance(self.environment.observation_space, gym.spaces.Dict) else "MlpPolicy",
             envs,
             policy_kwargs=dict({
             'layer_norm': layer_norm,
-            'batch_norm': True,
-            'batch_norm_momentum': 0.99,
-            'batch_norm_mode': 'brn_actor',
             'dropout_rate': dropout_rate,
             'n_critics': 2,
             'net_arch': net_arch,
