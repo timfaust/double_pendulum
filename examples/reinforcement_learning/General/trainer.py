@@ -9,9 +9,9 @@ import gymnasium as gym
 from tqdm.auto import tqdm
 import numpy as np
 from double_pendulum.utils.csv_trajectory import save_trajectory
-from sbx import SAC
-from cross_q_sac import CROSSQ_SAC
-from sbx.sac.policies import SACPolicy
+import jax
+from sbx.crossq.crossq import CrossQ
+from sbx.crossq.policies import CrossQPolicy
 from stable_baselines3.common.callbacks import (
     EvalCallback,
     CallbackList,
@@ -131,31 +131,15 @@ class Trainer:
         valid_keys = ['gradient_steps', 'ent_coef', 'learning_rate', 'qf_learning_rate']
         filtered_data = {key: value for key, value in self.environment.data.items() if key in valid_keys}
 
-        # CrossQ adoption
-        net_arch = {'pi': [256, 256], 'qf': [2048, 2048]}
-        dropout_rate, layer_norm = None, False
-
-
-        agent = CROSSQ_SAC(
-            "MultiInputPolicy" if isinstance(self.environment.observation_space, gym.spaces.Dict) else "MlpPolicy",
+        agent = CrossQ(
+            CrossQPolicy,
             envs,
-            policy_kwargs=dict({
-            'layer_norm': layer_norm,
-            'dropout_rate': dropout_rate,
-            'n_critics': 2,
-            'net_arch': net_arch,
-            'optimizer_class': optax.adam,
-            'optimizer_kwargs': dict({
-                'b1': 0.5,
-                'b2': 0.999 # default
-            })
-        }),
-            policy_delay=1,
             tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
             action_noise=self.action_noise,
             seed=self.environment.seed,
             **filtered_data
         )
+
         self.load_custom_params(agent)
 
         agent.learn(self.training_steps, callback=callback_list)
@@ -170,7 +154,7 @@ class Trainer:
 
         envs = self.environment.get_envs(log_dir=self.log_dir)
 
-        agent = SAC.load(self.log_dir + model_path, print_system_info=True)
+        agent = CrossQ.load(self.log_dir + model_path, print_system_info=True)
         self.load_custom_params(agent)
         agent.set_env(envs)
 
@@ -183,7 +167,7 @@ class Trainer:
         if not os.path.exists(self.log_dir + model_path + ".zip"):
             raise Exception("model not found")
 
-        agent = SAC.load(self.log_dir + model_path, print_system_info=True)
+        agent = CrossQ.load(self.log_dir + model_path, print_system_info=True)
         self.load_custom_params(agent)
 
         eval_envs = self.eval_environment.get_envs(log_dir=self.log_dir)
@@ -293,7 +277,7 @@ class GeneralController(AbstractController):
     def __init__(self, environment: Type[GeneralEnv], model_path):
         super().__init__()
 
-        self.model = SAC.load(model_path, print_system_info=True)
+        self.model = CrossQ.load(model_path, print_system_info=True)
         self.simulation = environment.simulation
         self.dynamics_func = environment.dynamics_func
         self.dt = environment.dynamics_func.dt

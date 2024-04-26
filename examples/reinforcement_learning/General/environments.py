@@ -166,7 +166,7 @@ class GeneralEnv(CustomEnv):
         if self.data["dynamic_class"] == "custom_dynamics_func_PI":
             self.virtual_sensor_state_tracking += self.dynamics_func.virtual_sensor_state
             if self.robot == "acrobot":
-                ignore_state = False
+                ignore_state = True
 
         terminated = self.terminated_func(self.observation, self.virtual_sensor_state_tracking, ignore_state)
 

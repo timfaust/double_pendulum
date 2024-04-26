@@ -1,11 +1,9 @@
 {
-    "SAC_Defaults": {
+    "CROSSQ_Defaults": {
         "learning_rate": 0.001,
-        "qf_learning_rate": 0.001,
         "buffer_size": 1000000,
-        "learning_starts": 5000,
+        "learning_starts": 100,
         "batch_size": 256,
-        "tau": 1.0,
         "gamma": 0.99,
         "train_freq": 1,
         "gradient_steps": 1,
@@ -213,13 +211,13 @@
             "reset_function": "low_reset",
             "reward_function": "saturated_distance_from_target",
             "same_env": 0,
-            "n_envs": 1
+            "n_envs": 20
         },
 
         "eval_env": {
             "dynamics_function": "real_robot",
             "reset_function": "noisy_reset",
-            "reward_function": "score_reward",
+            "reward_function": "saturated_distance_from_target",
             "same_env": 1,
             "n_envs": 1
         },
@@ -235,7 +233,7 @@
         "training_steps": 5e6,
         "use_action_noise": 1,
 
-        "eval_freq": 3e4,
+        "eval_freq": 5e3,
         "n_eval_episodes": 1,
         "render_eval": 1,
         "render_every_steps": 1,
