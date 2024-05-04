@@ -1,9 +1,16 @@
 import numpy as np
+from scipy.integrate import solve_ivp
+from scipy.optimize import minimize
+import matplotlib.pyplot as plt
 from double_pendulum.model.symbolic_plant import SymbolicDoublePendulum
 from double_pendulum.simulation.simulation import Simulator
 from double_pendulum.simulation.gym_env import double_pendulum_dynamics_func
 from double_pendulum.model.model_parameters import model_parameters
 from scipy.stats import norm
+from matplotlib.animation import PillowWriter
+from matplotlib import animation
+from sympy import lambdify
+import pandas as pd
 
 from src.python.double_pendulum.utils.wrap_angles import wrap_angles_diff
 
@@ -270,3 +277,129 @@ class custom_dynamics_func_PI(double_pendulum_dynamics_func):
         if len(state) > 4:
             return np.append(observation, state[-2:] / self.torque_limit)
         return observation
+
+
+def update_plant(plant):
+    M = plant.replace_parameters(plant.M)
+    C = plant.replace_parameters(plant.C)
+    G = plant.replace_parameters(plant.G)
+    F = plant.replace_parameters(plant.F)
+    plant.M_la = lambdify(plant.x, M)
+    plant.C_la = lambdify(plant.x, C)
+    plant.G_la = lambdify(plant.x, G)
+    plant.F_la = lambdify(plant.x, F)
+
+
+def simulate_test():
+    print("create plant")
+    mpar = load_param("pendubot", 5)
+    plant = SymbolicDoublePendulum(model_pars=mpar)
+    time = np.linspace(0, 2, num=1000)
+    force = np.cos(time)
+
+    initial_conditions = [0, 0, 0, 0]
+    plant.m = [0.45, 0.52]
+    plant.l = [0.29, 0.24]
+    delay = 0.1
+    update_plant(plant)
+
+    def double_pendulum_model(t, x, delay, torque):
+        q1, q2, v1, v2 = x
+        delay_time = max(t - delay, 0)
+        u = np.interp(delay_time, time, torque)
+        accn = plant.forward_dynamics(x, np.array([u, 0]))
+        return [v1, v2, accn[0], accn[1]]
+
+    print("calculate true solution")
+    true_solution = solve_ivp(double_pendulum_model, [time[0], time[-1]], initial_conditions, args=(delay, force), t_eval=time)
+    measured_data = true_solution.y + np.random.normal(0, 0.05, true_solution.y.shape)
+
+    # print("override true solution")
+    #
+    # data = pd.read_excel('trajectory.xlsx')
+    # data = data[data['time'] <= 2]
+    #
+    # time = data['time'].to_numpy()
+    # force = data['tau_con1'].to_numpy()
+    # pos_meas1 = data['pos_meas1'].to_numpy()
+    # pos_meas2 = data['pos_meas2'].to_numpy()
+    # vel_meas1 = data['vel_meas1'].to_numpy()
+    # vel_meas2 = data['vel_meas2'].to_numpy()
+    # measured_data = np.vstack((pos_meas1, pos_meas2, vel_meas1, vel_meas2))
+
+    def least_squares(params):
+        m1, m2, l1, l2, delay = params
+        plant.m = [m1, m2]
+        plant.l = [l1, l2]
+        update_plant(plant)
+        print("calculate for: " + str(params))
+
+        batch_length = 20
+        batch_number = 20
+
+        batch_distance = len(time) // batch_number
+        total_error = 0
+
+        initial_conditions = [measured_data[:, i * batch_distance] for i in range(batch_number)]
+
+        for i in range(batch_number):
+            start_index = i * batch_distance
+            end_index = start_index + batch_length
+            if end_index >= len(time):
+                end_index = len(time) - 1
+            initial_conditions_segment = initial_conditions[i]
+            sol = solve_ivp(double_pendulum_model, [time[start_index], time[end_index]], initial_conditions_segment, args=(delay, force), t_eval=time[start_index:end_index])
+            weighted_errors = np.sum((measured_data[:, start_index:end_index] - sol.y) ** 2)
+            total_error += weighted_errors
+
+        return total_error
+
+    print("solve least squares")
+    initial_guess = np.array([0.5, 0.5, 0.3, 0.2, 0.2])
+    max_deviation = np.array([0.1, 0.1, 0.05, 0.05, 0.2])
+    lower_bounds = initial_guess - max_deviation
+    upper_bounds = initial_guess + max_deviation
+    bounds = [(low, high) for low, high in zip(lower_bounds, upper_bounds)]
+
+    result = minimize(least_squares, initial_guess, method='L-BFGS-B', bounds=bounds, tol=1e-2)
+
+    print("calculate model solution")
+    m1, m2, l1, l2, delay = result.x
+    plant.m = [m1, m2]
+    plant.l = [l1, l2]
+    update_plant(plant)
+    model_solution = solve_ivp(double_pendulum_model, [time[0], time[-1]], initial_conditions, args=(delay, force), t_eval=time)
+    print("results: " + str(result.x))
+
+    plt.figure(figsize=(12, 6))
+    plt.plot(time, measured_data[0], 'g', label='q1')
+    plt.plot(time, measured_data[1], 'r', label='q2')
+    plt.plot(time, model_solution.y[0], 'b--', label='q1 model')
+    plt.plot(time, model_solution.y[1], 'k--', label='q2 model')
+    plt.title('Modell')
+    plt.xlabel('Zeit [s]')
+    plt.ylabel('Position [m]')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+    # def get_x1y1x2y2(t, the1, the2, L1, L2):
+    #     return (L1 * np.sin(the1),
+    #             -L1 * np.cos(the1),
+    #             L1 * np.sin(the1) + L2 * np.sin(the1 + the2),
+    #             -L1 * np.cos(the1) - L2 * np.cos(the1 + the2))
+    #
+    # x1, y1, x2, y2 = get_x1y1x2y2(time, true_solution.y[0], true_solution.y[1], 1, 1)
+    #
+    # def animate(i):
+    #     ln1.set_data([0, x1[i], x2[i]], [0, y1[i], y2[i]])
+    #
+    # fig, ax = plt.subplots(1, 1, figsize=(8, 8))
+    # ax.set_facecolor('k')
+    # ax.get_xaxis().set_ticks([])
+    # ax.get_yaxis().set_ticks([])
+    # ln1, = plt.plot([], [], 'ro--', lw=3, markersize=8)
+    # ax.set_ylim(-4, 4)
+    # ax.set_xlim(-4, 4)
+    # ani = animation.FuncAnimation(fig, animate, frames=1000, interval=50)
+    # ani.save('pen.gif', writer='pillow', fps=25)
