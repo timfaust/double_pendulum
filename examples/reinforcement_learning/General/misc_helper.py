@@ -15,15 +15,15 @@ def debug_reset(low_pos=[-0.5, 0, 0, 0]):
     return general_reset(low_pos, [0.0, 0.0, 0.0, 0.0])
 
 
-def high_reset(low_pos=[-0.5, 0, 0, 0]):
+def high_reset():
     return general_reset([0, 0, 0, 0], [0.025, 0.025, 0.05, 0.05])
 
 
-def random_reset(low_pos=[-0.5, 0, 0, 0]):
+def random_reset():
     return general_reset([0, 0, 0, 0], [0.5, 0.5, 0.75, 0.75])
 
 
-def semi_random_reset(low_pos=[-0.5, 0, 0, 0]):
+def semi_random_reset():
     return general_reset([0, 0, 0, 0], [0.5, 0.1, 0.5, 0.2])
 
 

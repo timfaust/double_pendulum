@@ -18,12 +18,11 @@ from stable_baselines3.common.callbacks import (
     CheckpointCallback
 )
 
-from examples.reinforcement_learning.General.custom_policies import LSTMSACPolicy
 from examples.reinforcement_learning.General.environments import GeneralEnv
 from double_pendulum.controller.abstract_controller import AbstractController
 from double_pendulum.utils.plotting import plot_timeseries
 
-from examples.reinforcement_learning.General.reward_functions import calculate_score
+from examples.reinforcement_learning.General.score import calculate_score
 
 
 def linear_schedule(initial_value):
@@ -52,12 +51,12 @@ class ScoreCallback(BaseCallback):
         super(ScoreCallback, self).__init__(verbose)
 
     def _on_step(self) -> bool:
-        if len(self.training_env.get_attr('state_dict')[0]['T']) == self.training_env.get_attr('max_episode_steps')[0] - 1:
+        if len(self.training_env.get_attr('observation_dict')[0]['T']) == self.training_env.get_attr('max_episode_steps')[0] - 1:
             sum = 0
-            state_dicts = self.training_env.get_attr('state_dict')
-            for state_dict in state_dicts:
-                sum += calculate_score(state_dict)
-            self.logger.record("rollout/score_mean", sum/len(state_dicts))
+            observation_dicts = self.training_env.get_attr('observation_dict')
+            for observation_dict in observation_dicts:
+                sum += calculate_score(observation_dict)
+            self.logger.record("rollout/score_mean", sum/len(observation_dicts))
         return True
 
 
@@ -99,23 +98,23 @@ class ProgressBarCallback(BaseCallback):
 
 
 class Trainer:
-    def __init__(self, name, env_type, param, policy, seed, action_noise=None):
-        self.environment = GeneralEnv(env_type, param, policy, seed=seed)
-        self.eval_environment = GeneralEnv(env_type, param, policy, eval=True, seed=seed)
+    def __init__(self, name, env_type, param_name, policy, seed, action_noise=None):
+        self.environment = GeneralEnv(env_type, param_name, policy, seed=seed)
+        self.eval_environment = GeneralEnv(env_type, param_name, policy, is_evaluation_environment=True, seed=seed)
         self.log_dir = './log_data/' + name + '/' + env_type
         self.name = name
         self.action_noise = action_noise
         self.policy = policy
 
-        self.use_action_noise = self.environment.data["use_action_noise"] == 1
-        self.max_episode_steps = self.environment.data["max_episode_steps"]
-        self.training_steps = self.environment.data["training_steps"]
-        self.eval_freq = self.environment.data["eval_freq"]
-        self.save_freq = self.environment.data["save_freq"]
-        self.verbose = self.environment.data["verbose"] == 1
-        self.render_eval = self.environment.data["render_eval"] == 1
-        self.n_eval_episodes = self.environment.data["n_eval_episodes"]
-        self.show_progressBar = self.environment.data["show_progress_bar"]
+        self.use_action_noise = self.environment.param_data["use_action_noise"] == 1
+        self.max_episode_steps = self.environment.param_data["max_episode_steps"]
+        self.training_steps = self.environment.param_data["training_steps"]
+        self.eval_freq = self.environment.param_data["eval_freq"]
+        self.save_freq = self.environment.param_data["save_freq"]
+        self.verbose = self.environment.param_data["verbose"] == 1
+        self.render_eval = self.environment.param_data["render_eval"] == 1
+        self.n_eval_episodes = self.environment.param_data["n_eval_episodes"]
+        self.show_progressBar = self.environment.param_data["show_progress_bar"]
 
         if not self.use_action_noise:
             self.action_noise = None
@@ -130,8 +129,9 @@ class Trainer:
         envs = self.environment.get_envs(log_dir=self.log_dir)
         callback_list = self.get_callback_list()
 
+        # keys which can be replaced from param
         valid_keys = ['gradient_steps', 'ent_coef', 'learning_rate', 'qf_learning_rate']
-        filtered_data = {key: value for key, value in self.environment.data.items() if key in valid_keys}
+        filtered_data = {key: value for key, value in self.environment.param_data.items() if key in valid_keys}
 
         agent = SAC(
             self.policy,
@@ -165,6 +165,14 @@ class Trainer:
         agent.learn(self.training_steps, callback=callback_list, reset_num_timesteps=True)
         agent.save(os.path.join(self.log_dir, "saved_model", "trained_model"))
 
+    def get_eval_envs(self):
+        eval_envs = self.eval_environment.get_envs(log_dir=self.log_dir)
+        for i in range(len(eval_envs.envs)):
+            monitor = eval_envs.envs[i]
+            if self.render_eval and i % self.eval_environment.render_every_envs == 0:
+                monitor.env.render_mode = 'human'
+        return eval_envs
+
     def evaluate(self, model_path):
         if not os.path.exists(self.log_dir + model_path + ".zip"):
             raise Exception("model not found")
@@ -172,11 +180,7 @@ class Trainer:
         agent = SAC.load(self.log_dir + model_path, print_system_info=True)
         self.load_custom_params(agent)
 
-        eval_envs = self.eval_environment.get_envs(log_dir=self.log_dir)
-        for i in range(len(eval_envs.envs)):
-            monitor = eval_envs.envs[i]
-            if self.render_eval and i % self.eval_environment.render_every_envs == 0:
-                monitor.env.render_mode = 'human'
+        eval_envs = self.get_eval_envs()
 
         episode_rewards = []
         episode_lengths = []
@@ -204,11 +208,7 @@ class Trainer:
 
     def get_callback_list(self):
 
-        eval_envs = self.eval_environment.get_envs(log_dir=self.log_dir)
-        for i in range(len(eval_envs.envs)):
-            monitor = eval_envs.envs[i]
-            if self.render_eval and i % self.eval_environment.render_every_envs == 0:
-                monitor.env.render_mode = 'human'
+        eval_envs = self.get_eval_envs()
 
         eval_callback = EvalCallback(
             eval_envs,
@@ -221,11 +221,9 @@ class Trainer:
             deterministic=True
         )
 
-        checkpoint_callback = CheckpointCallback(save_freq=int(self.save_freq / self.environment.n_envs),
-                                                 save_path=os.path.join(self.log_dir, 'saved_model'),
-                                                 name_prefix="saved_model")
+        checkpoint_callback = CheckpointCallback(save_freq=int(self.save_freq / self.environment.n_envs), save_path=os.path.join(self.log_dir, 'saved_model'), name_prefix="saved_model")
+        progress_bar_callback = ProgressBarCallback(self.training_steps, self.log_dir, self.environment.param_data, self.environment.n_envs)
 
-        progress_bar_callback = ProgressBarCallback(self.training_steps, self.log_dir, self.environment.data, self.environment.n_envs)
         if self.show_progressBar:
             return CallbackList([eval_callback, checkpoint_callback, progress_bar_callback])
         else:
@@ -270,43 +268,31 @@ class Trainer:
         return controller
 
     def load_custom_params(self, agent):
-        for key in self.environment.data:
+        for key in self.environment.param_data:
             if hasattr(agent, key):
-                setattr(agent, key, self.environment.data[key])
+                setattr(agent, key, self.environment.param_data[key])
 
 
 class GeneralController(AbstractController):
-    def __init__(self, environment: Type[GeneralEnv], model_path):
+    def __init__(self, environment: GeneralEnv, model_path):
         super().__init__()
 
         self.model = SAC.load(model_path, print_system_info=True)
+        self.environment = environment
         self.simulation = environment.simulation
         self.dynamics_func = environment.dynamics_func
         self.dt = environment.dynamics_func.dt
         self.scaling = environment.dynamics_func.scaling
         self.integrator = environment.dynamics_func.integrator
-        self.actions_in_state = environment.actions_in_state
-        self.last_actions = [0, 0]
 
     def get_control_output_(self, x, t=None):
 
-        if self.actions_in_state:
-            x = np.append(x, self.last_actions)
-
         if self.scaling:
             obs = self.dynamics_func.normalize_state(x)
-            action = self.model.predict(observation=obs, deterministic=True)
+            action = self.model.predict(observation=self.environment.translator.build_state(obs), deterministic=True)
             u = self.dynamics_func.unscale_action(action)
         else:
-            action = self.model.predict(observation=x, deterministic=True)
+            action = self.model.predict(observation=self.environment.translator.build_state(x), deterministic=True)
             u = self.dynamics_func.unscale_action(action)
-
-        if self.actions_in_state:
-            self.last_actions[-1] = self.last_actions[-2]
-            if not np.all(u == 0):
-                max_abs_value_index = np.abs(u).argmax()
-                self.last_actions[-2] = u[max_abs_value_index]
-            else:
-                self.last_actions[-2] = 0
 
         return u

@@ -2,9 +2,9 @@ import json
 
 from stable_baselines3.common.env_util import make_vec_env
 
-from examples.reinforcement_learning.General.custom_policies import CustomPolicy, Translator
 from examples.reinforcement_learning.General.misc_helper import updown_reset, balanced_reset, no_termination, \
     noisy_reset, low_reset, high_reset, random_reset, semi_random_reset, debug_reset, kill_switch
+from examples.reinforcement_learning.General.policies.common import CustomPolicy
 from examples.reinforcement_learning.General.reward_functions import get_state_values
 from src.python.double_pendulum.simulation.gym_env import CustomEnv
 import pygame
@@ -15,64 +15,45 @@ from examples.reinforcement_learning.General.dynamics_functions import default_d
 from examples.reinforcement_learning.General.reward_functions import future_pos_reward, pos_reward, quadratic_rew, saturated_distance_from_target, score_reward
 from double_pendulum.simulation.simulation import Simulator
 
+
 class GeneralEnv(CustomEnv):
-    metadata = {"render_modes": ["human"], "render_fps": 120}
+    metadata_visualization = {"render_modes": ["human"], "render_fps": 120}
 
     def __init__(
         self,
-        robot,
-        param,
+        env_type,
+        param_name,
         policy: CustomPolicy,
         seed,
         path="parameters.json",
-        eval=False,
-        dynamics_function=None,
-        plant=None
+        is_evaluation_environment=False,
+        existing_dynamics_function=None,
+        existing_plant=None
     ):
 
         self.policy = policy
         self.translator = policy.actor_class.get_translator()
         self.seed = seed
-        self.eval = eval
-        self.param = param
-        self.pendulum_length = 350
-        self.reward_visualization = 0
-        self.action_visualization = None
-        self.acc_reward_visualization = 0
-        self.robot = robot
-        self.data = json.load(open(path))[param]
-
-        type = "train_env"
-        if self.eval:
-            type = "eval_env"
-
-        if dynamics_function is None:
-            dynamics_function = globals()[self.data[type]["dynamics_function"]]
-        reset_function = globals()[self.data[type]["reset_function"]]
-        dynamic_class_name = self.data["dynamic_class"]
-        low_pos = [-0.5, 0, 0, 0]
-        if dynamic_class_name == "custom_dynamics_func_PI":
-            low_pos = [-1.0, 0, 0, 0]
-        self.reset_function = lambda: reset_function(low_pos)
-        reward_function = globals()[self.data[type]["reward_function"]]
-        self.reward_name = self.data[type]["reward_function"]
-        self.n_envs = self.data[type]["n_envs"]
-        self.same_env = self.data[type]["same_env"]
-
-        self.dynamics_function = dynamics_function
-        self.reward_function = lambda obs, act, state_dict: reward_function(obs, act, robot, self.dynamics_func, state_dict, self.virtual_sensor_state_tracking)
-        self.max_episode_steps = self.data["max_episode_steps"]
-        self.render_every_steps = self.data["render_every_steps"]
-        self.render_every_envs = self.data["render_every_envs"]
+        self.is_evaluation_environment = is_evaluation_environment
+        self.param_name = param_name
+        self.env_type = env_type
+        self.param_data = json.load(open(path))[param_name]
 
         self.virtual_sensor_state_tracking = [0.0, 0.0]
-        self.simulation = None
-        if not plant is None:
-            self.plant = plant
-            self.simulation = Simulator(plant=plant)
 
-        if hasattr(dynamics_function, '__code__'):
-            dynamics_function, self.simulation, self.plant = dynamics_function(robot, self.data["dt"], self.data["max_torque"], globals()[dynamic_class_name])
+        self.type = None
+        self.render_every_steps = None
+        self.render_every_envs = None
+        self.same_environment = None
+        self.n_envs = None
+        self.initialize_from_params()
+
+        self.plant = None
+        self.simulation = None
+        self.reward_function = None
+        self.reward_name = None
+        self.reset_function = None
+        dynamics_function = self.initialize_functions(existing_dynamics_function, existing_plant, env_type)
 
         super().__init__(
             dynamics_function,
@@ -85,14 +66,55 @@ class GeneralEnv(CustomEnv):
             True
         )
 
+        # initialize_visualization
+        self.pendulum_length_visualization = 350
+        self.reward_visualization = 0
+        self.action_visualization = None
+        self.acc_reward_visualization = 0
         self.window_size = 800
         self.render_mode = "None"
         self.window = None
         self.clock = None
 
-        self.mpar = load_param(robot, self.dynamics_func.torque_limit)
+        self.mpar = load_param(env_type, self.dynamics_func.torque_limit)
         self.observation_dict = {"T": [], "X_meas": [], "U_con": [], "push": [], "plant": self.dynamics_func.simulator.plant, "max_episode_steps": self.max_episode_steps, "current_force": []}
         self.dynamics_func.simulator.plant.observation_dict = self.observation_dict
+
+    def initialize_from_params(self):
+        self.type = "train_env"
+        if self.is_evaluation_environment:
+            self.type = "eval_env"
+        self.n_envs = self.param_data[self.type]["n_envs"]
+        self.same_environment = self.param_data[self.type]["same_environment"]
+        self.max_episode_steps = self.param_data["max_episode_steps"]
+        self.render_every_steps = self.param_data["render_every_steps"]
+        self.render_every_envs = self.param_data["render_every_envs"]
+
+    def initialize_functions(self, existing_dynamics_function, existing_plant, env_type):
+        dynamics_function_class = None
+        if existing_dynamics_function is None:
+            dynamics_function_class = globals()[self.param_data[self.type]["dynamics_function"]]
+
+        if existing_plant is not None:
+            self.plant = existing_plant
+            self.simulation = Simulator(plant=existing_plant)
+
+        normalization_class_name = self.param_data["normalization"]
+        low_pos = [-0.5, 0, 0, 0]
+        if normalization_class_name == "custom_dynamics_func_PI":
+            low_pos = [-1.0, 0, 0, 0]
+
+        if dynamics_function_class is not None and hasattr(dynamics_function_class, '__code__'):
+            existing_dynamics_function, self.simulation, self.plant = dynamics_function_class(env_type, self.param_data["dt"], self.param_data["max_torque"], globals()[normalization_class_name])
+
+        reset_function = globals()[self.param_data[self.type]["reset_function"]]
+        self.reset_function = lambda: reset_function(low_pos)
+
+        reward_function = globals()[self.param_data[self.type]["reward_function"]]
+        self.reward_name = self.param_data[self.type]["reward_function"]
+        self.reward_function = lambda obs, act, observation_dict: reward_function(obs, act, env_type, existing_dynamics_function, observation_dict, self.virtual_sensor_state_tracking)
+
+        return existing_dynamics_function
 
     def custom_reset(self):
         observation = self.reset_function()
@@ -101,22 +123,21 @@ class GeneralEnv(CustomEnv):
         return state
 
     def get_envs(self, log_dir):
-        if self.same_env:
-            dynamics_function = self.dynamics_func
-            plant = self.plant
-        else:
-            dynamics_function = self.dynamics_function
-            plant = None
+        existing_dynamics_function = None
+        existing_plant = None
+        if self.same_environment:
+            existing_dynamics_function = self.dynamics_func
+            existing_plant = self.plant
 
         envs = make_vec_env(
             env_id=GeneralEnv,
             n_envs=self.n_envs,
             env_kwargs={
-                "robot": self.robot,
-                "param": self.param,
-                "dynamics_function": dynamics_function,
-                "eval": self.eval,
-                "plant": plant,
+                "env_type": self.env_type,
+                "param_name": self.param_name,
+                "existing_dynamics_function": existing_dynamics_function,
+                "is_evaluation_environment": self.is_evaluation_environment,
+                "existing_plant": existing_plant,
                 "seed": self.seed,
                 "policy": self.policy
             },
@@ -173,9 +194,9 @@ class GeneralEnv(CustomEnv):
 
     def add_virtual_sensor(self):
         ignore_state = True
-        if self.data["dynamic_class"] == "custom_dynamics_func_PI":
+        if self.param_data["normalization"] == "custom_dynamics_func_PI":
             self.virtual_sensor_state_tracking += self.dynamics_func.virtual_sensor_state
-            if self.robot == "acrobot":
+            if self.env_type == "acrobot":
                 ignore_state = True
         return ignore_state
 
@@ -198,7 +219,7 @@ class GeneralEnv(CustomEnv):
             self._render_frame()
 
     def getXY(self, point):
-        transformed = (self.window_size // 2 + point[0]*self.pendulum_length*2, self.window_size // 2 + point[1]*self.pendulum_length*2)
+        transformed = (self.window_size // 2 + point[0] * self.pendulum_length_visualization * 2, self.window_size // 2 + point[1] * self.pendulum_length_visualization * 2)
         return transformed
 
     def _render_frame(self):
@@ -210,7 +231,7 @@ class GeneralEnv(CustomEnv):
             self.clock = pygame.time.Clock()
 
         canvas = pygame.Surface((self.window_size, self.window_size))
-        y, x1, x2, v1, v2, action, goal, dt, threshold, u_p, u_pp = get_state_values(self.observation, self.action_visualization, self.robot, self.dynamics_func)
+        y, x1, x2, v1, v2, action, goal, dt, threshold, u_p, u_pp = get_state_values(self.observation, self.action_visualization, self.env_type, self.dynamics_func)
         x3 = x2 + dt * v2
 
         action = action[0]
@@ -230,9 +251,9 @@ class GeneralEnv(CustomEnv):
         pygame.draw.circle(canvas, (60, 60, 230), self.getXY(np.array([0,0])), 10)
         pygame.draw.circle(canvas, (60, 60, 230), self.getXY(x1), 10)
         pygame.draw.circle(canvas, (60, 60, 230), self.getXY(x2), 5)
-        pygame.draw.circle(canvas, (255, 200, 200), self.getXY(goal), threshold * 4 * self.pendulum_length)
-        pygame.draw.circle(canvas, (255, 50, 50), self.getXY(goal), threshold * 2 * self.pendulum_length)
-        pygame.draw.circle(canvas, (95, 2, 99), self.getXY(x3), threshold * 2 * self.pendulum_length)
+        pygame.draw.circle(canvas, (255, 200, 200), self.getXY(goal), threshold * 4 * self.pendulum_length_visualization)
+        pygame.draw.circle(canvas, (255, 50, 50), self.getXY(goal), threshold * 2 * self.pendulum_length_visualization)
+        pygame.draw.circle(canvas, (95, 2, 99), self.getXY(x3), threshold * 2 * self.pendulum_length_visualization)
 
         myFont = pygame.font.SysFont("Times New Roman", 36)
         acc_reward = myFont.render(str(np.round(self.acc_reward_visualization, 5)), 1, (0, 0, 0), )
@@ -253,4 +274,4 @@ class GeneralEnv(CustomEnv):
             self.window.blit(canvas, canvas.get_rect())
             pygame.event.pump()
             pygame.display.update()
-            self.clock.tick(self.metadata["render_fps"])
+            self.clock.tick(self.metadata_visualization["render_fps"])
