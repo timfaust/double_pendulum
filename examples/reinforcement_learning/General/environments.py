@@ -215,7 +215,7 @@ class GeneralEnv(CustomEnv):
         self.observation_dict["X_meas"].append(self.dynamics_func.unscale_state(new_observation))
 
     def render(self, mode="human"):
-        if self.step_counter % self.render_every_steps == 0:
+        if self.step_counter % self.render_every_steps == 0 and len(self.observation_dict['X_meas']) > 0:
             self._render_frame()
 
     def getXY(self, point):
@@ -234,7 +234,6 @@ class GeneralEnv(CustomEnv):
         y, x1, x2, v1, v2, action, goal, dt, threshold, u_p, u_pp = get_state_values(self.env_type, self.observation_dict)
         x3 = x2 + dt * v2
 
-        action = action[0]
         distance = np.linalg.norm(x2 - goal)
         distance_next = np.linalg.norm(x3 - goal)
         v1_total = np.linalg.norm(v1)
