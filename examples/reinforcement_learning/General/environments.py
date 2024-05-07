@@ -231,7 +231,7 @@ class GeneralEnv(CustomEnv):
             self.clock = pygame.time.Clock()
 
         canvas = pygame.Surface((self.window_size, self.window_size))
-        y, x1, x2, v1, v2, action, goal, dt, threshold, u_p, u_pp = get_state_values(self.observation, self.action_visualization, self.env_type, self.dynamics_func)
+        y, x1, x2, v1, v2, action, goal, dt, threshold, u_p, u_pp = get_state_values(self.env_type, self.observation_dict)
         x3 = x2 + dt * v2
 
         action = action[0]
