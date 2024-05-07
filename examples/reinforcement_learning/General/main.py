@@ -1,5 +1,7 @@
 import random
 import torch
+
+from examples.reinforcement_learning.General.custom_policies import LSTMSACPolicy
 from examples.reinforcement_learning.General.reward_functions import *
 from examples.reinforcement_learning.General.trainer import Trainer
 from stable_baselines3.common.noise import OrnsteinUhlenbeckActionNoise
@@ -24,7 +26,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     env_type = args.env_type
     action_noise = OrnsteinUhlenbeckActionNoise(mean=np.array([0.0]), sigma=0.1 * np.ones(1), theta=0.15, dt=1e-2)
-    sac = Trainer(args.name, env_type, args.param, seed, action_noise)
+    sac = Trainer(args.name, env_type, args.param, LSTMSACPolicy, seed, action_noise)
 
     if args.mode == "train":
         print("training new model")

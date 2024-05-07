@@ -192,8 +192,6 @@ class custom_dynamics_func_4PI(double_pendulum_dynamics_func):
             )
         elif self.state_representation == 3:
             x = super().unscale_state(observation)
-        if len(observation) > 4:
-            return np.append(x, observation[-2:] * self.torque_limit)
         return x
 
     def normalize_state(self, state):
@@ -210,8 +208,6 @@ class custom_dynamics_func_4PI(double_pendulum_dynamics_func):
             )
         elif self.state_representation == 3:
             observation = super().normalize_state(state)
-        if len(state) > 4:
-            return np.append(observation, state[-2:] / self.torque_limit)
         return observation
 
 
@@ -244,8 +240,6 @@ class custom_dynamics_func_PI(double_pendulum_dynamics_func):
             )
         else:
             x = super().unscale_state(observation)
-        if len(observation) > 4:
-            return np.append(x, observation[-2:] * self.torque_limit)
         return x
 
     def normalize_state(self, state):
@@ -266,7 +260,4 @@ class custom_dynamics_func_PI(double_pendulum_dynamics_func):
             )
         else:
             observation = super().normalize_state(state)
-
-        if len(state) > 4:
-            return np.append(observation, state[-2:] / self.torque_limit)
         return observation

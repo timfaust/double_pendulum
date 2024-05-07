@@ -99,12 +99,13 @@ class ProgressBarCallback(BaseCallback):
 
 
 class Trainer:
-    def __init__(self, name, env_type, param, seed, action_noise=None):
-        self.environment = GeneralEnv(env_type, param, seed=seed)
-        self.eval_environment = GeneralEnv(env_type, param, eval=True, seed=seed)
+    def __init__(self, name, env_type, param, policy, seed, action_noise=None):
+        self.environment = GeneralEnv(env_type, param, policy, seed=seed)
+        self.eval_environment = GeneralEnv(env_type, param, policy, eval=True, seed=seed)
         self.log_dir = './log_data/' + name + '/' + env_type
         self.name = name
         self.action_noise = action_noise
+        self.policy = policy
 
         self.use_action_noise = self.environment.data["use_action_noise"] == 1
         self.max_episode_steps = self.environment.data["max_episode_steps"]
@@ -133,7 +134,7 @@ class Trainer:
         filtered_data = {key: value for key, value in self.environment.data.items() if key in valid_keys}
 
         agent = SAC(
-            LSTMSACPolicy,
+            self.policy,
             envs,
             tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
             action_noise=self.action_noise,

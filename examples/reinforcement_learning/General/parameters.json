@@ -33,21 +33,22 @@
         "reset_function": "balanced_reset",
         "reward_function": "future_pos_reward",
         "same_env": 1,
-        "n_envs": 20
+        "n_envs": 1
       },
       "eval_env": {
         "dynamics_function": "default_dynamics",
         "reset_function": "low_reset",
         "reward_function": "future_pos_reward",
         "same_env": 1,
-        "n_envs": 20
+        "n_envs": 1
       },
       "dynamic_class": "custom_dynamics_func_4PI",
       "dt": 0.01,
       "max_torque": 5,
 
       "learning_rate": 0.001,
-      "actions_in_state": 1,
+      "actions_in_state": 0,
+      "lstm": 1,
       "gradient_steps": 5,
       "max_episode_steps": 1000,
       "training_steps": 10000000,
