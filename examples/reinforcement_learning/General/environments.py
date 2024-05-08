@@ -226,16 +226,16 @@ class GeneralEnv(CustomEnv):
         old_state = self.observation
         old_observation = self.translator.extract_observation(old_state)
         new_observation = self.get_new_observation(old_observation, dirty_action)
-        new_state = self.translator.build_state(new_observation, dirty_action)
+        new_state = self.translator.build_state(new_observation, action)
         self.observation = new_state
         dirty_observation = self.apply_observation_disturbances(new_observation)
 
         self.append_observation_dict(dirty_observation, dirty_action, action)
-        reward = self.get_reward(dirty_observation, dirty_action)
+        reward = self.get_reward(dirty_observation, action)
         terminated = self.terminated_func(self.observation_dict['X_meas'][-1])
         truncated = self.check_episode_end()
 
-        self.update_visualizer(reward, dirty_action)
+        self.update_visualizer(reward, action)
 
         info = {}
         return self.observation, reward, terminated, truncated, info
@@ -267,8 +267,8 @@ class GeneralEnv(CustomEnv):
         if self.render_mode == "human" and self.step_counter % self.render_every_steps == 0 and len(self.observation_dict['X_meas']) > 1:
             self.visualizer.render()
 
-    def update_visualizer(self, reward, dirty_action):
+    def update_visualizer(self, reward, action):
         if self.render_mode == "human":
             self.visualizer.reward_visualization = reward
             self.visualizer.acc_reward_visualization += reward
-            self.visualizer.action_visualization = dirty_action
+            self.visualizer.action_visualization = action
