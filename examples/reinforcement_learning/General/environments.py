@@ -90,7 +90,7 @@ class GeneralEnv(CustomEnv):
         self.action_noise = 0.0
         self.action_bias = 0.0
         self.start_delay = 0.0
-        self.delay = 0.03
+        self.delay = 0.0
 
     def initialize_from_params(self):
         self.type = "train_env"
@@ -180,6 +180,7 @@ class GeneralEnv(CustomEnv):
 
         return dirty_observation
 
+    # TODO: make more efficient with direct calculation of indizes
     def find_delay_action(self):
         list = self.observation_dict['T']
         timestep = list[-1]
@@ -188,6 +189,8 @@ class GeneralEnv(CustomEnv):
             delay = self.start_delay
         target = np.around(timestep - delay, decimals=5)
         index = 0
+        # if target >= 0:
+        #     index = np.round(target / self.dynamics_func.dt, decimals=0).astype(int) + 1
         for i in reversed(range(len(list))):
             value = list[i]
             if value <= target:
@@ -261,7 +264,7 @@ class GeneralEnv(CustomEnv):
         self.observation_dict["X_meas"].append(self.dynamics_func.unscale_state(new_observation))
 
     def render(self, mode="human"):
-        if self.render_mode == "human" and self.step_counter % self.render_every_steps == 0 and len(self.observation_dict['X_meas']) > 0:
+        if self.render_mode == "human" and self.step_counter % self.render_every_steps == 0 and len(self.observation_dict['X_meas']) > 1:
             self.visualizer.render()
 
     def update_visualizer(self, reward, dirty_action):

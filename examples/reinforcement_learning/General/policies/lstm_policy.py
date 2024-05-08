@@ -25,9 +25,9 @@ class LSTMTranslator(Translator):
         self.reset()
         self.timesteps = 20
         self.features_per_timestep = 5
-        self.lstm_hidden_dim = 32
-        self.num_layers = 2
-        self.net_arch = [32, 32]
+        self.lstm_hidden_dim = 64
+        self.num_layers = 1
+        self.net_arch = [64, 64]
 
         super().__init__(self.timesteps * self.features_per_timestep)
 

@@ -9,7 +9,10 @@ class Visualizer:
         self.reward_visualization = 0
         self.action_visualization = None
         self.acc_reward_visualization = 0
-        self.window_size = 800
+        self.window_width = 1000
+        self.window_height = 1000
+        self.metrics_width = 2000
+        self.full_window_width = self.window_width + self.metrics_width
         self.window = None
         self.clock = None
         self.metadata_visualization = {"render_modes": ["human"], "render_fps": 120}
@@ -19,7 +22,7 @@ class Visualizer:
     def init_pygame(self):
         pygame.init()
         pygame.display.init()
-        self.window = pygame.display.set_mode((self.window_size, self.window_size))
+        self.window = pygame.display.set_mode((self.full_window_width, self.window_height))
         self.clock = pygame.time.Clock()
 
     def render(self):
@@ -31,19 +34,46 @@ class Visualizer:
 
         canvas = self.setup_canvas()
         metrics = self.draw_environment(canvas)
+        self.draw_graph(canvas)
         # self.blit_texts(canvas, metrics)
         self.update_display(canvas)
 
     def setup_canvas(self):
-        canvas = pygame.Surface((self.window_size, self.window_size))
+        canvas = pygame.Surface((self.full_window_width, self.window_height))
         canvas.fill((255, 255, 255))
         return canvas
+
+    def draw_graph(self, canvas):
+        # Basis-Einstellungen für den Graphen
+        graph_x, graph_y, graph_width, graph_height = self.window_width, 0, self.full_window_width, self.window_height
+        max_value = 6
+        min_value = -6
+
+        dirty_actions = [arr[np.argmax(np.abs(arr))] for arr in self.observation_dict['U_con']]
+        clean_actions = [arr[np.argmax(np.abs(arr))] for arr in self.observation_dict['U_clean']]
+
+        graphs = [
+            (dirty_actions, (255, 0, 0)),
+            (clean_actions, (0, 0, 255))
+        ]
+
+        for (graph, color) in graphs:
+            if len(graph) > 1:
+                points = []
+                for i, value in enumerate(graph):
+                    x = graph_x + i * (graph_width / (len(graph) - 1))
+                    y = graph_y + graph_height - ((value - min_value) / (max_value - min_value) * graph_height)
+                    points.append((x, y))
+                pygame.draw.lines(canvas, color, False, points, 2)
+
+        pygame.draw.rect(canvas, (0, 0, 0), (graph_x, graph_y, graph_width, graph_height), 1)
 
     def draw_environment(self, canvas):
         x1, x2, x3, goal, threshold, metrics = self.calculate_positions()
 
         if metrics['distance_next'] < threshold:
             canvas.fill((184, 255, 191))
+        pygame.draw.rect(canvas, (240, 240, 240), (self.window_width, 0, self.full_window_width, self.window_height))
 
         self.draw_grid(canvas)
         self.draw_pendulum(canvas, x1, x2)
@@ -52,10 +82,10 @@ class Visualizer:
         return metrics
 
     def draw_grid(self, canvas, line_color=(200, 200, 200), spacing=50):
-        for x in range(0, self.window_size, spacing):
-            pygame.draw.line(canvas, line_color, (x, 0), (x, self.window_size), 1)
-        for y in range(0, self.window_size, spacing):
-            pygame.draw.line(canvas, line_color, (0, y), (self.window_size, y), 1)
+        for x in range(0, self.full_window_width, spacing):
+            pygame.draw.line(canvas, line_color, (x, 0), (x, self.window_height), 1)
+        for y in range(0, self.window_height, spacing):
+            pygame.draw.line(canvas, line_color, (0, y), (self.full_window_width, y), 1)
 
     def calculate_positions(self):
         y, x1, x2, v1, v2, action, goal, dt, threshold, u_p, u_pp = get_state_values(self.env_type, self.observation_dict)
@@ -98,7 +128,8 @@ class Visualizer:
 
     def blit_texts(self, canvas, metrics):
         myFont = pygame.font.SysFont("Arial", 28)
-        positions = [(10, i * 40 + 10) for i, _ in enumerate(metrics.items())]
+        base_x = self.window_width + 10  # Beginne rechts von der Hauptvisualisierung
+        positions = [(base_x, i * 40 + 10) for i, _ in enumerate(metrics.items())]
         for (label, value), position in zip(metrics.items(), positions):
             if isinstance(value, float):
                 text_format = f"{label}: {value:.4f}"
@@ -115,8 +146,8 @@ class Visualizer:
 
     def getXY(self, point):
         return (
-            self.window_size // 2 + int(point[0] * self.pendulum_length_visualization * 2),
-            self.window_size // 2 + int(point[1] * self.pendulum_length_visualization * 2)
+            self.window_width // 2 + int(point[0] * self.pendulum_length_visualization * 2),
+            self.window_width // 2 + int(point[1] * self.pendulum_length_visualization * 2)
         )
 
     def reset(self):
