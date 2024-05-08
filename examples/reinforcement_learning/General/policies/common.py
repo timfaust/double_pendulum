@@ -1,39 +1,57 @@
-from typing import Optional
+from typing import Optional, List
 import gymnasium as gym
 import numpy as np
-from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+from stable_baselines3.common.policies import ContinuousCritic
+from stable_baselines3.common.preprocessing import get_action_dim
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor, create_mlp
 from stable_baselines3.sac.policies import SACPolicy, Actor
-from abc import ABC, abstractmethod
-
+from torch import nn
 from examples.reinforcement_learning.General.environments import GeneralEnv
 
 
-class Translator(ABC):
+class DefaultTranslator():
     def __init__(self, input_dim: int):
         self.obs_space = gym.spaces.Box(-np.ones(input_dim), np.ones(input_dim))
         self.act_space = gym.spaces.Box(np.array([-1.0]), np.array([1.0]))
 
-    @abstractmethod
     def extract_observation(self, state: np.ndarray) -> np.ndarray:
-        pass
+        return state
 
-    @abstractmethod
     def build_state(self, observation: np.ndarray, action: float) -> np.ndarray:
-        pass
+        return observation
 
-    @abstractmethod
     def reset(self):
         pass
 
 
-class CustomActor(Actor, ABC):
+class DefaultCritic(ContinuousCritic):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        kwargs['action_dim'] = get_action_dim(self.action_space)
+        self.q_networks: List[nn.Module] = []
+        for idx in range(kwargs['n_critics']):
+            q_net = self.create_critic(**kwargs)
+            self.add_module(f"qf{idx}", q_net)
+            self.q_networks.append(q_net)
+
+    def create_critic(self, **kwargs):
+        q_net_list = create_mlp(kwargs['features_dim'] + kwargs['action_dim'], 1, kwargs['net_arch'], kwargs['activation_fn'])
+        q_net = nn.Sequential(*q_net_list)
+        return q_net
+
+    def print_architecture(self):
+        print()
+
+
+class DefaultActor(Actor):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     @classmethod
-    def get_translator(cls) -> Translator:
-        pass
+    def get_translator(cls) -> DefaultTranslator:
+        return DefaultTranslator(4)
 
     def print_architecture(self):
         print("\nActor Architecture\n" + "=" * 20)
@@ -68,8 +86,9 @@ class CustomActor(Actor, ABC):
         print("\n\n")
 
 
-class CustomPolicy(SACPolicy, ABC):
-    actor_class = CustomActor
+class CustomPolicy(SACPolicy):
+    actor_class = DefaultActor
+    critic_class = DefaultCritic
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -79,6 +98,12 @@ class CustomPolicy(SACPolicy, ABC):
         actor = self.actor_class(**actor_kwargs).to(self.device)
         actor.print_architecture()
         return actor
+
+    def make_critic(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> ContinuousCritic:
+        critic_kwargs = self._update_features_extractor(self.critic_kwargs, features_extractor)
+        critic = self.critic_class(**critic_kwargs).to(self.device)
+        critic.print_architecture()
+        return critic
 
     @classmethod
     def after_rollout(cls, num_timesteps, *args, **kwargs):

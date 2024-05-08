@@ -4,7 +4,7 @@ import numpy as np
 from torch import nn
 
 from examples.reinforcement_learning.General.environments import GeneralEnv
-from examples.reinforcement_learning.General.policies.common import Translator, CustomActor, CustomPolicy
+from examples.reinforcement_learning.General.policies.common import DefaultTranslator, DefaultActor, CustomPolicy, DefaultCritic
 
 
 class ReshapeToLSTMInput(nn.Module):
@@ -22,15 +22,15 @@ class ExtractLastTimestep(nn.Module):
         return x[0][:, -1, :]
 
 
-class LSTMTranslator(Translator):
+class LSTMTranslator(DefaultTranslator):
     def __init__(self):
         self.lstm_memory = None
         self.reset()
-        self.timesteps = 20
+        self.timesteps = 10
         self.features_per_timestep = 5
-        self.lstm_hidden_dim = 256
+        self.lstm_hidden_dim = 32
         self.num_layers = 2
-        self.net_arch = [256, 256]
+        self.net_arch = [32, 32]
 
         super().__init__(self.timesteps * self.features_per_timestep)
 
@@ -57,7 +57,7 @@ class LSTMTranslator(Translator):
         self.lstm_memory = np.array([])
 
 
-class LSTMActor(CustomActor):
+class LSTMActor(DefaultActor):
 
     @classmethod
     def get_translator(cls) -> LSTMTranslator:

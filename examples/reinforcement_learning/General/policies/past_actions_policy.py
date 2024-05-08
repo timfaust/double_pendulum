@@ -1,8 +1,8 @@
 import numpy as np
-from examples.reinforcement_learning.General.policies.common import Translator, CustomActor, CustomPolicy
+from examples.reinforcement_learning.General.policies.common import DefaultTranslator, DefaultActor, CustomPolicy
 
 
-class PastActionsTranslator(Translator):
+class PastActionsTranslator(DefaultTranslator):
     def __init__(self):
         self.action_memory = None
         self.past_action_number = 2
@@ -20,7 +20,7 @@ class PastActionsTranslator(Translator):
         self.action_memory = np.zeros(self.past_action_number)
 
 
-class PastActionsActor(CustomActor):
+class PastActionsActor(DefaultActor):
 
     @classmethod
     def get_translator(cls) -> PastActionsTranslator:
