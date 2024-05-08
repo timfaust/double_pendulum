@@ -25,8 +25,9 @@ class LSTMTranslator(Translator):
         self.reset()
         self.timesteps = 20
         self.features_per_timestep = 5
-        self.lstm_hidden_dim = 64
+        self.lstm_hidden_dim = 32
         self.num_layers = 2
+        self.net_arch = [32, 32]
 
         super().__init__(self.timesteps * self.features_per_timestep)
 
@@ -60,13 +61,16 @@ class LSTMActor(CustomActor):
         return LSTMTranslator()
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
         translator: LSTMTranslator = LSTMActor.get_translator()
+        kwargs['net_arch'] = translator.net_arch
+        kwargs['features_dim'] = translator.lstm_hidden_dim
+        super().__init__(*args, **kwargs)
+
         lstm_input_dim = translator.features_per_timestep
 
         self.reshape_to_lstm_input = ReshapeToLSTMInput(translator.timesteps, lstm_input_dim)
         self.extract_last_timestep = ExtractLastTimestep()
-        self.action_head = nn.Linear(translator.lstm_hidden_dim, self.observation_space.shape[0])
+        self.action_head = nn.Linear(translator.lstm_hidden_dim, kwargs['features_dim'])
 
         self.lstm = nn.LSTM(
             input_size=lstm_input_dim,

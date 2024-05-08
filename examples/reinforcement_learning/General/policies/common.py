@@ -57,7 +57,9 @@ class CustomActor(Actor, ABC):
             print_part_details(self.log_std, "Log Std Deviations",
                                "Computes the log standard deviations for action exploration, based on latent features.")
 
-        # Gesamtanzahl der Parameter
+        print("Actions for every environment are sampled from resulting distribution and action noise is added. Then environments are stepped with selected actions.\n"
+              "Afterwards training is performed in gradient steps. For each gradient step actions are selected using current actor model for batch size from replay buffer (256 observations)\n"
+              "Then q_values_pi are computed with those actions and corresponding past observations. Also current_q_values are computed with past actions and corresponding past observations.")
         total_params = sum(p.numel() for p in self.parameters())
         print(f"Total number of parameters: {total_params}")
         print("=" * 20)

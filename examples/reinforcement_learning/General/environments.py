@@ -39,14 +39,20 @@ class GeneralEnv(CustomEnv):
         self.env_type = env_type
         self.param_data = json.load(open(path))[param_name]
 
-        self.virtual_sensor_state_tracking = [0.0, 0.0]
-
         self.type = None
         self.render_every_steps = None
         self.render_every_envs = None
         self.same_environment = None
         self.n_envs = None
         self.initialize_from_params()
+
+        self.velocity_noise = None
+        self.position_noise = None
+        self.action_noise = None
+        self.start_delay = None
+        self.delay = None
+        self.clean_action_history = None
+        self.initialize_disturbances()
 
         self.plant = None
         self.simulation = None
@@ -80,6 +86,14 @@ class GeneralEnv(CustomEnv):
         self.observation_dict = {"T": [], "X_meas": [], "U_con": [], "push": [], "plant": self.dynamics_func.simulator.plant, "max_episode_steps": self.max_episode_steps, "current_force": []}
         self.dynamics_func.simulator.plant.observation_dict = self.observation_dict
 
+    def initialize_disturbances(self):
+        self.clean_action_history = np.array([])
+        self.velocity_noise = 0.0
+        self.position_noise = 0.0
+        self.action_noise = 0.0
+        self.start_delay = 0.0
+        self.delay = 0.0
+
     def initialize_from_params(self):
         self.type = "train_env"
         if self.is_evaluation_environment:
@@ -112,7 +126,7 @@ class GeneralEnv(CustomEnv):
 
         reward_function = globals()[self.param_data[self.type]["reward_function"]]
         self.reward_name = self.param_data[self.type]["reward_function"]
-        self.reward_function = lambda obs, act, observation_dict: reward_function(obs, act, env_type, existing_dynamics_function, observation_dict, self.virtual_sensor_state_tracking)
+        self.reward_function = lambda obs, act, observation_dict: reward_function(obs, act, env_type, existing_dynamics_function, observation_dict)
 
         return existing_dynamics_function
 
@@ -154,32 +168,73 @@ class GeneralEnv(CustomEnv):
         for key in self.observation_dict:
             if key != 'plant' and key != 'max_episode_steps':
                 self.observation_dict[key].clear()
+        self.append_observation_dict(self.translator.extract_observation(observation), np.array([0.0]))
+        self.clean_action_history = np.array([])
 
         self.dynamics_func.virtual_sensor_state = [0.0, 0.0]
-        self.virtual_sensor_state_tracking = [0.0, 0.0]
         self.reward_visualization = 0
         self.acc_reward_visualization = 0
         self.action_visualization = np.array([0, 0])
 
         return observation, info
 
+    def apply_observation_disturbances(self, observation):
+        dirty_observation = observation.copy()
+        dirty_observation[:2] += np.random.normal(0, self.position_noise, size=2)
+        dirty_observation[-2:] += np.random.normal(0, self.velocity_noise, size=2)
+
+        return dirty_observation
+
+    def find_delay_action(self):
+        list = self.observation_dict['T']
+        timestep = list[-1]
+        delay = self.delay
+        if timestep < self.start_delay:
+            delay = self.start_delay
+        target = timestep - delay
+        index = next((i for i, val in enumerate(list) if val > target), 0)
+        action = self.clean_action_history[index]
+        return np.array([action])
+
+    def get_dirty_action(self, action):
+        self.clean_action_history = np.append(self.clean_action_history, action)
+        dirty_action = self.find_delay_action()
+        dirty_action += np.random.normal(0, self.action_noise)
+        return dirty_action
+
+    def get_new_observation(self, old_observation, action, internal_dt=0.0):
+        if internal_dt == 0.0:
+            internal_dt = self.dynamics_func.dt
+
+        dt = self.dynamics_func.dt
+        self.dynamics_func.dt = internal_dt
+
+        new_observation = old_observation
+        for i in range(0, np.round(dt/internal_dt).astype(int)):
+            new_observation = self.dynamics_func(new_observation, action, scaling=self.scaling)
+
+        self.dynamics_func.dt = dt
+        return new_observation
+
     def step(self, action):
+        dirty_action = self.get_dirty_action(action)
+
         old_state = self.observation
         old_observation = self.translator.extract_observation(old_state)
-        new_observation = self.dynamics_func(old_observation, action, scaling=self.scaling)
-        new_state = self.translator.build_state(new_observation, action)
+        new_observation = self.get_new_observation(old_observation, dirty_action)
+        new_state = self.translator.build_state(new_observation, dirty_action)
         self.observation = new_state
+        dirty_observation = self.apply_observation_disturbances(new_observation)
 
-        self.append_observation_dict(new_observation, action)
-        reward = self.get_reward(new_observation, action)
-        ignore_state = self.add_virtual_sensor()
-        terminated = self.terminated_func(new_observation, self.virtual_sensor_state_tracking, ignore_state)
+        self.append_observation_dict(dirty_observation, dirty_action)
+        reward = self.get_reward(dirty_observation, dirty_action)
+        terminated = self.terminated_func(dirty_observation)
         truncated = self.check_episode_end()
 
         if self.render_mode == "human":
             self.reward_visualization = reward
             self.acc_reward_visualization += reward
-            self.action_visualization = action
+            self.action_visualization = dirty_action
 
         info = {}
         return self.observation, reward, terminated, truncated, info
@@ -192,14 +247,6 @@ class GeneralEnv(CustomEnv):
             self.step_counter = 0
         return truncated
 
-    def add_virtual_sensor(self):
-        ignore_state = True
-        if self.param_data["normalization"] == "custom_dynamics_func_PI":
-            self.virtual_sensor_state_tracking += self.dynamics_func.virtual_sensor_state
-            if self.env_type == "acrobot":
-                ignore_state = True
-        return ignore_state
-
     def get_reward(self, new_observation, action):
         if self.reward_name == "saturated_distance_from_target":
             return self.reward_func(new_observation, action, self.observation_dict)
@@ -207,9 +254,9 @@ class GeneralEnv(CustomEnv):
             return self.reward_func(new_observation, action, self.observation_dict) / self.max_episode_steps
 
     def append_observation_dict(self, new_observation, action):
-        time = self.dynamics_func.dt
+        time = 0
         if len(self.observation_dict["T"]) > 0:
-            time = time + self.observation_dict["T"][-1]
+            time = self.dynamics_func.dt + self.observation_dict["T"][-1]
         self.observation_dict["T"].append(time)
         self.observation_dict["U_con"].append(self.dynamics_func.unscale_action(action))
         self.observation_dict["X_meas"].append(self.dynamics_func.unscale_state(new_observation))
@@ -238,8 +285,8 @@ class GeneralEnv(CustomEnv):
         distance_next = np.linalg.norm(x3 - goal)
         v1_total = np.linalg.norm(v1)
         v2_total = np.linalg.norm(v2)
-        x_1 = self.observation[0]
-        x_2 = self.observation[1]
+        x_1 = y[0]
+        x_2 = y[1]
         canvas.fill((255, 255, 255))
 
         if distance_next < threshold:

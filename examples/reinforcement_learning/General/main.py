@@ -2,6 +2,7 @@ import random
 import torch
 
 from examples.reinforcement_learning.General.policies.default_policy import DefaultSACPolicy
+from examples.reinforcement_learning.General.policies.lstm_policy import LSTMSACPolicy
 from examples.reinforcement_learning.General.policies.past_actions_policy import PastActionsSACPolicy
 from examples.reinforcement_learning.General.reward_functions import *
 from examples.reinforcement_learning.General.trainer import Trainer
@@ -19,7 +20,7 @@ if __name__ == '__main__':
 
     # arguments for trainer
     parser = argparse.ArgumentParser()
-    parser.add_argument('--name', default="test")
+    parser.add_argument('--name', default="lstm")
     parser.add_argument('--mode', default="train", choices=["train", "retrain", "evaluate", "simulate"])
     parser.add_argument('--model_path', default="/best_model/best_model")
     parser.add_argument('--env_type', default="pendubot", choices=["pendubot", "acrobot"])
@@ -27,7 +28,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     action_noise = OrnsteinUhlenbeckActionNoise(mean=np.array([0.0]), sigma=0.1 * np.ones(1), theta=0.15, dt=1e-2)
-    sac = Trainer(args.name, args.env_type, args.param, PastActionsSACPolicy, seed, action_noise)
+    sac = Trainer(args.name, args.env_type, args.param, LSTMSACPolicy, seed, action_noise)
 
     if args.mode == "train":
         print("training new model")

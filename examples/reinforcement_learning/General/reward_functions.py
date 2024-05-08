@@ -5,7 +5,7 @@ from examples.reinforcement_learning.General.score import get_score
 
 def get_unscaled_action(observation_dict, t_minus=0):
     unscaled_action = observation_dict['U_con'][t_minus-1]
-    unscaled_action = unscaled_action[unscaled_action != 0][0]
+    unscaled_action = unscaled_action.max()
     return unscaled_action
 
 
@@ -40,11 +40,11 @@ def get_state_values(env_type, observation_dict):
     return unscaled_observation, x1, x2, v1, v2, unscaled_action, goal, dt_goal, threshold_distance, u_p, u_pp
 
 
-def score_reward(observation, action, env_type, dynamic_func, observation_dict, state_tracking):
+def score_reward(observation, action, env_type, dynamic_func, observation_dict):
     return get_score(observation_dict) * int(observation_dict["max_episode_steps"])
 
 
-def future_pos_reward(observation, action, env_type, dynamic_func, observation_dict, state_tracking):
+def future_pos_reward(observation, action, env_type, dynamic_func, observation_dict):
     y, x1, x2, v1, v2, action, goal, dt_goal, threshold_distance, u_p, u_pp = get_state_values(env_type, observation_dict)
     distance = np.linalg.norm(x2 + dt_goal * v2 - goal)
     reward = 1 / (distance + 0.01)
@@ -54,13 +54,13 @@ def future_pos_reward(observation, action, env_type, dynamic_func, observation_d
     return reward
 
 
-def pos_reward(observation, action, env_type, dynamic_func, observation_dict, state_tracking):
+def pos_reward(observation, action, env_type, dynamic_func, observation_dict):
     y, x1, x2, v1, v2, action, goal, dt, threshold, _, _ = get_state_values(env_type, observation_dict)
     distance = np.linalg.norm(x2 - goal)
     return 1 / (distance + 0.0001)
 
 
-def saturated_distance_from_target(observation, action, env_type, dynamic_func, observation_dict, state_tracking):
+def saturated_distance_from_target(observation, action, env_type, dynamic_func, observation_dict):
     u = dynamic_func.unscale_action(action)
     u_diff = 0
     if len(observation) > 4:
@@ -79,7 +79,7 @@ def saturated_distance_from_target(observation, action, env_type, dynamic_func, 
     return exp_term
 
 
-def quadratic_rew(observation, action, env_type, dynamic_func, observation_dict, state_tracking):
+def quadratic_rew(observation, action, env_type, dynamic_func, observation_dict):
     #quadtratic cost and quadtratic penalties
     l = [0.2, 0.3]
     if env_type == 'pendubot':
