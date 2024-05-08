@@ -77,9 +77,9 @@ class GeneralEnv(CustomEnv):
         self.visualizer = Visualizer(self.env_type, self.observation_dict)
 
     def initialize_disturbances(self):
-        self.observation_dict = {"T": [], "X_meas": [], "U_con": [], "push": [], "plant": self.dynamics_func.simulator.plant, "max_episode_steps": self.max_episode_steps, "current_force": []}
+        self.observation_dict = {"T": [], "X_meas": [], "U_con": [], "U_clean": [], "push": [], "plant": self.dynamics_func.simulator.plant, "max_episode_steps": self.max_episode_steps, "current_force": []}
         self.dynamics_func.simulator.plant.observation_dict = self.observation_dict
-        self.clean_action_history = np.array([])
+        self.clean_action_history = np.array([0.0])
         self.velocity_noise = 0.0
         self.position_noise = 0.0
         self.action_noise = 0.0
@@ -160,8 +160,8 @@ class GeneralEnv(CustomEnv):
         for key in self.observation_dict:
             if key != 'plant' and key != 'max_episode_steps':
                 self.observation_dict[key].clear()
-        self.append_observation_dict(self.translator.extract_observation(observation), np.array([0.0]))
-        self.clean_action_history = np.array([])
+        self.clean_action_history = np.array([0.0])
+        self.append_observation_dict(self.translator.extract_observation(observation), np.array([0.0]), np.array([0.0]))
         self.visualizer.reset()
 
         return observation, info
@@ -179,7 +179,7 @@ class GeneralEnv(CustomEnv):
         delay = self.delay
         if timestep < self.start_delay:
             delay = self.start_delay
-        target = timestep - delay
+        target = np.around(timestep - delay, decimals=5)
         index = next((i for i, val in enumerate(list) if val > target), 0)
         action = self.clean_action_history[index]
         return np.array([action])
@@ -214,7 +214,7 @@ class GeneralEnv(CustomEnv):
         self.observation = new_state
         dirty_observation = self.apply_observation_disturbances(new_observation)
 
-        self.append_observation_dict(dirty_observation, dirty_action)
+        self.append_observation_dict(dirty_observation, dirty_action, action)
         reward = self.get_reward(dirty_observation, dirty_action)
         terminated = self.terminated_func(self.observation_dict['X_meas'][-1])
         truncated = self.check_episode_end()
@@ -238,12 +238,13 @@ class GeneralEnv(CustomEnv):
         else:
             return self.reward_func(new_observation, action, self.observation_dict) / self.max_episode_steps
 
-    def append_observation_dict(self, new_observation, action):
+    def append_observation_dict(self, new_observation, dirty_action, clean_action):
         time = 0
         if len(self.observation_dict["T"]) > 0:
             time = self.dynamics_func.dt + self.observation_dict["T"][-1]
         self.observation_dict["T"].append(time)
-        self.observation_dict["U_con"].append(self.dynamics_func.unscale_action(action))
+        self.observation_dict["U_con"].append(self.dynamics_func.unscale_action(dirty_action))
+        self.observation_dict["U_clean"].append(self.dynamics_func.unscale_action(clean_action))
         self.observation_dict["X_meas"].append(self.dynamics_func.unscale_state(new_observation))
 
     def render(self, mode="human"):
