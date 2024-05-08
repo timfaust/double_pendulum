@@ -49,8 +49,8 @@ class Visualizer:
         max_value = 6
         min_value = -6
 
-        dirty_actions = [arr[np.argmax(np.abs(arr))] for arr in self.observation_dict['U_con']]
-        clean_actions = [arr[np.argmax(np.abs(arr))] for arr in self.observation_dict['U_clean']]
+        dirty_actions = [arr[np.argmax(np.abs(arr))] for arr in self.observation_dict['U_dirty']]
+        clean_actions = [arr[np.argmax(np.abs(arr))] for arr in self.observation_dict['U_con']]
 
         graphs = [
             (dirty_actions, (255, 0, 0)),

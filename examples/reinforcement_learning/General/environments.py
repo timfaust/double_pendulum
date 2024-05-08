@@ -80,7 +80,7 @@ class GeneralEnv(CustomEnv):
         self.visualizer = Visualizer(self.env_type, self.observation_dict)
 
     def initialize_disturbances(self):
-        self.observation_dict = {"T": [], "X_meas": [], "U_con": [], "U_clean": [], "push": [], "plant": self.dynamics_func.simulator.plant, "max_episode_steps": self.max_episode_steps, "current_force": []}
+        self.observation_dict = {"T": [], "X_meas": [], "U_con": [], "U_dirty": [], "push": [], "plant": self.dynamics_func.simulator.plant, "max_episode_steps": self.max_episode_steps, "current_force": []}
         self.dynamics_func.simulator.plant.observation_dict = self.observation_dict
         self.clean_action_history = np.array([0.0])
         self.velocity_noise = 0.0
@@ -259,8 +259,8 @@ class GeneralEnv(CustomEnv):
         if len(self.observation_dict["T"]) > 0:
             time = self.dynamics_func.dt + self.observation_dict["T"][-1]
         self.observation_dict["T"].append(np.around(time, decimals=5))
-        self.observation_dict["U_con"].append(self.dynamics_func.unscale_action(dirty_action))
-        self.observation_dict["U_clean"].append(self.dynamics_func.unscale_action(clean_action))
+        self.observation_dict["U_con"].append(self.dynamics_func.unscale_action(clean_action))
+        self.observation_dict["U_dirty"].append(self.dynamics_func.unscale_action(dirty_action))
         self.observation_dict["X_meas"].append(self.dynamics_func.unscale_state(new_observation))
 
     def render(self, mode="human"):
