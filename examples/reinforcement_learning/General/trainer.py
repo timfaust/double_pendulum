@@ -10,8 +10,6 @@ from tqdm.auto import tqdm
 import numpy as np
 from double_pendulum.utils.csv_trajectory import save_trajectory
 import jax
-from stable_baselines3 import SAC
-from stable_baselines3.sac.policies import SACPolicy
 from stable_baselines3.common.callbacks import (
     EvalCallback,
     CallbackList,
@@ -22,6 +20,7 @@ from examples.reinforcement_learning.General.environments import GeneralEnv
 from double_pendulum.controller.abstract_controller import AbstractController
 from double_pendulum.utils.plotting import plot_timeseries
 
+from examples.reinforcement_learning.General.policies.custom_sac import CustomSAC
 from examples.reinforcement_learning.General.score import calculate_score
 
 
@@ -133,7 +132,7 @@ class Trainer:
         valid_keys = ['gradient_steps', 'ent_coef', 'learning_rate', 'qf_learning_rate']
         filtered_data = {key: value for key, value in self.environment.param_data.items() if key in valid_keys}
 
-        agent = SAC(
+        agent = CustomSAC(
             self.policy,
             envs,
             tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
@@ -156,7 +155,7 @@ class Trainer:
 
         envs = self.environment.get_envs(log_dir=self.log_dir)
 
-        agent = SAC.load(self.log_dir + model_path, print_system_info=True)
+        agent = CustomSAC.load(self.log_dir + model_path, print_system_info=True)
         self.load_custom_params(agent)
         agent.set_env(envs)
 
@@ -177,7 +176,7 @@ class Trainer:
         if not os.path.exists(self.log_dir + model_path + ".zip"):
             raise Exception("model not found")
 
-        agent = SAC.load(self.log_dir + model_path, print_system_info=True)
+        agent = CustomSAC.load(self.log_dir + model_path, print_system_info=True)
         self.load_custom_params(agent)
 
         eval_envs = self.get_eval_envs()
@@ -277,7 +276,7 @@ class GeneralController(AbstractController):
     def __init__(self, environment: GeneralEnv, model_path):
         super().__init__()
 
-        self.model = SAC.load(model_path, print_system_info=True)
+        self.model = CustomSAC.load(model_path, print_system_info=True)
         self.environment = environment
         self.simulation = environment.simulation
         self.dynamics_func = environment.dynamics_func

@@ -1,6 +1,9 @@
+from typing import List
+
 import numpy as np
 from torch import nn
 
+from examples.reinforcement_learning.General.environments import GeneralEnv
 from examples.reinforcement_learning.General.policies.common import Translator, CustomActor, CustomPolicy
 
 
@@ -25,9 +28,9 @@ class LSTMTranslator(Translator):
         self.reset()
         self.timesteps = 20
         self.features_per_timestep = 5
-        self.lstm_hidden_dim = 64
-        self.num_layers = 1
-        self.net_arch = [64, 64]
+        self.lstm_hidden_dim = 256
+        self.num_layers = 2
+        self.net_arch = [256, 256]
 
         super().__init__(self.timesteps * self.features_per_timestep)
 
@@ -94,3 +97,22 @@ class LSTMSACPolicy(CustomPolicy):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+    @classmethod
+    def after_rollout(cls, num_timesteps, *args, **kwargs):
+        envs: List[GeneralEnv] = [monitor.env for monitor in args[0].envs]
+        progress = num_timesteps/envs[0].training_steps
+        for env in envs:
+            cls.modify_env(env, progress)
+
+    @classmethod
+    def modify_env(cls, environment: GeneralEnv, progress):
+        if progress > 0.3:
+            environment.start_delay = 0.1
+            environment.delay = 0.02
+        elif progress > 0.1:
+            factor = (progress - 0.1)/0.2
+            environment.start_delay = 0.1 * factor
+            environment.delay = 0.02 * factor
+
+

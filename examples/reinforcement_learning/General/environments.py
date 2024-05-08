@@ -4,7 +4,6 @@ from stable_baselines3.common.env_util import make_vec_env
 
 from examples.reinforcement_learning.General.misc_helper import updown_reset, balanced_reset, no_termination, \
     noisy_reset, low_reset, high_reset, random_reset, semi_random_reset, debug_reset, kill_switch
-from examples.reinforcement_learning.General.policies.common import CustomPolicy
 from examples.reinforcement_learning.General.reward_functions import get_state_values
 from examples.reinforcement_learning.General.visualizer import Visualizer
 from src.python.double_pendulum.simulation.gym_env import CustomEnv
@@ -23,7 +22,7 @@ class GeneralEnv(CustomEnv):
         self,
         env_type,
         param_name,
-        policy: CustomPolicy,
+        policy,
         seed,
         path="parameters.json",
         is_evaluation_environment=False,
@@ -44,6 +43,7 @@ class GeneralEnv(CustomEnv):
         self.render_every_envs = None
         self.same_environment = None
         self.n_envs = None
+        self.training_steps = None
         self.initialize_from_params()
 
         self.plant = None
@@ -101,6 +101,7 @@ class GeneralEnv(CustomEnv):
         self.max_episode_steps = self.param_data["max_episode_steps"]
         self.render_every_steps = self.param_data["render_every_steps"]
         self.render_every_envs = self.param_data["render_every_envs"]
+        self.training_steps = self.param_data["training_steps"]
 
     def initialize_functions(self, existing_dynamics_function, existing_plant, env_type):
         dynamics_function_class = None
@@ -170,6 +171,7 @@ class GeneralEnv(CustomEnv):
         self.append_observation_dict(self.translator.extract_observation(observation), np.array([0.0]), np.array([0.0]))
         self.visualizer.reset()
 
+        self.policy.after_reset(self)
         return observation, info
 
     # TODO: currently normalized noise

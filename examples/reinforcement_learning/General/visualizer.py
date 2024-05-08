@@ -35,7 +35,7 @@ class Visualizer:
         canvas = self.setup_canvas()
         metrics = self.draw_environment(canvas)
         self.draw_graph(canvas)
-        # self.blit_texts(canvas, metrics)
+        self.blit_texts(canvas, metrics)
         self.update_display(canvas)
 
     def setup_canvas(self):
@@ -105,11 +105,11 @@ class Visualizer:
             'step_counter': len(self.observation_dict['T']) - 1,
             'x_1': round(x_1, 4),
             'x_2': round(x_2, 4),
-            'distance': round(distance, 4),
+            # 'distance': round(distance, 4),
             'distance_next': round(distance_next, 4),
-            'v1_total': round(v1_total, 4),
-            'v2_total': round(v2_total, 4),
-            'action': round(action, 4)
+            # 'v1_total': round(v1_total, 4),
+            # 'v2_total': round(v2_total, 4),
+            # 'action': round(action, 4)
         }
 
         return x1, x2, x3, goal, threshold, metrics

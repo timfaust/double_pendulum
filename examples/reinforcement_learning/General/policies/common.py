@@ -5,6 +5,8 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from stable_baselines3.sac.policies import SACPolicy, Actor
 from abc import ABC, abstractmethod
 
+from examples.reinforcement_learning.General.environments import GeneralEnv
+
 
 class Translator(ABC):
     def __init__(self, input_dim: int):
@@ -77,3 +79,12 @@ class CustomPolicy(SACPolicy, ABC):
         actor = self.actor_class(**actor_kwargs).to(self.device)
         actor.print_architecture()
         return actor
+
+    @classmethod
+    def after_rollout(cls, num_timesteps, *args, **kwargs):
+        pass
+
+    @classmethod
+    def after_reset(cls, environment: GeneralEnv):
+        pass
+
