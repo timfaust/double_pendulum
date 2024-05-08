@@ -67,8 +67,11 @@ class GeneralEnv(CustomEnv):
         self.observation_dict = None
         self.clean_action_history = None
         self.velocity_noise = None
+        self.velocity_bias = None
         self.position_noise = None
+        self.position_bias = None
         self.action_noise = None
+        self.action_bias = None
         self.start_delay = None
         self.delay = None
         self.initialize_disturbances()
@@ -81,10 +84,13 @@ class GeneralEnv(CustomEnv):
         self.dynamics_func.simulator.plant.observation_dict = self.observation_dict
         self.clean_action_history = np.array([0.0])
         self.velocity_noise = 0.0
+        self.velocity_bias = 0.0
         self.position_noise = 0.0
+        self.position_bias = 0.0
         self.action_noise = 0.0
+        self.action_bias = 0.0
         self.start_delay = 0.0
-        self.delay = 0.0
+        self.delay = 0.03
 
     def initialize_from_params(self):
         self.type = "train_env"
@@ -166,10 +172,11 @@ class GeneralEnv(CustomEnv):
 
         return observation, info
 
+    # TODO: currently normalized noise
     def apply_observation_disturbances(self, observation):
         dirty_observation = observation.copy()
-        dirty_observation[:2] += np.random.normal(0, self.position_noise, size=2)
-        dirty_observation[-2:] += np.random.normal(0, self.velocity_noise, size=2)
+        dirty_observation[:2] += np.random.normal(self.position_bias, self.position_noise, size=2)
+        dirty_observation[-2:] += np.random.normal(self.velocity_bias, self.velocity_noise, size=2)
 
         return dirty_observation
 
@@ -180,10 +187,16 @@ class GeneralEnv(CustomEnv):
         if timestep < self.start_delay:
             delay = self.start_delay
         target = np.around(timestep - delay, decimals=5)
-        index = next((i for i, val in enumerate(list) if val > target), 0)
+        index = 0
+        for i in reversed(range(len(list))):
+            value = list[i]
+            if value <= target:
+                index = i + 1
+                break
         action = self.clean_action_history[index]
         return np.array([action])
 
+    # TODO: currently normalized noise
     def get_dirty_action(self, action):
         self.clean_action_history = np.append(self.clean_action_history, action)
         dirty_action = self.find_delay_action()
@@ -242,7 +255,7 @@ class GeneralEnv(CustomEnv):
         time = 0
         if len(self.observation_dict["T"]) > 0:
             time = self.dynamics_func.dt + self.observation_dict["T"][-1]
-        self.observation_dict["T"].append(time)
+        self.observation_dict["T"].append(np.around(time, decimals=5))
         self.observation_dict["U_con"].append(self.dynamics_func.unscale_action(dirty_action))
         self.observation_dict["U_clean"].append(self.dynamics_func.unscale_action(clean_action))
         self.observation_dict["X_meas"].append(self.dynamics_func.unscale_state(new_observation))
