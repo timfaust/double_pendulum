@@ -228,7 +228,7 @@ class GeneralEnv(CustomEnv):
 
         self.append_observation_dict(dirty_observation, dirty_action)
         reward = self.get_reward(dirty_observation, dirty_action)
-        terminated = self.terminated_func(dirty_observation)
+        terminated = self.terminated_func(self.observation_dict['X_meas'][-1])
         truncated = self.check_episode_end()
 
         if self.render_mode == "human":

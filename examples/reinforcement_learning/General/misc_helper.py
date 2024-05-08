@@ -61,10 +61,10 @@ def no_termination(observation):
 
 
 def kill_switch(observation):
-    if np.max(np.abs(observation[:2])) > 0.5:
-        # print("Terminated at state: ", new_state)
+    if np.max(np.abs(observation[:2])) > 2 * np.pi:
+        # print("Terminated at state: ", observation)
         return True
-    if np.max(np.abs(observation[2:4])) * 20 > 19:
-        # print("Terminated at velocity: ", observation[2:4] * 20)
+    if np.max(np.abs(observation[2:4])) > 19:
+        # print("Terminated at velocity: ", observation)
         return True
     return False
