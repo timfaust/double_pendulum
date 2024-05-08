@@ -6,6 +6,7 @@ from examples.reinforcement_learning.General.misc_helper import updown_reset, ba
     noisy_reset, low_reset, high_reset, random_reset, semi_random_reset, debug_reset, kill_switch
 from examples.reinforcement_learning.General.policies.common import CustomPolicy
 from examples.reinforcement_learning.General.reward_functions import get_state_values
+from examples.reinforcement_learning.General.visualizer import Visualizer
 from src.python.double_pendulum.simulation.gym_env import CustomEnv
 import pygame
 import numpy as np
@@ -17,7 +18,6 @@ from double_pendulum.simulation.simulation import Simulator
 
 
 class GeneralEnv(CustomEnv):
-    metadata_visualization = {"render_modes": ["human"], "render_fps": 120}
 
     def __init__(
         self,
@@ -46,14 +46,6 @@ class GeneralEnv(CustomEnv):
         self.n_envs = None
         self.initialize_from_params()
 
-        self.velocity_noise = None
-        self.position_noise = None
-        self.action_noise = None
-        self.start_delay = None
-        self.delay = None
-        self.clean_action_history = None
-        self.initialize_disturbances()
-
         self.plant = None
         self.simulation = None
         self.reward_function = None
@@ -72,21 +64,21 @@ class GeneralEnv(CustomEnv):
             True
         )
 
-        # initialize_visualization
-        self.pendulum_length_visualization = 350
-        self.reward_visualization = 0
-        self.action_visualization = None
-        self.acc_reward_visualization = 0
-        self.window_size = 800
-        self.render_mode = "None"
-        self.window = None
-        self.clock = None
+        self.observation_dict = None
+        self.clean_action_history = None
+        self.velocity_noise = None
+        self.position_noise = None
+        self.action_noise = None
+        self.start_delay = None
+        self.delay = None
+        self.initialize_disturbances()
 
-        self.mpar = load_param(env_type, self.dynamics_func.torque_limit)
-        self.observation_dict = {"T": [], "X_meas": [], "U_con": [], "push": [], "plant": self.dynamics_func.simulator.plant, "max_episode_steps": self.max_episode_steps, "current_force": []}
-        self.dynamics_func.simulator.plant.observation_dict = self.observation_dict
+        self.render_mode = "None"
+        self.visualizer = Visualizer(self.env_type, self.observation_dict)
 
     def initialize_disturbances(self):
+        self.observation_dict = {"T": [], "X_meas": [], "U_con": [], "push": [], "plant": self.dynamics_func.simulator.plant, "max_episode_steps": self.max_episode_steps, "current_force": []}
+        self.dynamics_func.simulator.plant.observation_dict = self.observation_dict
         self.clean_action_history = np.array([])
         self.velocity_noise = 0.0
         self.position_noise = 0.0
@@ -170,11 +162,7 @@ class GeneralEnv(CustomEnv):
                 self.observation_dict[key].clear()
         self.append_observation_dict(self.translator.extract_observation(observation), np.array([0.0]))
         self.clean_action_history = np.array([])
-
-        self.dynamics_func.virtual_sensor_state = [0.0, 0.0]
-        self.reward_visualization = 0
-        self.acc_reward_visualization = 0
-        self.action_visualization = np.array([0, 0])
+        self.visualizer.reset()
 
         return observation, info
 
@@ -231,10 +219,7 @@ class GeneralEnv(CustomEnv):
         terminated = self.terminated_func(self.observation_dict['X_meas'][-1])
         truncated = self.check_episode_end()
 
-        if self.render_mode == "human":
-            self.reward_visualization = reward
-            self.acc_reward_visualization += reward
-            self.action_visualization = dirty_action
+        self.update_visualizer(reward, dirty_action)
 
         info = {}
         return self.observation, reward, terminated, truncated, info
@@ -262,62 +247,11 @@ class GeneralEnv(CustomEnv):
         self.observation_dict["X_meas"].append(self.dynamics_func.unscale_state(new_observation))
 
     def render(self, mode="human"):
-        if self.step_counter % self.render_every_steps == 0 and len(self.observation_dict['X_meas']) > 0:
-            self._render_frame()
+        if self.render_mode == "human" and self.step_counter % self.render_every_steps == 0 and len(self.observation_dict['X_meas']) > 0:
+            self.visualizer.render()
 
-    def getXY(self, point):
-        transformed = (self.window_size // 2 + point[0] * self.pendulum_length_visualization * 2, self.window_size // 2 + point[1] * self.pendulum_length_visualization * 2)
-        return transformed
-
-    def _render_frame(self):
-        if self.window is None and self.render_mode == "human":
-            pygame.init()
-            pygame.display.init()
-            self.window = pygame.display.set_mode((self.window_size, self.window_size))
-        if self.clock is None and self.render_mode == "human":
-            self.clock = pygame.time.Clock()
-
-        canvas = pygame.Surface((self.window_size, self.window_size))
-        y, x1, x2, v1, v2, action, goal, dt, threshold, u_p, u_pp = get_state_values(self.env_type, self.observation_dict)
-        x3 = x2 + dt * v2
-
-        distance = np.linalg.norm(x2 - goal)
-        distance_next = np.linalg.norm(x3 - goal)
-        v1_total = np.linalg.norm(v1)
-        v2_total = np.linalg.norm(v2)
-        x_1 = y[0]
-        x_2 = y[1]
-        canvas.fill((255, 255, 255))
-
-        if distance_next < threshold:
-            canvas.fill((184, 255, 191))
-        pygame.draw.line(canvas, (0, 0, 0), self.getXY(np.array([0,0])), self.getXY(x1), 5)
-        pygame.draw.line(canvas, (0, 0, 0), self.getXY(x1), self.getXY(x2), 5)
-
-        pygame.draw.circle(canvas, (60, 60, 230), self.getXY(np.array([0,0])), 10)
-        pygame.draw.circle(canvas, (60, 60, 230), self.getXY(x1), 10)
-        pygame.draw.circle(canvas, (60, 60, 230), self.getXY(x2), 5)
-        pygame.draw.circle(canvas, (255, 200, 200), self.getXY(goal), threshold * 4 * self.pendulum_length_visualization)
-        pygame.draw.circle(canvas, (255, 50, 50), self.getXY(goal), threshold * 2 * self.pendulum_length_visualization)
-        pygame.draw.circle(canvas, (95, 2, 99), self.getXY(x3), threshold * 2 * self.pendulum_length_visualization)
-
-        myFont = pygame.font.SysFont("Times New Roman", 36)
-        acc_reward = myFont.render(str(np.round(self.acc_reward_visualization, 5)), 1, (0, 0, 0), )
-        reward = myFont.render(str(np.round(self.reward_visualization, 5)), 1, (0, 0, 0), )
-        canvas.blit(acc_reward, (10, 10))
-        canvas.blit(reward, (10, 60))
-
-        canvas.blit(myFont.render(str(self.step_counter), 1, (0, 0, 0), ), (10, self.window_size - 320))
-        canvas.blit(myFont.render(str(round(x_1, 4)), 1, (0, 0, 0), ), (10, self.window_size - 280))
-        canvas.blit(myFont.render(str(round(x_2, 4)), 1, (0, 0, 0), ), (10, self.window_size - 240))
-        canvas.blit(myFont.render(str(round(distance, 4)), 1, (0, 0, 0), ), (10, self.window_size - 200))
-        canvas.blit(myFont.render(str(round(distance_next, 4)), 1, (0, 0, 0), ), (10, self.window_size - 160))
-        canvas.blit(myFont.render(str(round(v1_total, 4)), 1, (0, 0, 0), ), (10, self.window_size - 120))
-        canvas.blit(myFont.render(str(round(v2_total, 4)), 1, (0, 0, 0), ), (10, self.window_size - 80))
-        canvas.blit(myFont.render(str(round(action, 4)), 1, (0, 0, 0), ), (10, self.window_size - 40))
-
+    def update_visualizer(self, reward, dirty_action):
         if self.render_mode == "human":
-            self.window.blit(canvas, canvas.get_rect())
-            pygame.event.pump()
-            pygame.display.update()
-            self.clock.tick(self.metadata_visualization["render_fps"])
+            self.visualizer.reward_visualization = reward
+            self.visualizer.acc_reward_visualization += reward
+            self.visualizer.action_visualization = dirty_action

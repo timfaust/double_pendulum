@@ -5,8 +5,9 @@ from examples.reinforcement_learning.General.score import get_score
 
 def get_unscaled_action(observation_dict, t_minus=0):
     unscaled_action = observation_dict['U_con'][t_minus-1]
-    unscaled_action = unscaled_action.max()
-    return unscaled_action
+    max_value_index = np.argmax(np.abs(unscaled_action))
+    max_action_value = unscaled_action[max_value_index]
+    return max_action_value
 
 
 def get_state_values(env_type, observation_dict):
