@@ -9,7 +9,7 @@ from torch import nn
 from examples.reinforcement_learning.General.environments import GeneralEnv
 
 
-class DefaultTranslator():
+class DefaultTranslator:
     def __init__(self, input_dim: int):
         self.obs_space = gym.spaces.Box(-np.ones(input_dim), np.ones(input_dim))
         self.act_space = gym.spaces.Box(np.array([-1.0]), np.array([1.0]))
