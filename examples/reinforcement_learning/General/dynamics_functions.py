@@ -1,11 +1,43 @@
 import numpy as np
+from double_pendulum.model.model_parameters import model_parameters
 from double_pendulum.model.symbolic_plant import SymbolicDoublePendulum
 from double_pendulum.simulation.simulation import Simulator
 from double_pendulum.simulation.gym_env import double_pendulum_dynamics_func
-from double_pendulum.model.model_parameters import model_parameters
 from scipy.stats import norm
-
 from src.python.double_pendulum.utils.wrap_angles import wrap_angles_diff
+
+
+def load_param(robot, torque_limit, simplify=True, real_robot=True):
+    if robot == "pendubot":
+        design = "design_C.1"
+        model = "model_1.0"
+        torque_array = [torque_limit, 0.0]
+
+    elif robot == "acrobot":
+        design = "design_C.1"
+        model = "model_1.0"
+        torque_array = [0.0, torque_limit]
+
+    if real_robot:
+        design = "design_C.1"
+        model = "model_1.0"
+        torque_array = [torque_limit, torque_limit]
+
+    model_par_path = (
+            "../../../data/system_identification/identified_parameters/"
+            + design
+            + "/"
+            + model
+            + "/model_parameters.yml"
+    )
+    mpar = model_parameters(filepath=model_par_path)
+    mpar.set_torque_limit(torque_limit=torque_array)
+    if simplify:
+        mpar.set_motor_inertia(0.0)
+        mpar.set_damping([0., 0.])
+        mpar.set_cfric([0., 0.])
+
+    return mpar
 
 
 class PushDoublePendulum(SymbolicDoublePendulum):
@@ -92,40 +124,7 @@ class PushDoublePendulum(SymbolicDoublePendulum):
         return push_value
 
 
-def load_param(robot, torque_limit, simplify=True, real_robot=True):
-    if robot == "pendubot":
-        design = "design_C.1"
-        model = "model_1.0"
-        torque_array = [torque_limit, 0.0]
-
-    elif robot == "acrobot":
-        design = "design_C.1"
-        model = "model_1.0"
-        torque_array = [0.0, torque_limit]
-
-    if real_robot:
-        design = "design_C.1"
-        model = "model_1.0"
-        torque_array = [torque_limit, torque_limit]
-
-    model_par_path = (
-            "../../../data/system_identification/identified_parameters/"
-            + design
-            + "/"
-            + model
-            + "/model_parameters.yml"
-    )
-    mpar = model_parameters(filepath=model_par_path)
-    mpar.set_torque_limit(torque_limit=torque_array)
-    if simplify:
-        mpar.set_motor_inertia(0.0)
-        mpar.set_damping([0., 0.])
-        mpar.set_cfric([0., 0.])
-
-    return mpar
-
-
-def random_dynamics(robot, dt, max_torque, class_obj, sigma=0.07, plant_class=SymbolicDoublePendulum, use_random=True):
+def random_dynamics(robot, dt, max_torque, class_obj, sigma=0.05, plant_class=SymbolicDoublePendulum, use_random=True):
     mpar = load_param(robot, max_torque, simplify=False)
     if use_random:
         mpar.g = np.random.normal(mpar.g, sigma * mpar.g)
@@ -148,13 +147,7 @@ def random_push_dynamics(robot, dt, max_torque, class_obj, sigma=0.02):
 
 
 def default_dynamics(robot, dt, max_torque, class_obj):
-    mpar = load_param(robot, max_torque)
-    plant = SymbolicDoublePendulum(model_pars=mpar)
-    return general_dynamics(robot, plant, dt, max_torque, class_obj)
-
-
-def real_robot(robot, dt, max_torque, class_obj):
-    mpar = load_param(robot, max_torque, simplify=False, real_robot=True)
+    mpar = load_param(robot, max_torque, simplify=False)
     plant = SymbolicDoublePendulum(model_pars=mpar)
     return general_dynamics(robot, plant, dt, max_torque, class_obj)
 
@@ -217,6 +210,7 @@ class custom_dynamics_func_4PI(double_pendulum_dynamics_func):
 
 class custom_dynamics_func_PI(double_pendulum_dynamics_func):
     virtual_sensor_state = [0.0, 0.0]
+
     def __call__(self, state, action, scaling=True):
         if scaling:
             x = self.unscale_state(state)

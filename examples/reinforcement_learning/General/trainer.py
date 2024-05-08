@@ -1,119 +1,40 @@
-import json
 import os
-import re
-from typing import Type
-from stable_baselines3.common.callbacks import BaseCallback
-from torch.utils.tensorboard import SummaryWriter
-import optax
-import gymnasium as gym
-from tqdm.auto import tqdm
 import numpy as np
 from double_pendulum.utils.csv_trajectory import save_trajectory
-import jax
-from sbx.crossq.crossq import CrossQ
-from sbx.crossq.policies import CrossQPolicy
+from sbx.sac.policies import SACPolicy
 from stable_baselines3.common.callbacks import (
     EvalCallback,
     CallbackList,
     CheckpointCallback
 )
-
-from examples.reinforcement_learning.General.environments import GeneralEnv
-from double_pendulum.controller.abstract_controller import AbstractController
+from callbacks import *
+from controller import *
 from double_pendulum.utils.plotting import plot_timeseries
 
-from examples.reinforcement_learning.General.reward_functions import calculate_score
-
-
-def linear_schedule(initial_value):
-    if isinstance(initial_value, str):
-        initial_value = float(initial_value)
-
-    def func(progress):
-        return progress * initial_value
-
-    return func
-
-
-def exponential_schedule(initial_value):
-    if isinstance(initial_value, str):
-        initial_value = float(initial_value)
-
-    def func(progress):
-        k = 5
-        return initial_value * np.exp(-k * (1 - progress))
-
-    return func
-
-
-class ScoreCallback(BaseCallback):
-    def __init__(self, verbose=0):
-        super(ScoreCallback, self).__init__(verbose)
-
-    def _on_step(self) -> bool:
-        if len(self.training_env.get_attr('state_dict')[0]['T']) == self.training_env.get_attr('max_episode_steps')[0] - 1:
-            sum = 0
-            state_dicts = self.training_env.get_attr('state_dict')
-            for state_dict in state_dicts:
-                sum += calculate_score(state_dict)
-            self.logger.record("rollout/score_mean", sum/len(state_dicts))
-        return True
-
-
-class ProgressBarCallback(BaseCallback):
-    def __init__(self, total_steps, log_dir, data, n_envs):
-        super(ProgressBarCallback, self).__init__()
-        self.pbar = None
-        self.total_steps = total_steps
-        self.log_dir = log_dir
-        self.data = data
-        self.n_envs = n_envs
-
-    def find_next_log_dir(self):
-        tb_log_dir = os.path.join(self.log_dir, "tb_logs")
-        os.makedirs(tb_log_dir, exist_ok=True)
-
-        sac_dirs = [d for d in os.listdir(tb_log_dir) if re.match(r'SAC_\d+', d)]
-        highest_number = 0
-        for d in sac_dirs:
-            num = int(d.split('_')[-1])
-            highest_number = max(highest_number, num)
-
-        next_sac_dir = f"SAC_{highest_number}"
-        return os.path.join(tb_log_dir, next_sac_dir)
-
-    def _on_training_start(self):
-        sac_log_dir = self.find_next_log_dir()
-        self.pbar = tqdm(total=self.total_steps, desc='Training Progress')
-        with SummaryWriter(sac_log_dir) as writer:
-            config_str = json.dumps(self.data, indent=4)
-            writer.add_text("Configuration", f"```json\n{config_str}\n```", 0)
-
-    def _on_step(self):
-        self.pbar.update(self.n_envs)
-        return True
-
-    def _on_training_end(self):
-        self.pbar.close()
-
+from examples.reinforcement_learning.General.environments import GeneralEnv
+from fineTuneEnv import FineTuneEnv
 
 class Trainer:
-    def __init__(self, name, env_type, param, seed, action_noise=None):
-        self.environment = GeneralEnv(env_type, param, seed=seed)
-        self.eval_environment = GeneralEnv(env_type, param, eval=True, seed=seed)
-        self.log_dir = './log_data/' + name + '/' + env_type
+    def __init__(self, name, robot, data, seed, action_noise=None):
+        self.log_dir = './log_data/' + name + '/' + robot
+
         self.name = name
         self.action_noise = action_noise
+        self.data = data
+        self.robot = robot
+        self.seed = seed
 
-        self.use_action_noise = self.environment.data["use_action_noise"] == 1
-        self.max_episode_steps = self.environment.data["max_episode_steps"]
-        self.training_steps = self.environment.data["training_steps"]
-        self.eval_freq = self.environment.data["eval_freq"]
-        self.save_freq = self.environment.data["save_freq"]
-        self.verbose = self.environment.data["verbose"] == 1
-        self.render_eval = self.environment.data["render_eval"] == 1
-        self.n_eval_episodes = self.environment.data["n_eval_episodes"]
-        self.show_progressBar = self.environment.data["show_progress_bar"]
+        self.use_action_noise = self.data["use_action_noise"] == 1
+        self.max_episode_steps = self.data["max_episode_steps"]
+        self.training_steps = self.data["training_steps"]
+        self.eval_freq = self.data["eval_freq"]
+        self.save_freq = self.data["save_freq"]
+        self.verbose = self.data["verbose"] == 1
+        self.render_eval = self.data["render_eval"] == 1
+        self.n_eval_episodes = self.data["n_eval_episodes"]
+        self.show_progressBar = self.data["show_progress_bar"]
+        self.environment = None
+        self.eval_environment = None
 
         if not self.use_action_noise:
             self.action_noise = None
@@ -122,17 +43,19 @@ class Trainer:
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir)
 
+        callback_list = self.get_callback_list()
+
         self.environment.render_mode = None
         self.environment.reset()
 
         envs = self.environment.get_envs(log_dir=self.log_dir)
-        callback_list = self.get_callback_list()
+
 
         valid_keys = ['gradient_steps', 'ent_coef', 'learning_rate', 'qf_learning_rate']
-        filtered_data = {key: value for key, value in self.environment.data.items() if key in valid_keys}
+        filtered_data = {key: value for key, value in self.data.items() if key in valid_keys}
 
-        agent = CrossQ(
-            CrossQPolicy,
+        agent = SAC(
+            SACPolicy,
             envs,
             tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
             action_noise=self.action_noise,
@@ -149,16 +72,16 @@ class Trainer:
         if not os.path.exists(self.log_dir + model_path + ".zip"):
             raise Exception("model not found")
 
+        callback_list = self.get_callback_list()
+
         self.environment.render_mode = None
         self.environment.reset()
 
         envs = self.environment.get_envs(log_dir=self.log_dir)
 
-        agent = CrossQ.load(self.log_dir + model_path, print_system_info=True)
+        agent = SAC.load(self.log_dir + model_path, print_system_info=True)
         self.load_custom_params(agent)
         agent.set_env(envs)
-
-        callback_list = self.get_callback_list()
 
         agent.learn(self.training_steps, callback=callback_list, reset_num_timesteps=True)
         agent.save(os.path.join(self.log_dir, "saved_model", "trained_model"))
@@ -167,7 +90,9 @@ class Trainer:
         if not os.path.exists(self.log_dir + model_path + ".zip"):
             raise Exception("model not found")
 
-        agent = CrossQ.load(self.log_dir + model_path, print_system_info=True)
+        _ = self.get_callback_list()
+
+        agent = SAC.load(self.log_dir + model_path, print_system_info=True)
         self.load_custom_params(agent)
 
         eval_envs = self.eval_environment.get_envs(log_dir=self.log_dir)
@@ -202,6 +127,9 @@ class Trainer:
 
     def get_callback_list(self):
 
+        self.environment = GeneralEnv(self.robot, self.seed, self.data["train_env"], self.data)
+        self.eval_environment = GeneralEnv(self.robot, self.seed, self.data["eval_env"], self.data)
+
         eval_envs = self.eval_environment.get_envs(log_dir=self.log_dir)
         for i in range(len(eval_envs.envs)):
             monitor = eval_envs.envs[i]
@@ -229,9 +157,21 @@ class Trainer:
         else:
             return CallbackList([eval_callback, checkpoint_callback])
 
-    def simulate(self, model_path="/best_model/best_model", tf=10.0):
+    def simulate(self, model_path="/best_model/best_model", tf=10.0, fine_tune=False):
+        model_path = self.log_dir + model_path
+        model = SAC.load(model_path, print_system_info=True)
 
-        controller = self.get_controller(model_path)
+        callbacks = self.get_callback_list()
+        env = self.eval_environment
+
+        if fine_tune:
+            fine_tune_env = FineTuneEnv(self.robot, self.seed, self.data["train_env"], self.data)
+            envs = fine_tune_env.get_envs(log_dir=self.log_dir)
+            self.load_custom_params(model)
+            model.set_env(envs)
+            env = fine_tune_env
+
+        controller = GeneralController(env, model, self.robot, callbacks=callbacks, fine_tune=fine_tune)
         controller.init()
         controller.simulation.set_state(0, [0, 0, 0, 0])
 
@@ -242,10 +182,13 @@ class Trainer:
             dt=controller.dt * 0.1,
             controller=controller,
             integrator=controller.integrator,
-            save_video=True,
+            save_video=False,
             video_name=os.path.join(self.log_dir, "sim_video.gif"),
             scale=0.25
         )
+
+        if fine_tune:
+            model.save(os.path.join(self.log_dir, "saved_model", "fine_tuned_model"))
 
         save_trajectory(os.path.join(self.log_dir, "sim_swingup.csv"), T=T, X_meas=X, U_con=U)
 
@@ -258,53 +201,11 @@ class Trainer:
             vel_y_lines=[0.0],
             tau_y_lines=[-5.0, 0.0, 5.0],
             save_to=os.path.join(self.log_dir, "timeseries"),
-            show=False,
+            show=True,
             scale=0.5,
         )
 
-    def get_controller(self, model_path="/best_model/best_model"):
-        model_path = self.log_dir + model_path
-        controller = GeneralController(self.environment, model_path)
-        return controller
-
     def load_custom_params(self, agent):
-        for key in self.environment.data:
+        for key in self.data:
             if hasattr(agent, key):
-                setattr(agent, key, self.environment.data[key])
-
-
-class GeneralController(AbstractController):
-    def __init__(self, environment: Type[GeneralEnv], model_path):
-        super().__init__()
-
-        self.model = CrossQ.load(model_path, print_system_info=True)
-        self.simulation = environment.simulation
-        self.dynamics_func = environment.dynamics_func
-        self.dt = environment.dynamics_func.dt
-        self.scaling = environment.dynamics_func.scaling
-        self.integrator = environment.dynamics_func.integrator
-        self.actions_in_state = environment.actions_in_state
-        self.last_actions = [0, 0]
-
-    def get_control_output_(self, x, t=None):
-
-        if self.actions_in_state:
-            x = np.append(x, self.last_actions)
-
-        if self.scaling:
-            obs = self.dynamics_func.normalize_state(x)
-            action = self.model.predict(observation=obs, deterministic=True)
-            u = self.dynamics_func.unscale_action(action)
-        else:
-            action = self.model.predict(observation=x, deterministic=True)
-            u = self.dynamics_func.unscale_action(action)
-
-        if self.actions_in_state:
-            self.last_actions[-1] = self.last_actions[-2]
-            if not np.all(u == 0):
-                max_abs_value_index = np.abs(u).argmax()
-                self.last_actions[-2] = u[max_abs_value_index]
-            else:
-                self.last_actions[-2] = 0
-
-        return u
+                setattr(agent, key, self.data[key])

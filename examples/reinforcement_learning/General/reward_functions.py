@@ -259,7 +259,4 @@ def quadratic_rew(observation, action, env_type, dynamic_func, state_dict, state
     cost2= np.einsum("i, ij, j", cart_err_x2, Q2, cart_err_x2) + np.einsum("i, ij, j", cart_err_x1, Q2, cart_err_x1)
 
     reward = -1 * cost1 - 1 * cost2
-
-
-
     return reward

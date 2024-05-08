@@ -3,6 +3,7 @@ import torch
 from examples.reinforcement_learning.General.reward_functions import *
 from examples.reinforcement_learning.General.trainer import Trainer
 from stable_baselines3.common.noise import OrnsteinUhlenbeckActionNoise
+from param_helper import load_json_params
 import argparse
 
 seed = 42
@@ -15,16 +16,18 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--name', default="real_robot_1")
-    parser.add_argument('--mode', default="train", choices=["train", "retrain", "evaluate", "simulate"])
+    parser.add_argument('--name', default="test_1")
+    parser.add_argument('--mode', default="fine_tune", choices=["train", "retrain", "evaluate", "simulate", "fine_tune"])
     parser.add_argument('--model_path', default="/best_model/best_model")
-    parser.add_argument('--env_type', default="acrobot", choices=["pendubot", "acrobot"])
-    parser.add_argument('--param', default="real_robot_1")
+    parser.add_argument('--robot', default="pendubot", choices=["pendubot", "acrobot"])
+    parser.add_argument('--param_name', default="real_robot_1")
 
     args = parser.parse_args()
-    env_type = args.env_type
+    robot = args.robot
     action_noise = OrnsteinUhlenbeckActionNoise(mean=np.array([0.0]), sigma=0.1 * np.ones(1), theta=0.15, dt=1e-2)
-    sac = Trainer(args.name, env_type, args.param, seed, action_noise)
+
+    data = load_json_params(args.param_name)
+    sac = Trainer(args.name, robot, data, seed, action_noise)
 
     if args.mode == "train":
         print("training new model")
@@ -46,4 +49,7 @@ if __name__ == '__main__':
             print(e)
 
     if args.mode == "simulate":
-        sac.simulate(model_path=args.model_path, tf=3.0)
+        sac.simulate(model_path=args.model_path, tf=10.0)
+
+    if args.mode == "fine_tune":
+        sac.simulate(model_path=args.model_path, tf=3.0, fine_tune=True)

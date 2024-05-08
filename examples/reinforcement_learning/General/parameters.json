@@ -1,5 +1,5 @@
 {
-    "CROSSQ_Defaults": {
+    "SAC_Defaults": {
         "learning_rate": 0.001,
         "buffer_size": 1000000,
         "learning_starts": 100,
@@ -27,6 +27,7 @@
         "device": "auto",
         "_init_setup_model": true
     },
+
     "default": {
       "train_env": {
         "dynamics_function": "default_dynamics",
@@ -211,13 +212,13 @@
             "reset_function": "low_reset",
             "reward_function": "saturated_distance_from_target",
             "same_env": 0,
-            "n_envs": 20
+            "n_envs": 40
         },
 
         "eval_env": {
-            "dynamics_function": "real_robot",
+            "dynamics_function": "default_dynamics",
             "reset_function": "noisy_reset",
-            "reward_function": "saturated_distance_from_target",
+            "reward_function": "score_reward",
             "same_env": 1,
             "n_envs": 1
         },
@@ -227,13 +228,13 @@
         "max_torque": 4.0,
 
         "learning_rate": 1e-3,
-        "actions_in_state": 0,
-        "gradient_steps": 1,
+        "actions_in_state": 1,
+        "gradient_steps": 6,
         "max_episode_steps": 500,
-        "training_steps": 5e6,
+        "training_steps": 10e6,
         "use_action_noise": 1,
 
-        "eval_freq": 5e3,
+        "eval_freq": 5e4,
         "n_eval_episodes": 1,
         "render_eval": 1,
         "render_every_steps": 1,

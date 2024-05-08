@@ -1,5 +1,24 @@
 import numpy as np
 
+def linear_schedule(initial_value):
+    if isinstance(initial_value, str):
+        initial_value = float(initial_value)
+
+    def func(progress):
+        return progress * initial_value
+
+    return func
+
+
+def exponential_schedule(initial_value):
+    if isinstance(initial_value, str):
+        initial_value = float(initial_value)
+
+    def func(progress):
+        k = 5
+        return initial_value * np.exp(-k * (1 - progress))
+
+    return func
 
 def general_reset(x_values, dx_values):
     rand = np.random.rand(4)

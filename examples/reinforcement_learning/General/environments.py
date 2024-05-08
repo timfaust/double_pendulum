@@ -2,80 +2,70 @@ import json
 
 from stable_baselines3.common.env_util import make_vec_env
 
-from examples.reinforcement_learning.General.misc_helper import updown_reset, balanced_reset, no_termination, \
-    noisy_reset, low_reset, high_reset, random_reset, semi_random_reset, debug_reset, kill_switch
+from examples.reinforcement_learning.General.misc_helper import *
 from examples.reinforcement_learning.General.reward_functions import get_state_values
 from src.python.double_pendulum.simulation.gym_env import CustomEnv
 import pygame
-import numpy as np
 import gymnasium as gym
-from examples.reinforcement_learning.General.dynamics_functions import default_dynamics, random_dynamics, \
-    random_push_dynamics, push_dynamics, load_param, custom_dynamics_func_PI, custom_dynamics_func_4PI, real_robot
-from examples.reinforcement_learning.General.reward_functions import future_pos_reward, pos_reward, quadratic_rew, saturated_distance_from_target, score_reward
-from double_pendulum.simulation.simulation import Simulator
+from examples.reinforcement_learning.General.dynamics_functions import *
+from param_helper import load_env_attributes
+
 
 class GeneralEnv(CustomEnv):
     metadata = {"render_modes": ["human"], "render_fps": 120}
 
     def __init__(
-        self,
-        robot,
-        param,
-        seed,
-        path="parameters.json",
-        eval=False,
-        dynamics_function=None,
-        plant=None
+            self,
+            robot,
+            seed,
+            env_params,
+            data,
+            dyn_function=None,
     ):
 
         self.seed = seed
-        self.eval = eval
-        self.param = param
-        self.pendulum_length = 350
-        self.reward = 0
-        self.action = None
-        self.acc_reward = 0
         self.robot = robot
-        self.data = json.load(open(path))[param]
+        self.env_params = env_params
+        self.data = data
 
-        type = "train_env"
-        if self.eval:
-            type = "eval_env"
+        self.max_episode_steps = data["max_episode_steps"]
+        self.reward_name = env_params["reward_function"]
+        self.render_every_steps = data["render_every_steps"]
+        self.render_every_envs = data["render_every_envs"]
+        self.actions_in_state = data["actions_in_state"] == 1
+        dynamic_class_name = data["dynamic_class"]
 
-        if dynamics_function is None:
-            dynamics_function = globals()[self.data[type]["dynamics_function"]]
-        reset_function = globals()[self.data[type]["reset_function"]]
-        dynamic_class_name = self.data["dynamic_class"]
+        if dyn_function is None:
+            dynamics_function, reset_function, reward_function, number_of_envs, use_same_env = load_env_attributes(
+                env_params)
+
+            dynamics_function, _, _ = dynamics_function(robot, data["dt"], data["max_torque"],
+                                                        globals()[dynamic_class_name])
+        else:
+            _, reset_function, reward_function, number_of_envs, use_same_env = load_env_attributes(
+                env_params)
+            dynamics_function = dyn_function
+
         low_pos = [-0.5, 0, 0, 0]
         if dynamic_class_name == "custom_dynamics_func_PI":
             low_pos = [-1.0, 0, 0, 0]
-        self.reset_function = lambda: reset_function(low_pos)
-        reward_function = globals()[self.data[type]["reward_function"]]
-        self.reward_name = self.data[type]["reward_function"]
-        self.n_envs = self.data[type]["n_envs"]
-        self.same_env = self.data[type]["same_env"]
 
-        self.dynamics_function = dynamics_function
-        self.reward_function = lambda obs, act, state_dict: reward_function(obs, act, robot, self.dynamics_func, state_dict, self.virtual_sensor_state_tracking)
-        self.max_episode_steps = self.data["max_episode_steps"]
-        self.render_every_steps = self.data["render_every_steps"]
-        self.render_every_envs = self.data["render_every_envs"]
-        self.actions_in_state = self.data["actions_in_state"] == 1
+        self.same_env = use_same_env
+        self.n_envs = number_of_envs
         self.virtual_sensor_state_tracking = [0.0, 0.0]
-        self.simulation = None
-        if not plant is None:
-            self.plant = plant
-            self.simulation = Simulator(plant=plant)
-
-        if hasattr(dynamics_function, '__code__'):
-            dynamics_function, self.simulation, self.plant = dynamics_function(robot, self.data["dt"], self.data["max_torque"], globals()[dynamic_class_name])
+        self.reset_function = lambda: reset_function(low_pos)
+        self.reward_function = lambda obs, act, state_dict: reward_function(obs, act, robot, self.dynamics_func,
+                                                                            state_dict,
+                                                                            self.virtual_sensor_state_tracking)
 
         if not self.actions_in_state:
             obs_space = gym.spaces.Box(np.array([-1.0, -1.0, -1.0, -1.0]), np.array([1.0, 1.0, 1.0, 1.0]))
         else:
-            obs_space = gym.spaces.Box(np.array([-1.0, -1.0, -1.0, -1.0, -1.0, -1.0]), np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0]))
+            obs_space = gym.spaces.Box(np.array([-1.0, -1.0, -1.0, -1.0, -1.0, -1.0]),
+                                       np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0]))
 
         act_space = gym.spaces.Box(np.array([-1.0]), np.array([1.0]))
+
         super().__init__(
             dynamics_function,
             self.reward_function,
@@ -88,12 +78,16 @@ class GeneralEnv(CustomEnv):
         )
 
         self.window_size = 800
+        self.pendulum_length = 350
         self.render_mode = "None"
         self.window = None
         self.clock = None
+        self.reward = 0
+        self.acc_reward = 0
+        self.action = np.array([0, 0])
 
-        self.mpar = load_param(robot, self.dynamics_func.torque_limit)
-        self.state_dict = {"T": [], "X_meas": [], "U_con": [], "push": [], "plant": self.dynamics_func.simulator.plant, "max_episode_steps": self.max_episode_steps, "current_force": []}
+        self.state_dict = {"T": [], "X_meas": [], "U_con": [], "push": [], "plant": self.dynamics_func.simulator.plant,
+                           "max_episode_steps": self.max_episode_steps, "current_force": []}
         self.dynamics_func.simulator.plant.state_dict = self.state_dict
 
     def custom_reset(self):
@@ -105,21 +99,19 @@ class GeneralEnv(CustomEnv):
     def get_envs(self, log_dir):
         if self.same_env:
             dynamics_function = self.dynamics_func
-            plant = self.plant
         else:
-            dynamics_function = self.dynamics_function
-            plant = None
+            dynamics_function = None
+
 
         envs = make_vec_env(
             env_id=GeneralEnv,
             n_envs=self.n_envs,
             env_kwargs={
                 "robot": self.robot,
-                "param": self.param,
-                "dynamics_function": dynamics_function,
-                "eval": self.eval,
-                "plant": plant,
-                "seed": self.seed
+                "seed": self.seed,
+                "env_params": self.env_params,
+                "data": self.data,
+                "dyn_function": dynamics_function,
             },
             monitor_dir=log_dir,
             seed=self.seed
@@ -130,11 +122,10 @@ class GeneralEnv(CustomEnv):
         observation, info = super().reset(seed, options)
         self.dynamics_func.virtual_sensor_state = [0.0, 0.0]
         self.virtual_sensor_state_tracking = [0.0, 0.0]
-        if self.simulation is not None:
-            self.simulation.reset()
         for key in self.state_dict:
             if key != 'plant' and key != 'max_episode_steps':
                 self.state_dict[key].clear()
+
         self.reward = 0
         self.acc_reward = 0
         self.action = np.array([0, 0])
@@ -148,6 +139,7 @@ class GeneralEnv(CustomEnv):
         self.observation = self.dynamics_func(self.observation, action, scaling=self.scaling)
 
         time = self.dynamics_func.dt
+
         if len(self.state_dict["T"]) > 0:
             time = time + self.state_dict["T"][-1]
         self.state_dict["T"].append(time)
@@ -160,7 +152,7 @@ class GeneralEnv(CustomEnv):
         if self.reward_name == "saturated_distance_from_target":
             reward = self.reward_func(self.observation, action, self.state_dict)
         else:
-            reward = self.reward_func(self.observation, action, self.state_dict)/self.max_episode_steps
+            reward = self.reward_func(self.observation, action, self.state_dict) / self.max_episode_steps
 
         ignore_state = True
         if self.data["dynamic_class"] == "custom_dynamics_func_PI":
@@ -172,6 +164,7 @@ class GeneralEnv(CustomEnv):
 
         info = {}
         truncated = False
+
         self.step_counter += 1
         if self.step_counter >= self.max_episode_steps:
             truncated = True
@@ -191,7 +184,8 @@ class GeneralEnv(CustomEnv):
             self._render_frame()
 
     def getXY(self, point):
-        transformed = (self.window_size // 2 + point[0]*self.pendulum_length*2, self.window_size // 2 + point[1]*self.pendulum_length*2)
+        transformed = (self.window_size // 2 + point[0] * self.pendulum_length * 2,
+                       self.window_size // 2 + point[1] * self.pendulum_length * 2)
         return transformed
 
     def _render_frame(self):
@@ -203,7 +197,8 @@ class GeneralEnv(CustomEnv):
             self.clock = pygame.time.Clock()
 
         canvas = pygame.Surface((self.window_size, self.window_size))
-        y, x1, x2, v1, v2, action, goal, dt, threshold, u_p, u_pp = get_state_values(self.observation, self.action, self.robot, self.dynamics_func)
+        y, x1, x2, v1, v2, action, goal, dt, threshold, u_p, u_pp = get_state_values(self.observation, self.action,
+                                                                                     self.robot, self.dynamics_func)
         x3 = x2 + dt * v2
 
         action = action[0]
@@ -217,10 +212,10 @@ class GeneralEnv(CustomEnv):
 
         if distance_next < threshold:
             canvas.fill((184, 255, 191))
-        pygame.draw.line(canvas, (0, 0, 0), self.getXY(np.array([0,0])), self.getXY(x1), 5)
+        pygame.draw.line(canvas, (0, 0, 0), self.getXY(np.array([0, 0])), self.getXY(x1), 5)
         pygame.draw.line(canvas, (0, 0, 0), self.getXY(x1), self.getXY(x2), 5)
 
-        pygame.draw.circle(canvas, (60, 60, 230), self.getXY(np.array([0,0])), 10)
+        pygame.draw.circle(canvas, (60, 60, 230), self.getXY(np.array([0, 0])), 10)
         pygame.draw.circle(canvas, (60, 60, 230), self.getXY(x1), 10)
         pygame.draw.circle(canvas, (60, 60, 230), self.getXY(x2), 5)
         pygame.draw.circle(canvas, (255, 200, 200), self.getXY(goal), threshold * 4 * self.pendulum_length)
