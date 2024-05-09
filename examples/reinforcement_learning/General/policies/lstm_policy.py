@@ -32,9 +32,9 @@ class LSTMTranslator(DefaultTranslator):
         self.reset()
         self.timesteps = 10
         self.features_per_timestep = 5
-        self.lstm_hidden_dim = 32
-        self.num_layers = 2
-        self.net_arch = [32, 32]
+        self.lstm_hidden_dim = 64
+        self.num_layers = 1
+        self.net_arch = [64, 64]
 
         super().__init__(self.timesteps * self.features_per_timestep)
 
@@ -125,11 +125,10 @@ class LSTMSACPolicy(CustomPolicy):
         self.critic_target.lstm_net = self.lstm_net
 
     @classmethod
-    def after_rollout(cls, num_timesteps, *args, **kwargs):
-        envs: List[GeneralEnv] = [monitor.env for monitor in args[0].envs]
-        progress = num_timesteps/envs[0].training_steps
-        for env in envs:
-            cls.modify_env(env, progress)
+    def after_rollout(cls, envs: List[GeneralEnv], progress, *args, **kwargs):
+        # for env in envs:
+        #     cls.modify_env(env, progress)
+        pass
 
     @classmethod
     def modify_env(cls, environment: GeneralEnv, progress):

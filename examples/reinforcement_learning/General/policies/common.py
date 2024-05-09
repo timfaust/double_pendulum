@@ -143,7 +143,7 @@ class CustomPolicy(SACPolicy):
         return critic
 
     @classmethod
-    def after_rollout(cls, num_timesteps, *args, **kwargs):
+    def after_rollout(cls, envs: List[GeneralEnv], progress, *args, **kwargs):
         pass
 
     @classmethod
