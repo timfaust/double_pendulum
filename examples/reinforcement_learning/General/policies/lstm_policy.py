@@ -1,8 +1,12 @@
-from typing import List
+from typing import List, Tuple, Optional, Dict
 
 import numpy as np
+from stable_baselines3.common.policies import ContinuousCritic
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+from stable_baselines3.common.type_aliases import PyTorchObs
+from stable_baselines3.sac.policies import Actor
 from torch import nn
-
+import torch as th
 from examples.reinforcement_learning.General.environments import GeneralEnv
 from examples.reinforcement_learning.General.policies.common import DefaultTranslator, DefaultActor, CustomPolicy, DefaultCritic
 
@@ -59,44 +63,66 @@ class LSTMTranslator(DefaultTranslator):
 
 class LSTMActor(DefaultActor):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.lstm_net = None
+
     @classmethod
     def get_translator(cls) -> LSTMTranslator:
         return LSTMTranslator()
 
+    def get_action_dist_params(self, obs: PyTorchObs) -> Tuple[th.Tensor, th.Tensor, Dict[str, th.Tensor]]:
+        obs = self.lstm_net(obs)
+        return super().get_action_dist_params(obs)
+
+
+class LSTMCritic(DefaultCritic):
+
     def __init__(self, *args, **kwargs):
-        translator: LSTMTranslator = LSTMActor.get_translator()
-        kwargs['net_arch'] = translator.net_arch
-        kwargs['features_dim'] = translator.lstm_hidden_dim
+        super().__init__(*args, **kwargs)
+        self.lstm_net = None
+
+    def forward(self, obs: th.Tensor, actions: th.Tensor) -> Tuple[th.Tensor, ...]:
+        obs = self.lstm_net(obs)
+        return super().forward(obs, actions)
+
+
+class LSTMSACPolicy(CustomPolicy):
+    actor_class = LSTMActor
+    critic_class = LSTMCritic
+
+    def __init__(self, *args, **kwargs):
+        translator = self.actor_class.get_translator()
+        lstm_input_dim = translator.features_per_timestep
+        lstm_output_dim = translator.net_arch[-1]
+        self.additional_actor_kwargs['net_arch'] = translator.net_arch
+        self.additional_actor_kwargs['features_dim'] = lstm_output_dim
+        self.additional_critic_kwargs['net_arch'] = translator.net_arch
+        self.additional_critic_kwargs['features_dim'] = lstm_output_dim
+
         super().__init__(*args, **kwargs)
 
-        lstm_input_dim = translator.features_per_timestep
-
         self.reshape_to_lstm_input = ReshapeToLSTMInput(translator.timesteps, lstm_input_dim)
-        self.extract_last_timestep = ExtractLastTimestep()
-        self.action_head = nn.Linear(translator.lstm_hidden_dim, kwargs['features_dim'])
-
         self.lstm = nn.LSTM(
             input_size=lstm_input_dim,
             hidden_size=translator.lstm_hidden_dim,
             num_layers=translator.num_layers,
             batch_first=True
         )
+        self.extract_last_timestep = ExtractLastTimestep()
+        self.action_head = nn.Linear(translator.lstm_hidden_dim, lstm_output_dim)
 
-        self.latent_pi = nn.Sequential(
+        self.lstm_net = nn.Sequential(
             self.reshape_to_lstm_input,
             self.lstm,
             self.extract_last_timestep,
             self.action_head,
             nn.ReLU(),
-            *self.latent_pi
         )
 
-
-class LSTMSACPolicy(CustomPolicy):
-    actor_class = LSTMActor
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        self.actor.lstm_net = self.lstm_net
+        self.critic.lstm_net = self.lstm_net
+        self.critic_target.lstm_net = self.lstm_net
 
     @classmethod
     def after_rollout(cls, num_timesteps, *args, **kwargs):

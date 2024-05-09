@@ -1,11 +1,13 @@
-from typing import Optional, List
+from typing import Optional, List, Tuple, Dict
 import gymnasium as gym
 import numpy as np
 from stable_baselines3.common.policies import ContinuousCritic
 from stable_baselines3.common.preprocessing import get_action_dim
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor, create_mlp
-from stable_baselines3.sac.policies import SACPolicy, Actor
+from stable_baselines3.common.type_aliases import PyTorchObs
+from stable_baselines3.sac.policies import SACPolicy, Actor, LOG_STD_MIN, LOG_STD_MAX
 from torch import nn
+import torch as th
 from examples.reinforcement_learning.General.environments import GeneralEnv
 
 
@@ -41,7 +43,28 @@ class DefaultCritic(ContinuousCritic):
         return q_net
 
     def print_architecture(self):
-        print()
+        print("\nCritic Architecture\n" + "=" * 20)
+
+        def print_part_details(part, name, description):
+            num_params = sum(p.numel() for p in part.parameters())
+            print(f"{name}:\n{description}\n{part}\n - Number of parameters: {num_params}\n")
+
+        print_part_details(self.features_extractor, "Input to Features",
+                           "Extracts features from input observations to use in the policy network.")
+        for i in range(len(self.q_networks)):
+            net = self.q_networks[i]
+            print_part_details(net, "Q-Network " + str(i + 1), "Return estimated Q-values for observation/action pairs (concatenated for input).")
+
+        total_params = sum(p.numel() for p in self.parameters())
+        print(f"Total number of parameters: {total_params}")
+        print("=" * 20)
+        print("\n\n")
+
+    def forward(self, obs: th.Tensor, actions: th.Tensor) -> Tuple[th.Tensor, ...]:
+        with th.set_grad_enabled(not self.share_features_extractor):
+            features = self.extract_features(obs, self.features_extractor)
+        qvalue_input = th.cat([features, actions], dim=1)
+        return tuple(q_net(qvalue_input) for q_net in self.q_networks)
 
 
 class DefaultActor(Actor):
@@ -56,7 +79,6 @@ class DefaultActor(Actor):
     def print_architecture(self):
         print("\nActor Architecture\n" + "=" * 20)
 
-        # Funktion zum Ausdrucken der Parameteranzahl und Beschreibung eines Modulteils
         def print_part_details(part, name, description):
             num_params = sum(p.numel() for p in part.parameters())
             print(f"{name}:\n{description}\n{part}\n - Number of parameters: {num_params}\n")
@@ -85,22 +107,37 @@ class DefaultActor(Actor):
         print("=" * 20)
         print("\n\n")
 
+    def get_action_dist_params(self, obs: PyTorchObs) -> Tuple[th.Tensor, th.Tensor, Dict[str, th.Tensor]]:
+        features = self.extract_features(obs, self.features_extractor)
+        latent_pi = self.latent_pi(features)
+        mean_actions = self.mu(latent_pi)
+
+        if self.use_sde:
+            return mean_actions, self.log_std, dict(latent_sde=latent_pi)
+        log_std = self.log_std(latent_pi)  # type: ignore[operator]
+        log_std = th.clamp(log_std, LOG_STD_MIN, LOG_STD_MAX)
+        return mean_actions, log_std, {}
+
 
 class CustomPolicy(SACPolicy):
     actor_class = DefaultActor
     critic_class = DefaultCritic
+    additional_actor_kwargs = {}
+    additional_critic_kwargs = {}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     def make_actor(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> Actor:
         actor_kwargs = self._update_features_extractor(self.actor_kwargs, features_extractor)
+        actor_kwargs.update(self.additional_actor_kwargs)
         actor = self.actor_class(**actor_kwargs).to(self.device)
         actor.print_architecture()
         return actor
 
     def make_critic(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> ContinuousCritic:
         critic_kwargs = self._update_features_extractor(self.critic_kwargs, features_extractor)
+        critic_kwargs.update(self.additional_critic_kwargs)
         critic = self.critic_class(**critic_kwargs).to(self.device)
         critic.print_architecture()
         return critic

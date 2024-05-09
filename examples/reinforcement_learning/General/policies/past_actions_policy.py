@@ -1,5 +1,6 @@
 import numpy as np
-from examples.reinforcement_learning.General.policies.common import DefaultTranslator, DefaultActor, CustomPolicy
+from examples.reinforcement_learning.General.policies.common import DefaultTranslator, DefaultActor, CustomPolicy, \
+    DefaultCritic
 
 
 class PastActionsTranslator(DefaultTranslator):
