@@ -16,11 +16,8 @@ class DefaultTranslator:
         self.obs_space = gym.spaces.Box(-np.ones(input_dim), np.ones(input_dim))
         self.act_space = gym.spaces.Box(np.array([-1.0]), np.array([1.0]))
 
-    def extract_observation(self, state: np.ndarray) -> np.ndarray:
-        return state
-
-    def build_state(self, clean_observation: np.ndarray, dirty_observation: np.ndarray, clean_action: float, dirty_action: float) -> np.ndarray:
-        return clean_observation
+    def build_state(self, dirty_observation: np.ndarray, clean_action: float, **kwargs) -> np.ndarray:
+        return dirty_observation
 
     def reset(self):
         pass

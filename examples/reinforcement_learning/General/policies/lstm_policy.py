@@ -1,3 +1,4 @@
+import math
 from typing import List, Tuple, Optional, Dict
 
 import numpy as np
@@ -28,7 +29,6 @@ class ExtractLastTimestep(nn.Module):
 
 class LSTMTranslator(DefaultTranslator):
     def __init__(self):
-        self.lstm_memory = None
         self.reset()
         self.timesteps = 10
         self.obs_features_per_timestep = 5
@@ -39,28 +39,20 @@ class LSTMTranslator(DefaultTranslator):
 
         super().__init__(self.timesteps * self.obs_features_per_timestep)
 
-    def extract_observation(self, state: np.ndarray) -> np.ndarray:
-        return self.lstm_memory[-self.obs_features_per_timestep:-1]
-
-    # TODO: takes in clean observation currently!!
-    def build_state(self, clean_observation: np.ndarray, dirty_observation: np.ndarray, clean_action: float, dirty_action: float) -> np.ndarray:
-        observation = np.append(dirty_observation.copy(), clean_action)
-        if self.lstm_memory.size == 0:
-            self.lstm_memory = observation
+    def build_state(self, dirty_observation: np.ndarray, clean_action: float, **kwargs) -> np.ndarray:
+        if len(kwargs) > 0:
+            lstm_memory = [np.append(x, u) for x, u in zip(kwargs['X_meas'][-self.timesteps:], kwargs['U_con'][-self.timesteps:])]
+            lstm_memory = np.array(lstm_memory)
         else:
-            self.lstm_memory = np.concatenate((self.lstm_memory, observation), axis=0)
+            lstm_memory = np.array([np.append(dirty_observation.copy(), clean_action)])
 
-        num_required = self.timesteps * self.obs_features_per_timestep
-        output = self.lstm_memory
-        if output.size < num_required:
-            repeat_count = self.timesteps + 1
-            repeated_memory = np.tile(output[0:self.obs_features_per_timestep], repeat_count)
-            output = np.concatenate((repeated_memory, output), axis=0)
+        output = lstm_memory
+        if output.shape[0] < self.timesteps:
+            repeat_count = self.timesteps - output.shape[0]
+            output = np.vstack((np.tile(output[0], (repeat_count, 1)), output))
 
-        return output[-num_required:]
-
-    def reset(self):
-        self.lstm_memory = np.array([])
+        output = np.concatenate(output)
+        return output
 
 
 class LSTMActor(DefaultActor):

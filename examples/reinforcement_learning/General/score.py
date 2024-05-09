@@ -58,9 +58,10 @@ def calculate_score(observation_dict, verbose=False, step=False, check_swingup=T
         "velocity_cost": 0.2,
     }
 
+    # TODO: fix needs unscale!
     T = np.array(observation_dict["T"])
-    X = np.array(observation_dict["X_meas"])
-    U = np.array(observation_dict["U_con"])
+    X = np.array(observation_dict['X_meas'])
+    U = np.array(observation_dict['U_con'])
 
     if len(np.array(observation_dict["T"])) < 2:
         return 1
