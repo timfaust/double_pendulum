@@ -21,14 +21,15 @@ class LSTMModule(nn.Module):
             num_layers=translator.num_layers,
             batch_first=True
         )
-        self.action_head = nn.Linear(translator.lstm_hidden_dim, translator.lstm_output_dim)
+        self.feature_mapper = nn.Linear(translator.lstm_hidden_dim, translator.lstm_output_dim)
 
     def forward(self, obs: PyTorchObs) -> th.Tensor:
         obs_reshaped = obs.view(-1, self.timesteps, self.observation_dim)
         lstm_output = self.lstm(obs_reshaped)
         lstm_last_timestep = lstm_output[0][:, -1, :]
+        mapped_features = self.feature_mapper(lstm_last_timestep)
         original_features = obs_reshaped[:, -1, :]
-        combined_features = th.cat((original_features, lstm_last_timestep), dim=1)
+        combined_features = th.cat((original_features, mapped_features), dim=1)
         return combined_features
 
 
