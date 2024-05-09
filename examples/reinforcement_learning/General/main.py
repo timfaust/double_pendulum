@@ -1,6 +1,7 @@
 import random
 import torch
 
+from examples.reinforcement_learning.General.policies.common import CustomPolicy
 from examples.reinforcement_learning.General.policies.lstm_policy import LSTMSACPolicy
 from examples.reinforcement_learning.General.policies.past_actions_policy import PastActionsSACPolicy
 from examples.reinforcement_learning.General.reward_functions import *

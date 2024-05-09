@@ -12,7 +12,35 @@ from examples.reinforcement_learning.General.environments import GeneralEnv
 from examples.reinforcement_learning.General.policies.common import DefaultTranslator, DefaultActor, CustomPolicy, DefaultCritic
 
 
-class ReshapeToLSTMInput(nn.Module):
+class LSTMModule(nn.Module):
+    def __init__(self, translator):
+        super().__init__()
+        self.input_features = translator.obs_features_per_timestep
+        self.reshape_to_lstm_input = Reshape(translator.timesteps, self.input_features)
+        self.lstm = nn.LSTM(
+            input_size=self.input_features,
+            hidden_size=translator.lstm_hidden_dim,
+            num_layers=translator.num_layers,
+            batch_first=True
+        )
+        self.extract_last_timestep = ExtractLastTimestep()
+        self.action_head = nn.Linear(translator.lstm_hidden_dim, translator.new_features_dim)
+
+        self.lstm_net = nn.Sequential(
+            self.reshape_to_lstm_input,
+            self.lstm,
+            self.extract_last_timestep,
+            self.action_head
+        )
+
+    def extract_features(self, obs: PyTorchObs) -> th.Tensor:
+        lstm_features = self.lstm_net(obs)
+        original_features = obs[:, -self.input_features:]
+        combined_features = th.cat((original_features, lstm_features), dim=1)
+        return combined_features
+
+
+class Reshape(nn.Module):
     def __init__(self, timesteps, features_per_timestep):
         super().__init__()
         self.timesteps = timesteps
@@ -66,8 +94,8 @@ class LSTMActor(DefaultActor):
         return LSTMTranslator()
 
     def get_action_dist_params(self, obs: PyTorchObs) -> Tuple[th.Tensor, th.Tensor, Dict[str, th.Tensor]]:
-        obs = self.lstm_net(obs)
-        return super().get_action_dist_params(obs)
+        features = self.lstm_net.extract_features(obs)
+        return super().get_action_dist_params(features)
 
 
 class LSTMCritic(DefaultCritic):
@@ -77,8 +105,8 @@ class LSTMCritic(DefaultCritic):
         self.lstm_net = None
 
     def forward(self, obs: th.Tensor, actions: th.Tensor) -> Tuple[th.Tensor, ...]:
-        obs = self.lstm_net(obs)
-        return super().forward(obs, actions)
+        features = self.lstm_net.extract_features(obs)
+        return super().forward(obs, features)
 
 
 class LSTMSACPolicy(CustomPolicy):
@@ -91,33 +119,16 @@ class LSTMSACPolicy(CustomPolicy):
         lstm_output_dim = translator.new_features_dim
 
         self.additional_actor_kwargs['net_arch'] = translator.net_arch
-        self.additional_actor_kwargs['features_dim'] = lstm_output_dim
+        self.additional_actor_kwargs['features_dim'] = lstm_output_dim + lstm_input_dim
         self.additional_critic_kwargs['net_arch'] = translator.net_arch
-        self.additional_critic_kwargs['features_dim'] = lstm_output_dim
+        self.additional_critic_kwargs['features_dim'] = lstm_output_dim + lstm_input_dim
 
         super().__init__(*args, **kwargs)
 
-        self.reshape_to_lstm_input = ReshapeToLSTMInput(translator.timesteps, lstm_input_dim)
-        self.lstm = nn.LSTM(
-            input_size=lstm_input_dim,
-            hidden_size=translator.lstm_hidden_dim,
-            num_layers=translator.num_layers,
-            batch_first=True
-        )
-        self.extract_last_timestep = ExtractLastTimestep()
-        self.action_head = nn.Linear(translator.lstm_hidden_dim, lstm_output_dim)
-
-        self.lstm_net = nn.Sequential(
-            self.reshape_to_lstm_input,
-            self.lstm,
-            self.extract_last_timestep,
-            self.action_head,
-            nn.ReLU(),
-        )
-
-        self.actor.lstm_net = self.lstm_net
-        self.critic.lstm_net = self.lstm_net
-        self.critic_target.lstm_net = self.lstm_net
+        lstm_net = LSTMModule(translator)
+        self.actor.lstm_net = lstm_net
+        self.critic.lstm_net = lstm_net
+        self.critic_target.lstm_net = lstm_net
 
     @classmethod
     def after_rollout(cls, envs: List[GeneralEnv], progress, *args, **kwargs):
