@@ -132,7 +132,7 @@ class GeneralEnv(CustomEnv):
     def custom_reset(self):
         observation = self.reset_function()
         self.translator.reset()
-        state = self.translator.build_state(observation, 0)
+        state = self.translator.build_state(observation, observation, 0, 0)
         return state
 
     def get_envs(self, log_dir):
@@ -228,9 +228,9 @@ class GeneralEnv(CustomEnv):
         old_state = self.observation
         old_observation = self.translator.extract_observation(old_state)
         new_observation = self.get_new_observation(old_observation, dirty_action)
-        new_state = self.translator.build_state(new_observation, clean_action)
-        self.observation = new_state
         dirty_observation = self.apply_observation_disturbances(new_observation)
+        new_state = self.translator.build_state(new_observation, dirty_observation, clean_action, dirty_action)
+        self.observation = new_state
 
         self.append_observation_dict(dirty_observation, dirty_action, clean_action)
         reward = self.get_reward(dirty_observation, clean_action)

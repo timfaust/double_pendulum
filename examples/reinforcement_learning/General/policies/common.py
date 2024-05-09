@@ -19,7 +19,7 @@ class DefaultTranslator:
     def extract_observation(self, state: np.ndarray) -> np.ndarray:
         return state
 
-    def build_state(self, clean_observation: np.ndarray, clean_action: float) -> np.ndarray:
+    def build_state(self, clean_observation: np.ndarray, dirty_observation: np.ndarray, clean_action: float, dirty_action: float) -> np.ndarray:
         return clean_observation
 
     def reset(self):

@@ -284,14 +284,15 @@ class GeneralController(AbstractController):
         self.scaling = environment.dynamics_func.scaling
         self.integrator = environment.dynamics_func.integrator
 
+    # TODO:needs build state rework, aktuellste action eigentlich unbekannt!
     def get_control_output_(self, x, t=None):
 
         if self.scaling:
             obs = self.dynamics_func.normalize_state(x)
-            action = self.model.predict(observation=self.environment.translator.build_state(obs), deterministic=True)
+            action = self.model.predict(observation=self.environment.translator.build_state(obs, obs), deterministic=True)
             u = self.dynamics_func.unscale_action(action)
         else:
-            action = self.model.predict(observation=self.environment.translator.build_state(x), deterministic=True)
+            action = self.model.predict(observation=self.environment.translator.build_state(x, x), deterministic=True)
             u = self.dynamics_func.unscale_action(action)
 
         return u
