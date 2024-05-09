@@ -31,15 +31,16 @@ class LSTMTranslator(DefaultTranslator):
         self.lstm_memory = None
         self.reset()
         self.timesteps = 10
-        self.features_per_timestep = 5
+        self.obs_features_per_timestep = 5
+        self.new_features_dim = 8
         self.lstm_hidden_dim = 64
         self.num_layers = 1
-        self.net_arch = [64, 64]
+        self.net_arch = [256, 256]
 
-        super().__init__(self.timesteps * self.features_per_timestep)
+        super().__init__(self.timesteps * self.obs_features_per_timestep)
 
     def extract_observation(self, state: np.ndarray) -> np.ndarray:
-        return self.lstm_memory[-self.features_per_timestep:-1]
+        return self.lstm_memory[-self.obs_features_per_timestep:-1]
 
     def build_state(self, observation: np.ndarray, action: float) -> np.ndarray:
         observation = np.append(observation, action)
@@ -48,11 +49,11 @@ class LSTMTranslator(DefaultTranslator):
         else:
             self.lstm_memory = np.concatenate((self.lstm_memory, observation), axis=0)
 
-        num_required = self.timesteps * self.features_per_timestep
+        num_required = self.timesteps * self.obs_features_per_timestep
         output = self.lstm_memory
         if output.size < num_required:
             repeat_count = self.timesteps + 1
-            repeated_memory = np.tile(output[0:self.features_per_timestep], repeat_count)
+            repeated_memory = np.tile(output[0:self.obs_features_per_timestep], repeat_count)
             output = np.concatenate((repeated_memory, output), axis=0)
 
         return output[-num_required:]
@@ -93,8 +94,9 @@ class LSTMSACPolicy(CustomPolicy):
 
     def __init__(self, *args, **kwargs):
         translator = self.actor_class.get_translator()
-        lstm_input_dim = translator.features_per_timestep
-        lstm_output_dim = translator.net_arch[-1]
+        lstm_input_dim = translator.obs_features_per_timestep
+        lstm_output_dim = translator.new_features_dim
+
         self.additional_actor_kwargs['net_arch'] = translator.net_arch
         self.additional_actor_kwargs['features_dim'] = lstm_output_dim
         self.additional_critic_kwargs['net_arch'] = translator.net_arch
