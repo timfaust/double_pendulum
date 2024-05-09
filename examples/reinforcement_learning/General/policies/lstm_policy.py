@@ -26,7 +26,8 @@ class LSTMModule(nn.Module):
     def forward(self, obs: PyTorchObs) -> th.Tensor:
         obs_reshaped = obs.view(-1, self.timesteps, self.observation_dim)
         lstm_output = self.lstm(obs_reshaped)
-        lstm_last_timestep = lstm_output[0][:, -1, :]
+        outputs, (hidden, cell) = lstm_output
+        lstm_last_timestep = hidden[-1]
         mapped_features = self.feature_mapper(lstm_last_timestep)
         original_features = obs_reshaped[:, -1, :]
         combined_features = th.cat((original_features, mapped_features), dim=1)
