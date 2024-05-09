@@ -15,7 +15,7 @@ from examples.reinforcement_learning.General.policies.common import DefaultTrans
 class LSTMModule(nn.Module):
     def __init__(self, translator):
         super().__init__()
-        self.input_features = translator.obs_features_per_timestep
+        self.input_features = translator.observation_dim
         self.reshape_to_lstm_input = Reshape(translator.timesteps, self.input_features)
         self.lstm = nn.LSTM(
             input_size=self.input_features,
@@ -24,7 +24,7 @@ class LSTMModule(nn.Module):
             batch_first=True
         )
         self.extract_last_timestep = ExtractLastTimestep()
-        self.action_head = nn.Linear(translator.lstm_hidden_dim, translator.new_features_dim)
+        self.action_head = nn.Linear(translator.lstm_hidden_dim, translator.lstm_output_dim)
 
         self.lstm_net = nn.Sequential(
             self.reshape_to_lstm_input,
@@ -59,13 +59,13 @@ class LSTMTranslator(DefaultTranslator):
     def __init__(self):
         self.reset()
         self.timesteps = 10
-        self.obs_features_per_timestep = 5
-        self.new_features_dim = 8
+        self.observation_dim = 5
+        self.lstm_output_dim = 8
         self.lstm_hidden_dim = 64
         self.num_layers = 1
         self.net_arch = [256, 256]
 
-        super().__init__(self.timesteps * self.obs_features_per_timestep)
+        super().__init__(self.timesteps * self.observation_dim)
 
     def build_state(self, dirty_observation: np.ndarray, clean_action: float, **kwargs) -> np.ndarray:
         if len(kwargs) > 0:
@@ -106,7 +106,7 @@ class LSTMCritic(DefaultCritic):
 
     def forward(self, obs: th.Tensor, actions: th.Tensor) -> Tuple[th.Tensor, ...]:
         features = self.lstm_net.extract_features(obs)
-        return super().forward(obs, features)
+        return super().forward(features, actions)
 
 
 class LSTMSACPolicy(CustomPolicy):
@@ -115,8 +115,8 @@ class LSTMSACPolicy(CustomPolicy):
 
     def __init__(self, *args, **kwargs):
         translator = self.actor_class.get_translator()
-        lstm_input_dim = translator.obs_features_per_timestep
-        lstm_output_dim = translator.new_features_dim
+        lstm_input_dim = translator.observation_dim
+        lstm_output_dim = translator.lstm_output_dim
 
         self.additional_actor_kwargs['net_arch'] = translator.net_arch
         self.additional_actor_kwargs['features_dim'] = lstm_output_dim + lstm_input_dim
