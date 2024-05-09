@@ -42,12 +42,13 @@ class LSTMTranslator(DefaultTranslator):
     def extract_observation(self, state: np.ndarray) -> np.ndarray:
         return self.lstm_memory[-self.obs_features_per_timestep:-1]
 
-    def build_state(self, observation: np.ndarray, action: float) -> np.ndarray:
-        observation = np.append(observation, action)
+    # TODO: takes in clean observation currently!!
+    def build_state(self, clean_observation: np.ndarray, clean_action: float) -> np.ndarray:
+        clean_observation = np.append(clean_observation, clean_action)
         if self.lstm_memory.size == 0:
-            self.lstm_memory = observation
+            self.lstm_memory = clean_observation
         else:
-            self.lstm_memory = np.concatenate((self.lstm_memory, observation), axis=0)
+            self.lstm_memory = np.concatenate((self.lstm_memory, clean_observation), axis=0)
 
         num_required = self.timesteps * self.obs_features_per_timestep
         output = self.lstm_memory
