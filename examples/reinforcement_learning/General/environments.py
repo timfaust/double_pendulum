@@ -1,6 +1,7 @@
 import json
 
 from stable_baselines3.common.env_util import make_vec_env
+from sympy import lambdify
 
 from examples.reinforcement_learning.General.misc_helper import updown_reset, balanced_reset, no_termination, \
     noisy_reset, low_reset, high_reset, random_reset, semi_random_reset, debug_reset, kill_switch
@@ -64,6 +65,7 @@ class GeneralEnv(CustomEnv):
         self.delay = None
         self.initialize_disturbances()
 
+        self.mpar = load_param(self.env_type, self.param_data["max_torque"])
         self.observation_dict = {"T": [], 'X_meas': [], 'X_real': [], 'U_con': [], 'U_meas': [], "push": [], "max_episode_steps": self.max_episode_steps, "current_force": []}
         self.render_mode = "None"
         self.visualizer = Visualizer(self.env_type, self.observation_dict)
@@ -265,6 +267,35 @@ class GeneralEnv(CustomEnv):
         self.observation_dict['U_meas'].append(dirty_action)
         self.observation_dict['X_meas'].append(dirty_observation)
         self.observation_dict['X_real'].append(clean_observation)
+
+    def change_dynamics(self, sigmas):
+        plant = self.dynamics_func.simulator.plant
+
+        current_l = np.array(self.mpar.l)
+        current_m = np.array(self.mpar.m)
+        current_b = np.array(self.mpar.b)
+        current_cf = np.array(self.mpar.cf)
+
+        plant.l = (current_l + np.random.normal(0.0, sigmas['l'], 2)).tolist()
+        plant.m = (current_m + np.random.normal(0.0, sigmas['m'], 2)).tolist()
+        plant.b = (current_b + np.random.normal(0.0, sigmas['b'], 2)).tolist()
+        plant.cf = (current_cf + np.random.normal(0.0, sigmas['cf'], 2)).tolist()
+
+        self.start_delay = np.abs(np.random.normal(0.0, sigmas['start_delay']))
+        self.delay = np.abs(np.random.normal(0.0, sigmas['delay']))
+
+        self.update_plant()
+
+    def update_plant(self):
+        plant = self.dynamics_func.simulator.plant
+        M = plant.replace_parameters(plant.M)
+        C = plant.replace_parameters(plant.C)
+        G = plant.replace_parameters(plant.G)
+        F = plant.replace_parameters(plant.F)
+        plant.M_la = lambdify(plant.x, M)
+        plant.C_la = lambdify(plant.x, C)
+        plant.G_la = lambdify(plant.x, G)
+        plant.F_la = lambdify(plant.x, F)
 
     def render(self, mode="human"):
         if self.render_mode == "human" and self.step_counter % self.render_every_steps == 0 and len(self.observation_dict['X_meas']) > 1:

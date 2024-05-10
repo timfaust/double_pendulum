@@ -109,5 +109,16 @@ class LSTMSACPolicy(CustomPolicy):
         self.critic.lstm_net = lstm_net
         self.critic_target.lstm_net = lstm_net
 
+    @classmethod
+    def after_environment_reset(cls, environment: GeneralEnv):
+        sigmas = {
+            'l': 0.005,
+            'm': 0.01,
+            'b': 0.001,
+            'cf': 0.1,
+            'start_delay': 0.01,
+            'delay': 0.005,
+        }
+        environment.change_dynamics(sigmas)
 
 
