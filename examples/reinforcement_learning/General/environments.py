@@ -271,18 +271,27 @@ class GeneralEnv(CustomEnv):
     def change_dynamics(self, sigmas):
         plant = self.dynamics_func.simulator.plant
 
-        current_l = np.array(self.mpar.l)
-        current_m = np.array(self.mpar.m)
-        current_b = np.array(self.mpar.b)
-        current_cf = np.array(self.mpar.cf)
+        plant_parameters = {
+            'l': self.mpar.l,
+            'm': self.mpar.m,
+            'b': self.mpar.b,
+            'cf': self.mpar.cf
+        }
 
-        plant.l = (current_l + np.random.normal(0.0, sigmas['l'], 2)).tolist()
-        plant.m = (current_m + np.random.normal(0.0, sigmas['m'], 2)).tolist()
-        plant.b = (current_b + np.random.normal(0.0, sigmas['b'], 2)).tolist()
-        plant.cf = (current_cf + np.random.normal(0.0, sigmas['cf'], 2)).tolist()
+        for key, value in plant_parameters.items():
+            if key in sigmas:
+                setattr(plant, key, np.abs(np.array(value) + np.random.normal(0.0, sigmas[key], 2)).tolist())
 
-        self.start_delay = np.abs(np.random.normal(0.0, sigmas['start_delay']))
-        self.delay = np.abs(np.random.normal(0.0, sigmas['delay']))
+        environment_parameters = [
+            'velocity_noise', 'velocity_bias', 'position_noise', 'position_bias',
+            'action_noise', 'action_bias', 'start_delay', 'delay'
+        ]
+        for param in environment_parameters:
+            if param in sigmas:
+                value = np.random.normal(0.0, sigmas[param])
+                if 'bias' not in param:
+                    value = np.abs(value)
+                setattr(self, param, value)
 
         self.update_plant()
 

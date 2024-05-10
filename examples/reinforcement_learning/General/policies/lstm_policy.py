@@ -109,19 +109,4 @@ class LSTMSACPolicy(CustomPolicy):
         self.critic.lstm_net = lstm_net
         self.critic_target.lstm_net = lstm_net
 
-    @classmethod
-    def after_environment_reset(cls, environment: GeneralEnv):
-        factor = (cls.progress - 0.1)/0.3
-        factor = np.clip(factor, 0, 1)
-
-        sigmas = {
-            'l': 0.01 * factor,
-            'm': 0.02 * factor,
-            'b': 0.002 * factor,
-            'cf': 0.2 * factor,
-            'start_delay': 0.01 * factor,
-            'delay': 0.005 * factor,
-        }
-        environment.change_dynamics(sigmas)
-
 

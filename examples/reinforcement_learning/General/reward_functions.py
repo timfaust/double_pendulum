@@ -50,7 +50,7 @@ def future_pos_reward(observation, action, env_type, dynamic_func, observation_d
     distance = np.linalg.norm(x2 + dt_goal * v2 - goal)
     reward = 1 / (distance + 0.01)
     if distance < threshold_distance:
-        v_total = np.linalg.norm(v1) + np.linalg.norm(v2) + np.linalg.norm(action) + np.linalg.norm(u_p)
+        v_total = np.linalg.norm(v1) + np.linalg.norm(v2) + np.linalg.norm(action) * 10 + np.linalg.norm(u_p)
         reward += 1 / (v_total + 0.001)
     return reward
 

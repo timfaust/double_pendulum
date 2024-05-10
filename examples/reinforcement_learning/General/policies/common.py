@@ -145,5 +145,23 @@ class CustomPolicy(SACPolicy):
 
     @classmethod
     def after_environment_reset(cls, environment: GeneralEnv):
-        pass
+        factor = (cls.progress - 0.1) / 0.3
+        factor = np.clip(factor, 0, 1)
+
+        sigmas = {
+            'l': 0.02 * factor,
+            'm': 0.05 * factor,
+            'b': 0.002 * factor,
+            'cf': 0.2 * factor,
+            'start_delay': 0.05 * factor,
+            'delay': 0.01 * factor,
+            'velocity_noise': 0.005 * factor,
+            'velocity_bias': 0.005 * factor,
+            'position_noise': 0.005 * factor,
+            'position_bias': 0.005 * factor,
+            'action_noise': 0.005 * factor,
+            'action_bias': 0.005 * factor
+        }
+
+        environment.change_dynamics(sigmas)
 
