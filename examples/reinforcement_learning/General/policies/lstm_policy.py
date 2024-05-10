@@ -37,7 +37,7 @@ class LSTMModule(nn.Module):
 class LSTMTranslator(DefaultTranslator):
     def __init__(self):
         self.reset()
-        self.timesteps = 10
+        self.timesteps = 20
         self.observation_dim = 5
         self.lstm_output_dim = 8
         self.lstm_hidden_dim = 64
@@ -109,20 +109,5 @@ class LSTMSACPolicy(CustomPolicy):
         self.critic.lstm_net = lstm_net
         self.critic_target.lstm_net = lstm_net
 
-    @classmethod
-    def after_rollout(cls, envs: List[GeneralEnv], progress, *args, **kwargs):
-        # for env in envs:
-        #     cls.modify_env(env, progress)
-        pass
-
-    @classmethod
-    def modify_env(cls, environment: GeneralEnv, progress):
-        if progress > 0.3:
-            environment.start_delay = 0.1
-            environment.delay = 0.02
-        elif progress > 0.1:
-            factor = (progress - 0.1)/0.2
-            environment.start_delay = 0.1 * factor
-            environment.delay = 0.02 * factor
 
 

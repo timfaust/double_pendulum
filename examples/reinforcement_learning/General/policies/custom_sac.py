@@ -14,8 +14,8 @@ class CustomSAC(SAC):
     # rollout is one step in each environment
     def collect_rollouts(self, *args, **kwargs) -> RolloutReturn:
         result = super().collect_rollouts(*args, **kwargs)
-        policy: CustomPolicy = self.policy
         envs: List[GeneralEnv] = [monitor.env for monitor in args[0].envs]
         progress = self.num_timesteps/envs[0].training_steps
-        policy.after_rollout(envs, progress, *args, **kwargs)
+        self.policy_class.progress = progress
+        self.policy.after_rollout(envs, *args, **kwargs)
         return result

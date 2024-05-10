@@ -121,6 +121,7 @@ class CustomPolicy(SACPolicy):
     critic_class = DefaultCritic
     additional_actor_kwargs = {}
     additional_critic_kwargs = {}
+    progress = 0
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -139,11 +140,10 @@ class CustomPolicy(SACPolicy):
         critic.print_architecture()
         return critic
 
-    @classmethod
-    def after_rollout(cls, envs: List[GeneralEnv], progress, *args, **kwargs):
+    def after_rollout(self, envs: List[GeneralEnv], *args, **kwargs):
         pass
 
     @classmethod
-    def after_reset(cls, environment: GeneralEnv):
+    def after_environment_reset(cls, environment: GeneralEnv):
         pass
 

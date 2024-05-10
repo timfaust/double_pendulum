@@ -22,7 +22,7 @@ class GeneralEnv(CustomEnv):
         self,
         env_type,
         param_name,
-        policy,
+        policy_class,
         seed,
         path="parameters.json",
         is_evaluation_environment=False,
@@ -30,8 +30,8 @@ class GeneralEnv(CustomEnv):
         existing_plant=None
     ):
 
-        self.policy = policy
-        self.translator = policy.actor_class.get_translator()
+        self.policy_class = policy_class
+        self.translator = policy_class.actor_class.get_translator()
         self.seed = seed
         self.is_evaluation_environment = is_evaluation_environment
         self.param_name = param_name
@@ -138,7 +138,7 @@ class GeneralEnv(CustomEnv):
                 self.observation_dict[key].clear()
         self.clean_action_history = np.array([0.0])
         self.visualizer.reset()
-        self.policy.after_reset(self)
+        self.policy_class.after_environment_reset(self)
         self.translator.reset()
 
         clean_observation = np.array(self.reset_function())
@@ -165,7 +165,7 @@ class GeneralEnv(CustomEnv):
                 "is_evaluation_environment": self.is_evaluation_environment,
                 "existing_plant": existing_plant,
                 "seed": self.seed,
-                "policy": self.policy
+                "policy_class": self.policy_class
             },
             monitor_dir=log_dir,
             seed=self.seed
