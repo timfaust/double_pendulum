@@ -41,20 +41,28 @@ class CNNModule(nn.Module):
         self.feature_mapper = nn.Linear(32 * self.timesteps, translator.observation_dim)
         print(self.cnn_layers)
     def forward(self, obs: PyTorchObs) -> th.Tensor:
-        input = obs
         obs_reshaped = obs.view(-1, self.input_features, self.timesteps)  # Verify dimensions order based on your data
 
 
         #cnn_output = self.cnn_layers(obs_reshaped)
         print("Conv1d Layers:")
-        cnn_output_layer1 = self.cnn_layers(obs_reshaped)[0]
+        cnn_output_layer1 = self.cnn_layers[0](obs_reshaped)
         print(cnn_output_layer1.shape)
 
 
-        cnn_output_layer2 = self.cnn_layers(obs_reshaped)[2]
+        cnn_output_layer1 = self.cnn_layers[1](cnn_output_layer1)
 
 
-        mapped_features = self.feature_mapper(cnn_output)
+        cnn_output_layer2 = self.cnn_layers[2](cnn_output_layer1)
+        print(cnn_output_layer2.shape)
+
+        cnn_output_layer2 = self.cnn_layers[3](cnn_output_layer2)
+
+
+        print("Flatten Layer")
+        cnn_output_layer3 = self.cnn_layers[4](cnn_output_layer2)
+        print(cnn_output_layer3.shape)
+        mapped_features = self.feature_mapper(cnn_output_layer3)
         return mapped_features
 
 class CNNTranslator(DefaultTranslator):
