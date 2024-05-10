@@ -3,6 +3,7 @@ import torch
 
 from examples.reinforcement_learning.General.policies.common import CustomPolicy
 from examples.reinforcement_learning.General.policies.lstm_policy import LSTMSACPolicy
+from examples.reinforcement_learning.General.policies.CNN_policies import CNN_SAC_Policy
 from examples.reinforcement_learning.General.policies.past_actions_policy import PastActionsSACPolicy
 from examples.reinforcement_learning.General.reward_functions import *
 from examples.reinforcement_learning.General.trainer import Trainer
@@ -28,7 +29,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     action_noise = OrnsteinUhlenbeckActionNoise(mean=np.array([0.0]), sigma=0.1 * np.ones(1), theta=0.15, dt=1e-2)
-    sac = Trainer(args.name, args.env_type, args.param, LSTMSACPolicy, seed, action_noise)
+    sac = Trainer(args.name, args.env_type, args.param, CNN_SAC_Policy, seed, action_noise)
 
     if args.mode == "train":
         print("training new model")

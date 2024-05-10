@@ -12,6 +12,7 @@ from examples.reinforcement_learning.General.environments import GeneralEnv
 
 
 class DefaultTranslator:
+    """Translate observation into the model state for the Networks"""
     def __init__(self, input_dim: int):
         self.obs_space = gym.spaces.Box(-np.ones(input_dim), np.ones(input_dim))
         self.act_space = gym.spaces.Box(np.array([-1.0]), np.array([1.0]))
