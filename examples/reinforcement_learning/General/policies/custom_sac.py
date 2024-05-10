@@ -19,3 +19,16 @@ class CustomSAC(SAC):
         self.policy_class.progress = progress
         self.policy.after_rollout(envs, *args, **kwargs)
         return result
+
+    def train(self, gradient_steps: int, batch_size: int = 64) -> None:
+        super().train(gradient_steps, batch_size)
+        for name, param in self.actor.named_parameters():
+            if param.grad is not None:
+                self.logger.record(f"actor/grads/{name}", param.grad.norm().item())
+            self.logger.record(f"actor/weights/{name}", param.data.norm().item())
+
+        for name, param in self.critic.named_parameters():
+            if param.grad is not None:
+                self.logger.record(f"critic/grads/{name}", param.grad.norm().item())
+            self.logger.record(f"critic/weights/{name}", param.data.norm().item())
+
