@@ -107,12 +107,12 @@ class CustomPolicy(SACPolicy):
             'cf': 0.2 * factor,
             'start_delay': 0.05 * factor,
             'delay': 0.01 * factor,
-            'velocity_noise': 0.005 * factor,
-            'velocity_bias': 0.005 * factor,
-            'position_noise': 0.005 * factor,
-            'position_bias': 0.005 * factor,
-            'action_noise': 0.005 * factor,
-            'action_bias': 0.005 * factor
+            'velocity_noise': 0.002 * factor,
+            'velocity_bias': 0.001 * factor,
+            'position_noise': 0.002 * factor,
+            'position_bias': 0.001 * factor,
+            'action_noise': 0.0005 * factor,
+            'action_bias': 0.0005 * factor
         }
 
         environment.change_dynamics(sigmas)
