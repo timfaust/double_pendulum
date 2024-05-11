@@ -1,7 +1,10 @@
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
 
 import numpy as np
+from stable_baselines3.common.policies import ContinuousCritic
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from stable_baselines3.common.type_aliases import PyTorchObs
+from stable_baselines3.sac.policies import Actor
 from torch import nn
 import torch as th
 from examples.reinforcement_learning.General.environments import GeneralEnv
@@ -93,20 +96,35 @@ class LSTMSACPolicy(CustomPolicy):
     critic_class = LSTMCritic
 
     def __init__(self, *args, **kwargs):
-        translator = self.actor_class.get_translator()
-        lstm_input_dim = translator.observation_dim
-        lstm_output_dim = translator.lstm_output_dim
+        self.translator = self.actor_class.get_translator()
+        lstm_input_dim = self.translator.observation_dim
+        lstm_output_dim = self.translator.lstm_output_dim
 
-        self.additional_actor_kwargs['net_arch'] = translator.net_arch
+        self.additional_actor_kwargs['net_arch'] = self.translator.net_arch
         self.additional_actor_kwargs['features_dim'] = lstm_output_dim + lstm_input_dim
-        self.additional_critic_kwargs['net_arch'] = translator.net_arch
+        self.additional_critic_kwargs['net_arch'] = self.translator.net_arch
         self.additional_critic_kwargs['features_dim'] = lstm_output_dim + lstm_input_dim
+        self.lstm_net = None
 
         super().__init__(*args, **kwargs)
 
-        lstm_net = LSTMModule(translator)
-        self.actor.lstm_net = lstm_net
-        self.critic.lstm_net = lstm_net
-        self.critic_target.lstm_net = lstm_net
+        self.critic.lstm_net = self.get_lstm_net()
+        self.critic.add_module(f"lstm_net", self.critic.lstm_net)
+        self.critic_target.lstm_net = self.get_lstm_net()
+        self.critic_target.add_module(f"lstm_net", self.critic_target.lstm_net)
+
+    def make_actor(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> Actor:
+        actor = super().make_actor(features_extractor)
+        actor.lstm_net = self.get_lstm_net()
+        return actor
+
+    def get_lstm_net(self) -> LSTMModule:
+        if self.lstm_net is None:
+            self.lstm_net = LSTMModule(self.translator)
+        return self.lstm_net
+
+    def after_train(self):
+        pass
+
 
 

@@ -22,6 +22,7 @@ class CustomSAC(SAC):
 
     def train(self, gradient_steps: int, batch_size: int = 64) -> None:
         super().train(gradient_steps, batch_size)
+        self.policy.after_train()
         for name, param in self.actor.named_parameters():
             if param.grad is not None:
                 self.logger.record(f"actor/grads/{name}", param.grad.norm().item())
