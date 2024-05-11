@@ -205,7 +205,7 @@ class GeneralEnv(CustomEnv):
     def get_dirty_action(self, clean_action):
         self.clean_action_history = np.append(self.clean_action_history, clean_action)
         dirty_action = self.find_delay_action()
-        dirty_action += np.random.normal(0, self.action_noise)
+        dirty_action += np.random.normal(self.action_bias, self.action_noise)
         return dirty_action
 
     def get_last_clean_observation(self):
