@@ -48,6 +48,7 @@
 
       "learning_rate": 0.001,
       "gradient_steps": 3,
+      "buffer_size": 1000000,
       "max_episode_steps": 1000,
       "training_steps": 10000000,
       "use_action_noise": 1,

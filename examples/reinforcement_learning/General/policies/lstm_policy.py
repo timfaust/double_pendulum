@@ -9,6 +9,7 @@ from torch import nn
 import torch as th
 from examples.reinforcement_learning.General.environments import GeneralEnv
 from examples.reinforcement_learning.General.policies.common import DefaultTranslator, DefaultActor, CustomPolicy, DefaultCritic
+import torch.nn.functional as F
 
 
 class LSTMModule(nn.Module):
@@ -17,6 +18,7 @@ class LSTMModule(nn.Module):
         self.input_features = translator.observation_dim
         self.timesteps = translator.timesteps
         self.observation_dim = translator.observation_dim
+        self.frozen = False
 
         self.lstm = nn.LSTM(
             input_size=self.input_features,
@@ -24,7 +26,20 @@ class LSTMModule(nn.Module):
             num_layers=translator.num_layers,
             batch_first=True
         )
+        self.activation = nn.Tanh()
         self.feature_mapper = nn.Linear(translator.lstm_hidden_dim, translator.lstm_output_dim)
+
+    def freeze(self):
+        if not self.frozen:
+            for param in self.parameters():
+                param.requires_grad = False
+            self.frozen = True
+
+    def unfreeze(self):
+        if self.frozen:
+            for param in self.parameters():
+                param.requires_grad = True
+            self.frozen = False
 
     def forward(self, obs: PyTorchObs) -> th.Tensor:
         obs_reshaped = obs.view(-1, self.timesteps, self.observation_dim)
@@ -32,8 +47,10 @@ class LSTMModule(nn.Module):
         outputs, (hidden, cell) = lstm_output
         lstm_last_timestep = hidden[-1]
         mapped_features = self.feature_mapper(lstm_last_timestep)
+
+        full_model_output = self.activation(mapped_features)
         original_features = obs_reshaped[:, -1, :]
-        combined_features = th.cat((original_features, mapped_features), dim=1)
+        combined_features = th.cat((original_features, full_model_output), dim=1)
         return combined_features
 
 
@@ -59,7 +76,7 @@ class LSTMTranslator(DefaultTranslator):
         output = lstm_memory
         if output.shape[0] < self.timesteps:
             repeat_count = self.timesteps - output.shape[0]
-            output = np.vstack((np.tile(output[0], (repeat_count, 1)), output))
+            output = np.vstack((np.tile(np.zeros(output.shape[1]), (repeat_count, 1)), output))
 
         output = np.concatenate(output)
         return output
@@ -125,6 +142,5 @@ class LSTMSACPolicy(CustomPolicy):
 
     def after_train(self):
         pass
-
-
-
+        # if self.progress > 0.1:
+        #     self.lstm_net.unfreeze()

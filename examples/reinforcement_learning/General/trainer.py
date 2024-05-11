@@ -129,7 +129,7 @@ class Trainer:
         callback_list = self.get_callback_list()
 
         # keys which can be replaced from param
-        valid_keys = ['gradient_steps', 'ent_coef', 'learning_rate', 'qf_learning_rate']
+        valid_keys = ['gradient_steps', 'ent_coef', 'learning_rate', 'qf_learning_rate', 'batch_size', 'buffer_size']
         filtered_data = {key: value for key, value in self.environment.param_data.items() if key in valid_keys}
 
         agent = CustomSAC(
