@@ -66,7 +66,7 @@ class GeneralEnv(CustomEnv):
         self.initialize_disturbances()
 
         self.mpar = load_param(self.env_type, self.param_data["max_torque"])
-        self.observation_dict = {"T": [], 'X_meas': [], 'X_real': [], 'U_con': [], 'U_meas': [], "push": [], "max_episode_steps": self.max_episode_steps, "current_force": []}
+        self.observation_dict = {"T": [], 'X_meas': [], 'X_real': [], 'U_con': [], 'U_meas': [], 'reward': [], "push": [], "max_episode_steps": self.max_episode_steps, "current_force": []}
         self.render_mode = "None"
         self.visualizer = Visualizer(self.env_type, self.observation_dict)
 
@@ -146,6 +146,7 @@ class GeneralEnv(CustomEnv):
         clean_observation = np.array(self.reset_function())
         dirty_observation = self.apply_observation_disturbances(clean_observation)
         self.append_observation_dict(clean_observation, dirty_observation, 0.0, 0.0)
+        self.observation_dict['reward'].append(0.0)
         state = self.translator.build_state(dirty_observation, 0.0)
 
         return state
@@ -236,6 +237,7 @@ class GeneralEnv(CustomEnv):
         self.observation = new_state
 
         reward = self.get_reward(dirty_observation, clean_action)
+        self.observation_dict['reward'].append(reward)
         terminated = self.terminated_func(self.observation_dict['dynamics_func'].unscale_state(self.observation_dict['X_meas'][-1]))
         truncated = self.check_episode_end()
 
@@ -256,7 +258,7 @@ class GeneralEnv(CustomEnv):
         if self.reward_name == "saturated_distance_from_target":
             return self.reward_func(new_observation, action, self.observation_dict)
         else:
-            return self.reward_func(new_observation, action, self.observation_dict) / self.max_episode_steps
+            return self.reward_func(new_observation, action, self.observation_dict)  # / self.max_episode_steps
 
     def append_observation_dict(self, clean_observation, dirty_observation, clean_action: float, dirty_action: float):
         time = 0

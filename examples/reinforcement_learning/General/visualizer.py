@@ -51,10 +51,12 @@ class Visualizer:
 
         dirty_actions = self.observation_dict['U_meas']
         clean_actions = self.observation_dict['U_con']
+        reward = [x - 1 for x in self.observation_dict['reward']]
 
         graphs = [
             (dirty_actions, (255, 0, 0)),
-            (clean_actions, (0, 0, 255))
+            (clean_actions, (0, 0, 255)),
+            (reward, (0, 255, 0))
         ]
 
         for (graph, color) in graphs:
@@ -96,20 +98,17 @@ class Visualizer:
         v1_total = np.linalg.norm(v1)
         v2_total = np.linalg.norm(v2)
 
-        x_1 = y[0]
-        x_2 = y[1]
-
         metrics = {
             'acc_reward': np.round(self.acc_reward_visualization, 5),
             'reward': np.round(self.reward_visualization, 5),
             'step_counter': len(self.observation_dict['T']) - 1,
-            'x_1': round(x_1, 4),
-            'x_2': round(x_2, 4),
+            'x_1': round(y[0]/(2 * np.pi), 4),
+            'x_2': round(y[1]/(2 * np.pi), 4),
             # 'distance': round(distance, 4),
             'distance_next': round(distance_next, 4),
-            # 'v1_total': round(v1_total, 4),
-            # 'v2_total': round(v2_total, 4),
-            # 'action': round(action, 4)
+            'v_1': round(y[2]/20, 4),
+            'v_2': round(y[3]/20, 4),
+            'action': round(action/5, 4)
         }
 
         return x1, x2, x3, goal, threshold, metrics
