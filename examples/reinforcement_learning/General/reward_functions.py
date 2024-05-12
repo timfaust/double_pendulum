@@ -1,5 +1,7 @@
 import numpy as np
 from double_pendulum.utils.wrap_angles import wrap_angles_diff
+
+from examples.reinforcement_learning.General.misc_helper import punish_limit
 from examples.reinforcement_learning.General.score import get_score
 
 
@@ -52,7 +54,7 @@ def future_pos_reward(observation, action, env_type, dynamic_func, observation_d
     if distance < threshold_distance:
         v_total = np.linalg.norm(v1) + np.linalg.norm(v2) + np.linalg.norm(action) * 10 + np.linalg.norm(u_p)
         reward += 1 / (v_total + 0.001)
-    return reward
+    return reward * punish_limit(y, observation_dict['dynamics_func'])
 
 
 def pos_reward(observation, action, env_type, dynamic_func, observation_dict):

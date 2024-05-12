@@ -73,7 +73,7 @@ class GeneralEnv(CustomEnv):
         super().__init__(
             dynamics_function,
             self.reward_function,
-            kill_switch,
+            lambda observation: kill_switch(observation, dynamics_function),
             self.custom_reset,
             self.translator.obs_space,
             self.translator.act_space,
