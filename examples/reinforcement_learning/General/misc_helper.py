@@ -60,22 +60,22 @@ def no_termination(observation):
     return False
 
 
-def punish_limit(observation, dynamics_function, k=2):
-    angle_threshold = dynamics_function.max_angle
+def punish_limit(observation, dynamics_function, k=20):
+    angle_threshold = dynamics_function.max_angle * 0.95
     velocity_threshold = dynamics_function.max_velocity
 
-    angle_max = np.max(np.abs(observation[:2]))
-    if angle_max >= angle_threshold:
+    angle_max = np.max(np.abs(observation[:2]))/angle_threshold
+    if angle_max > 1:
         return 0
-    velocity_max = np.max(np.abs(observation[2:4]))
-    if velocity_max >= velocity_threshold:
+    velocity_max = np.max(np.abs(observation[2:4]))/velocity_threshold
+    if velocity_max > 1:
         return 0
-    angle_factor = np.exp(-k * np.abs(angle_max - angle_threshold))
-    velocity_factor = np.exp(-k * np.abs(velocity_max - velocity_threshold))
+    angle_factor = 1 - np.exp(-k * np.abs(angle_max - 1))
+    velocity_factor = 1 - np.exp(-k * np.abs(velocity_max - 1))
     return min(angle_factor, velocity_factor)
 
 
 def kill_switch(observation, dynamics_func):
-    if punish_limit(observation, dynamics_func, 1) > 0:
+    if punish_limit(observation, dynamics_func) > 0:
         return False
     return True
