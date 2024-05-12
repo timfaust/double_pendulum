@@ -60,7 +60,7 @@ def no_termination(observation):
     return False
 
 
-def punish_limit(observation, dynamics_function, k=20):
+def punish_limit(observation, dynamics_function, k=10):
     angle_threshold = dynamics_function.max_angle * 0.95
     velocity_threshold = dynamics_function.max_velocity
 
