@@ -95,6 +95,9 @@ class CustomPolicy(SACPolicy):
     def after_train(self):
         pass
 
+    def after_actor_backward(self):
+        pass
+
     @classmethod
     def after_environment_reset(cls, environment: GeneralEnv):
         factor = (cls.progress - 0.1) / 0.3
