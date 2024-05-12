@@ -180,12 +180,16 @@ def general_dynamics(robot, plant, dt, max_torque, class_obj):
 
 class custom_dynamics_func_4PI(double_pendulum_dynamics_func):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.max_angle = 2 * np.pi
+
     def unscale_state(self, observation):
         if self.state_representation == 2:
             x = np.array(
                 [
-                    observation[0] * 2 * np.pi + np.pi,
-                    observation[1] * 2 * np.pi,
+                    observation[0] * self.max_angle + np.pi,
+                    observation[1] * self.max_angle,
                     observation[2] * self.max_velocity,
                     observation[3] * self.max_velocity,
                 ]
@@ -198,8 +202,8 @@ class custom_dynamics_func_4PI(double_pendulum_dynamics_func):
         if self.state_representation == 2:
             observation = np.array(
                 [
-                    ((state[0] + np.pi) % (4 * np.pi) - 2 * np.pi) / (2 * np.pi),
-                    ((state[1] + 2 * np.pi) % (4 * np.pi) - 2 * np.pi) / (2 * np.pi),
+                    ((state[0] + np.pi) % (2 * self.max_angle) - self.max_angle) / self.max_angle,
+                    ((state[1] + self.max_angle) % (2 * self.max_angle) - self.max_angle) / self.max_angle,
                     np.clip(state[2], -self.max_velocity, self.max_velocity)
                     / self.max_velocity,
                     np.clip(state[3], -self.max_velocity, self.max_velocity)
