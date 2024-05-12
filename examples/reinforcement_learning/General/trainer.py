@@ -1,3 +1,4 @@
+import ast
 import json
 import os
 import re
@@ -129,9 +130,10 @@ class Trainer:
         callback_list = self.get_callback_list()
 
         # keys which can be replaced from param
-        valid_keys = ['gradient_steps', 'ent_coef', 'learning_rate', 'qf_learning_rate', 'batch_size', 'buffer_size']
+        valid_keys = ['gradient_steps', 'ent_coef', 'learning_rate', 'qf_learning_rate', 'batch_size', 'buffer_size', 'target_update_interval', 'train_freq']
         filtered_data = {key: value for key, value in self.environment.param_data.items() if key in valid_keys}
-
+        if 'train_freq' in filtered_data and "'" in filtered_data['train_freq']:
+            filtered_data['train_freq'] = ast.literal_eval(filtered_data['train_freq'])
         agent = CustomSAC(
             self.policy,
             envs,
@@ -140,8 +142,6 @@ class Trainer:
             seed=self.environment.seed,
             **filtered_data
         )
-
-        self.load_custom_params(agent)
 
         agent.learn(self.training_steps, callback=callback_list)
         agent.save(os.path.join(self.log_dir, "saved_model", "trained_model"))
@@ -156,7 +156,6 @@ class Trainer:
         envs = self.environment.get_envs(log_dir=self.log_dir)
 
         agent = CustomSAC.load(self.log_dir + model_path, print_system_info=True)
-        self.load_custom_params(agent)
         agent.set_env(envs)
 
         callback_list = self.get_callback_list()
@@ -177,7 +176,6 @@ class Trainer:
             raise Exception("model not found")
 
         agent = CustomSAC.load(self.log_dir + model_path, print_system_info=True)
-        self.load_custom_params(agent)
 
         eval_envs = self.get_eval_envs()
 
@@ -265,11 +263,6 @@ class Trainer:
         model_path = self.log_dir + model_path
         controller = GeneralController(self.environment, model_path)
         return controller
-
-    def load_custom_params(self, agent):
-        for key in self.environment.param_data:
-            if hasattr(agent, key):
-                setattr(agent, key, self.environment.param_data[key])
 
 
 class GeneralController(AbstractController):
