@@ -144,7 +144,9 @@ class LSTMSACPolicy(CustomPolicy):
         pass
 
     def after_actor_backward(self):
-        th.nn.utils.clip_grad_norm_(self.actor.parameters(), max_norm=1.0)
+        # th.nn.utils.clip_grad_norm_(self.actor.parameters(), max_norm=1.0)
+        pass
 
     def after_critic_backward(self):
-        th.nn.utils.clip_grad_norm_(self.critic.parameters(), max_norm=1.0)
+        # th.nn.utils.clip_grad_norm_(self.critic.parameters(), max_norm=1.0)
+        pass
