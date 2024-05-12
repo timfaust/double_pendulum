@@ -142,5 +142,9 @@ class LSTMSACPolicy(CustomPolicy):
 
     def after_train(self):
         pass
-        # if self.progress > 0.1:
-        #     self.lstm_net.unfreeze()
+
+    def after_actor_backward(self):
+        th.nn.utils.clip_grad_norm_(self.actor.parameters(), max_norm=1.0)
+
+    def after_critic_backward(self):
+        th.nn.utils.clip_grad_norm_(self.critic.parameters(), max_norm=1.0)

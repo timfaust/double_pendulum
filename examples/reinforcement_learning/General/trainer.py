@@ -132,8 +132,9 @@ class Trainer:
         # keys which can be replaced from param
         valid_keys = ['gradient_steps', 'ent_coef', 'learning_rate', 'qf_learning_rate', 'batch_size', 'buffer_size', 'target_update_interval', 'train_freq']
         filtered_data = {key: value for key, value in self.environment.param_data.items() if key in valid_keys}
-        if 'train_freq' in filtered_data and "'" in filtered_data['train_freq']:
+        if isinstance(filtered_data['train_freq'], str) and "'" in filtered_data['train_freq']:
             filtered_data['train_freq'] = ast.literal_eval(filtered_data['train_freq'])
+
         agent = CustomSAC(
             self.policy,
             envs,

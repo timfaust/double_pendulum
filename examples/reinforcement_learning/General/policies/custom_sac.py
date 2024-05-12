@@ -93,6 +93,7 @@ class CustomSAC(SAC):
             # Optimize the critic
             self.critic.optimizer.zero_grad()
             critic_loss.backward()
+            self.policy.after_critic_backward()
             self.critic.optimizer.step()
 
             # Compute actor loss
