@@ -59,8 +59,8 @@ def future_pos_reward(observation, action, env_type, dynamic_func, observation_d
     reward = get_i_decay(distance, 100)
     # reward = get_e_decay(distance, 1)
     if distance < threshold_distance:
-        abstract_distance = np.linalg.norm(v1) + np.linalg.norm(v2) + np.linalg.norm(action) + np.linalg.norm(u_p)/10
-        reward += get_i_decay(abstract_distance, 1000)
+        abstract_distance = np.linalg.norm(v1) + np.linalg.norm(v2)# + np.linalg.norm(action) + np.linalg.norm(u_p)/10
+        reward += get_i_decay(abstract_distance, 500)
         # reward += get_e_decay(abstract_distance, 10)
     return reward * punish_limit(y, observation_dict['dynamics_func'])
 
