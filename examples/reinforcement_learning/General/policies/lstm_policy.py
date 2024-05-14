@@ -49,19 +49,19 @@ class LSTMModule(nn.Module):
         mapped_features = self.feature_mapper(lstm_last_timestep)
 
         full_model_output = self.activation(mapped_features)
-        original_features = obs_reshaped[:, -1, :]
-        combined_features = th.cat((original_features, full_model_output), dim=1)
-        return combined_features
+        # original_features = obs_reshaped[:, -1, :]
+        # combined_features = th.cat((original_features, full_model_output), dim=1)
+        return full_model_output
 
 
 class LSTMTranslator(DefaultTranslator):
     def __init__(self):
         self.reset()
-        self.timesteps = 20
+        self.timesteps = 200
         self.observation_dim = 5
         self.lstm_output_dim = 8
         self.lstm_hidden_dim = 64
-        self.num_layers = 1
+        self.num_layers = 2
         self.net_arch = [256, 256]
 
         super().__init__(self.timesteps * self.observation_dim)
@@ -118,9 +118,9 @@ class LSTMSACPolicy(CustomPolicy):
         lstm_output_dim = self.translator.lstm_output_dim
 
         self.additional_actor_kwargs['net_arch'] = self.translator.net_arch
-        self.additional_actor_kwargs['features_dim'] = lstm_output_dim + lstm_input_dim
+        self.additional_actor_kwargs['features_dim'] = lstm_output_dim  # + lstm_input_dim
         self.additional_critic_kwargs['net_arch'] = self.translator.net_arch
-        self.additional_critic_kwargs['features_dim'] = lstm_output_dim + lstm_input_dim
+        self.additional_critic_kwargs['features_dim'] = lstm_output_dim  # + lstm_input_dim
         self.lstm_net = None
 
         super().__init__(*args, **kwargs)

@@ -51,7 +51,7 @@
       "buffer_size": 1000000,
       "train_freq": 1,
       "target_update_interval": 1,
-      "max_episode_steps": 1000,
+      "max_episode_steps": 400,
       "training_steps": 10000000,
       "use_action_noise": 1,
       "eval_freq": 50000,
