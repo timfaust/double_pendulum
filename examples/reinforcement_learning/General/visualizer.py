@@ -46,12 +46,12 @@ class Visualizer:
     def draw_graph(self, canvas):
         # Basis-Einstellungen für den Graphen
         graph_x, graph_y, graph_width, graph_height = self.window_width, 0, self.full_window_width, self.window_height
-        max_value = 1
-        min_value = -1
+        max_value = 1.1
+        min_value = -1.1
 
         dirty_actions = self.observation_dict['U_meas']
         clean_actions = self.observation_dict['U_con']
-        reward = [2 * x/400.0 - 1 for x in self.observation_dict['reward']]
+        reward = [x - 1 for x in self.observation_dict['reward']]
 
         graphs = [
             (dirty_actions, (255, 0, 0)),

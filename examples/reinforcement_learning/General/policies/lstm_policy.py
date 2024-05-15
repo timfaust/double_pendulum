@@ -57,7 +57,7 @@ class LSTMModule(nn.Module):
 class LSTMTranslator(DefaultTranslator):
     def __init__(self):
         self.reset()
-        self.timesteps = 200
+        self.timesteps = 100
         self.observation_dim = 5
         self.lstm_output_dim = 8
         self.lstm_hidden_dim = 32
