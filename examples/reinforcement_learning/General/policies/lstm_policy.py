@@ -60,7 +60,7 @@ class LSTMTranslator(DefaultTranslator):
         self.timesteps = 100
         self.observation_dim = 5
         self.lstm_output_dim = 8
-        self.lstm_hidden_dim = 32
+        self.lstm_hidden_dim = 64
         self.num_layers = 2
         self.net_arch = [256, 256]
 
