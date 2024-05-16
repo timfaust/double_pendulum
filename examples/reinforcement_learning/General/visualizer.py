@@ -78,8 +78,8 @@ class Visualizer:
         pygame.draw.rect(canvas, (240, 240, 240), (self.window_width, 0, self.full_window_width, self.window_height))
 
         self.draw_grid(canvas)
-        self.draw_pendulum(canvas, x1, x2)
         self.draw_goals(canvas, goal, threshold, x3)
+        self.draw_pendulum(canvas, x1, x2)
 
         return metrics
 
@@ -94,7 +94,7 @@ class Visualizer:
         x3 = x2 + dt * v2
 
         distance = np.linalg.norm(x2 - goal)
-        distance_next = np.linalg.norm(x3 - goal)
+        distance_next = (x3 - goal)[1]
         v1_total = np.linalg.norm(v1)
         v2_total = np.linalg.norm(v2)
 
@@ -121,9 +121,8 @@ class Visualizer:
         pygame.draw.circle(canvas, (60, 60, 230), self.getXY(x2), 5)
 
     def draw_goals(self, canvas, goal, threshold, x3):
-        pygame.draw.circle(canvas, (255, 200, 200), self.getXY(goal), threshold * 4 * self.pendulum_length_visualization)
-        pygame.draw.circle(canvas, (255, 50, 50), self.getXY(goal), threshold * 2 * self.pendulum_length_visualization)
-        pygame.draw.circle(canvas, (95, 2, 99), self.getXY(x3), threshold * 2 * self.pendulum_length_visualization)
+        pygame.draw.line(canvas, (255, 50, 50), self.getXY(np.array([-0.5, goal[1] + threshold])), self.getXY(np.array([0.5, goal[1] + threshold])), 3)
+        pygame.draw.circle(canvas, (95, 2, 99), self.getXY(x3), 5)
 
     def blit_texts(self, canvas, metrics):
         myFont = pygame.font.SysFont("Arial", 28)
