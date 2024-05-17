@@ -157,42 +157,62 @@ class Trainer:
         else:
             return CallbackList([eval_callback, checkpoint_callback])
 
-    def simulate(self, model_path="/best_model/best_model", tf=10.0, fine_tune=False, train_freq=50):
+    def simulate(self, model_path="/best_model/best_model", tf=10.0, fine_tune=False, train_freq=50, training_steps=100):
         model_path = self.log_dir + model_path
-        model = SAC.load(model_path, print_system_info=True)
-
-        callbacks = self.get_callback_list()
-        env = self.eval_environment
-        eval_env = None
+        self.show_progressBar = False
+        steps = 1
 
         if fine_tune:
             fine_tune_env = FineTuneEnv(self.robot, self.seed, self.data["train_env"], self.data)
-            envs = fine_tune_env.get_envs(log_dir=self.log_dir)
-            self.load_custom_params(model)
-            model.set_env(envs)
+            fine_tune_env.render_mode = 'human'
+
             env = fine_tune_env
             eval_env = FineTuneEnv(self.robot, self.seed, self.data["eval_env"], self.data)
             eval_env.render_mode = 'human'
 
-        controller = GeneralController(env, model, self.robot, callbacks=callbacks, fine_tune=fine_tune, train_freq=train_freq, eval_env=eval_env)
+            window_size = fine_tune_env.window_size
+
+            screen = pygame.display.set_mode((window_size * 2, window_size))
+            fine_tune_env.window = screen
+            eval_env.window = screen
+            eval_env.pos_x = window_size
+            eval_env.name = "Eval_env"
+
+            model = SAC.load(model_path, print_system_info=True, env=fine_tune_env)
+            self.load_custom_params(model)
+            steps = training_steps
+        else:
+            self.get_callback_list()
+            env = self.environment
+            eval_env = None
+            model = SAC.load(model_path, print_system_info=True)
+
+        controller = GeneralController(env, model, self.robot, callbacks=None, fine_tune=fine_tune, train_freq=train_freq, eval_env=eval_env)
         controller.init()
-        controller.simulation.set_state(0, [0, 0, 0, 0])
+        best_model_reward = 0
+        for i in range(steps):
+            controller.reset()
 
-        T, X, U = controller.simulation.simulate_and_animate(
-            t0=0.0,
-            x0=[0.0, 0.0, 0.0, 0.0],
-            tf=tf,
-            dt=controller.dt,
-            controller=controller,
-            integrator=controller.integrator,
-            save_video=False,
-            video_name=os.path.join(self.log_dir, "sim_video.gif"),
-            scale=0.25
-        )
+            T, X, U = controller.simulation.simulate_and_animate(
+                t0=0.0,
+                x0=[0.0, 0.0, 0.0, 0.0],
+                tf=tf,
+                dt=controller.dt,
+                controller=controller,
+                integrator=controller.integrator,
+                save_video=True,
+                video_name=os.path.join(self.log_dir, "sim_video.gif"),
+                scale=0.25
+            )
 
-        if fine_tune:
-            model.train(model.gradient_steps, model.batch_size)
-            model.save(os.path.join(self.log_dir, "saved_model", "fine_tuned_model"))
+            if fine_tune:
+                mean_reward = controller.finish_training()
+                save_path = "fine_tuned_model_" + str(i + 1)
+                model.save(os.path.join(self.log_dir, "saved_model", save_path))
+                if mean_reward > best_model_reward:
+                    model.save(os.path.join(self.log_dir, "best_model", "best_fine_tuned_model"))
+                    best_model_reward = mean_reward
+
 
         save_trajectory(os.path.join(self.log_dir, "sim_swingup.csv"), T=T, X_meas=X, U_con=U)
 

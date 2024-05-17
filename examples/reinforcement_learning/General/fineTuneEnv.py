@@ -13,7 +13,7 @@ from double_pendulum.simulation.simulation import Simulator
 
 
 class FineTuneEnv(CustomEnv):
-    metadata = {"render_modes": ["human"], "render_fps": 120}
+    metadata = {"render_modes": ["human"], "render_fps": 30}
 
     def __init__(
             self,
@@ -59,12 +59,14 @@ class FineTuneEnv(CustomEnv):
         self.window_size = 800
         self.pendulum_length = 350
         self.render_mode = "None"
+        self.name = "Train-env"
         self.window = None
         self.clock = None
         self.reward = 0
         self.acc_reward = 0
         self.step_counter = 0
-        self.action = np.array([0, 0])
+        self.action = np.array([0])
+        self.pos_x = 0
 
         if not self.actions_in_state:
             obs_space = gym.spaces.Box(np.array([-1.0, -1.0, -1.0, -1.0]), np.array([1.0, 1.0, 1.0, 1.0]))
@@ -90,6 +92,12 @@ class FineTuneEnv(CustomEnv):
 
     def custom_reset(self):
         observation = self.reset_function()
+        self.reward = 0
+        self.acc_reward = 0
+        self.step_counter = 0
+        self.action = np.array([0])
+        self.dynamics_func.simulator.set_state(0, [0, 0, 0, 0])
+        self.dynamics_func.simulator.reset()
         if self.actions_in_state:
             observation = np.append(observation, np.zeros(2))
         return observation
@@ -149,6 +157,9 @@ class FineTuneEnv(CustomEnv):
             self.observation[-1] = last_actions[0]
             self.observation[-2] = action[0]
 
+        if self.render_mode == "human":
+            self.action = action
+            self.step_counter += 1
         return self.observation, reward, terminated, truncated, info
 
     def getXY(self, point):
@@ -171,9 +182,13 @@ class FineTuneEnv(CustomEnv):
         y, x1, x2, v1, v2, action, goal, dt, threshold, u_p, u_pp = get_state_values(self.observation, self.action,
                                                                                      self.robot, self.dynamics_func)
         canvas.fill((255, 255, 255))
+        distance = np.linalg.norm(x2 - goal)
+        if distance < threshold:
+            canvas.fill((184, 255, 191))
 
         pygame.draw.line(canvas, (0, 0, 0), self.getXY(np.array([0, 0])), self.getXY(x1), 5)
         pygame.draw.line(canvas, (0, 0, 0), self.getXY(x1), self.getXY(x2), 5)
+        pygame.draw.line(canvas, (0, 0, 0), (self.window_size, self.window_size), (self.window_size, 0), 5)
 
         pygame.draw.circle(canvas, (60, 60, 230), self.getXY(np.array([0, 0])), 10)
         pygame.draw.circle(canvas, (60, 60, 230), self.getXY(x1), 10)
@@ -183,11 +198,12 @@ class FineTuneEnv(CustomEnv):
 
         myFont = pygame.font.SysFont("Times New Roman", 36)
 
+        canvas.blit(myFont.render(self.name, 1, (0, 0, 0), ), (10, self.window_size - 120))
         canvas.blit(myFont.render(str(self.step_counter), 1, (0, 0, 0), ), (10, self.window_size - 80))
         canvas.blit(myFont.render(str(round(self.action[0], 4)), 1, (0, 0, 0), ), (10, self.window_size - 40))
 
         if self.render_mode == "human":
-            self.window.blit(canvas, canvas.get_rect())
+            self.window.blit(canvas, (self.pos_x, 0))
             pygame.event.pump()
             pygame.display.update()
             self.clock.tick(self.metadata["render_fps"])

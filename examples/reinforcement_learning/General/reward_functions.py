@@ -147,7 +147,6 @@ def get_state_values(observation, action, robot, dynamic_func):
     if len(observation) > 4:
         u_p = (action - observation[-2]) / dt
         u_pp = (action - 2 * observation[-2] + observation[-1])/(dt * dt)
-
     return s, x1, x2, v1, v2, action * torque_limit, goal, dt_goal, threshold_distance, u_p * torque_limit, u_pp * torque_limit
 
 

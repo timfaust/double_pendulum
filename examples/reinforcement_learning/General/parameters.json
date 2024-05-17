@@ -208,7 +208,7 @@
     },
   "real_robot_1": {
         "train_env": {
-            "dynamics_function": "random_dynamics",
+            "dynamics_function": "fine_tune_dynamics",
             "reset_function": "low_reset",
             "reward_function": "saturated_distance_from_target",
             "same_env": 0,

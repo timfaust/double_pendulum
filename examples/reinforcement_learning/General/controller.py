@@ -3,7 +3,7 @@ import numpy as np
 from sbx.sac.sac import SAC
 from stable_baselines3.common.vec_env import VecEnv
 from stable_baselines3.common.type_aliases import TrainFreq, TrainFrequencyUnit
-from double_pendulum.utils.wrap_angles import wrap_angles_diff
+import pygame
 
 class GeneralController(AbstractController):
     def __init__(self, environment, model: SAC, robot, eval_env=None, callbacks=None, fine_tune=False, train_freq=100):
@@ -25,19 +25,38 @@ class GeneralController(AbstractController):
         self.train_every_n_step = train_freq
         self.actions = [0]
         self.buffer_actions = [0]
-        self.action = [0]
+        self.action = 0
         self.rewards = []
         self.eval_env = eval_env
+        self.window_size = 800
 
         if self.fine_tune:
             total_timesteps, callback = self.model._setup_learn(
                 1,
-                None,
+                callbacks,
                 True,
                 "run",
                 False,
             )
             self.model.replay_buffer.reset()
+
+            pygame.init()
+
+            if not self.callbacks is None:
+                self.callbacks.on_training_start(locals(), globals())
+
+    def reset(self):
+        self.simulation.set_state(0, [0, 0, 0, 0])
+        self.simulation.reset()
+        self.actions = [0]
+        self.action = np.array([0])
+        self.buffer_actions = [0]
+        self.last_actions = [0, 0]
+        self.steps = 0
+        self.rewards.clear()
+        if self.fine_tune:
+            self.eval_env.reset()
+            self.model.env.reset()
 
     def get_control_output_(self, x, t=None):
         if self.actions_in_state:
@@ -59,28 +78,25 @@ class GeneralController(AbstractController):
                     self.finish_last_rollaout(actions=self.actions, buffer_actions=self.buffer_actions,
                                             env=self.model.get_env(),
                                             action_noise=self.model.action_noise,
-                                            callback=None,
+                                            callback=self.callbacks,
                                             learning_starts=self.model.learning_starts,
                                             replay_buffer=self.model.replay_buffer,
                                             log_interval=4)
 
                     if self.steps % (self.train_every_n_step) == 0:
                         self.model.train(self.model.gradient_steps, self.model.batch_size)
-                        print("mean reward:", np.mean(self.rewards))
-                        self.rewards.clear()
-                        print("n_steps:", self.steps)
 
                 self.collect_rollout(env=self.model.env,
                                                 train_freq=self.model.train_freq,
-                                                callback=None)
+                                                callback=self.callbacks)
 
-                action, _ = self.model.predict(obs, deterministic=True)
+                action, _ = self.model.predict(obs, deterministic=False)
                 self.action = self.adjust_action(obs, eval_obs)
-                action = np.clip(action, -1, 1)
+
                 self.eval_env.render()
+                self.model.env.render()
 
                 self.actions, self.buffer_actions = self._sample_action(action=action, n_envs=self.model.env.num_envs)
-                # self.action = action
 
                 self.steps += 1
             else:
@@ -100,6 +116,13 @@ class GeneralController(AbstractController):
                 self.last_actions[-2] = 0
         return u
 
+    def finish_training(self):
+        self.model.train(self.model.gradient_steps, self.model.batch_size)
+        mean_reward = np.mean(self.rewards)
+        print("mean reward:", mean_reward)
+        self.rewards.clear()
+        print("n_steps:", self.steps)
+        return mean_reward
     def adjust_action(self, obs, eval_obs):
         """
         diff = eval_obs[:4] - obs[:4]
@@ -112,14 +135,8 @@ class GeneralController(AbstractController):
 
         return np.clip(K_p @ diff[:2].T + K_v @ diff[-2:].T, -1, 1)
         """
-        action, _ = self.model.predict(obs, deterministic=True)
-        test, _ = self.model.predict(eval_obs, deterministic=True)
-        print("action", action)
-        print("eval_action", test)
-        print("diff", action - test)
-        test2, _ = self.model.predict(eval_obs - obs, deterministic=True)
-        print("diff2", test2)
-        return test
+        action, _ = self.model.predict(eval_obs, deterministic=True)
+        return action
 
     def _sample_action(
         self,
@@ -167,7 +184,6 @@ class GeneralController(AbstractController):
         # Give access to local variables
         if not callback is None:
             callback.update_locals(locals())
-            # Only stop training if return value is False, not when it is None.
             if not callback.on_step():
                 return
 
@@ -198,4 +214,3 @@ class GeneralController(AbstractController):
                     self.model._dump_logs()
         if not callback is None:
             callback.on_rollout_end()
-
