@@ -114,7 +114,8 @@ class CustomSAC(SAC):
 
     def step_schedules(self):
         for s in self.schedulers:
-            s.step()
+            if s is not None:
+                s.step()
 
     def train(self, gradient_steps: int, batch_size: int = 64) -> None:
         # Switch to train mode (this affects batch norm / dropout)
