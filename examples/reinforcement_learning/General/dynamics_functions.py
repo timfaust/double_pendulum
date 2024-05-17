@@ -124,7 +124,7 @@ class PushDoublePendulum(SymbolicDoublePendulum):
         return push_value
 
 
-def random_dynamics(robot, dt, max_torque, class_obj, sigma=0.05, plant_class=SymbolicDoublePendulum, use_random=True):
+def random_dynamics(robot, dt, max_torque, class_obj, sigma=0.1, plant_class=SymbolicDoublePendulum, use_random=True):
     mpar = load_param(robot, max_torque, simplify=False)
     if use_random:
         mpar.g = np.random.normal(mpar.g, sigma * mpar.g)
@@ -135,7 +135,15 @@ def random_dynamics(robot, dt, max_torque, class_obj, sigma=0.05, plant_class=Sy
     plant = plant_class(model_pars=mpar)
     return general_dynamics(robot, plant, dt, max_torque, class_obj)
 
-
+def fine_tune_dynamics(robot, dt, max_torque, class_obj):
+    mpar = load_param(robot, max_torque, simplify=False)
+    mpar.g += 0.1
+    mpar.m += 0.1
+    mpar.l += 0.1
+    mpar.cf += 0.1
+    mpar.b += 0.1
+    plant = SymbolicDoublePendulum(model_pars=mpar)
+    return general_dynamics(robot, plant, dt, max_torque, class_obj)
 def push_dynamics(robot, dt, max_torque, class_obj):
     mpar = load_param(robot, max_torque)
     plant = PushDoublePendulum(model_pars=mpar)
@@ -215,13 +223,20 @@ class custom_dynamics_func_PI(double_pendulum_dynamics_func):
         if scaling:
             x = self.unscale_state(state)
             u = self.unscale_action(action)
-            xn = self.integration(x, u)
-            self.virtual_sensor_state = wrap_angles_diff(xn - x)[:2]
-            obs = self.normalize_state(xn)
+            xn = self.integration(x[:4], u)
+            self.virtual_sensor_state = wrap_angles_diff(xn - x[:4])[:2]
+            if len(x) > 4:
+                obs = self.normalize_state(np.append(xn, [x[-2:]]))
+            else:
+                obs = self.normalize_state(xn)
+
             return np.array(obs, dtype=np.float32)
         else:
             super().__call__(state, action, scaling)
 
+    def integration(self, x, u):
+        self.simulator.step(u, self.dt)
+        return self.simulator.x
     def unscale_state(self, observation):
         """
         scale the state

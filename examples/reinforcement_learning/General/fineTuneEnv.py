@@ -56,6 +56,16 @@ class FineTuneEnv(CustomEnv):
                                                                             state_dict,
                                                                             self.virtual_sensor_state_tracking)
 
+        self.window_size = 800
+        self.pendulum_length = 350
+        self.render_mode = "None"
+        self.window = None
+        self.clock = None
+        self.reward = 0
+        self.acc_reward = 0
+        self.step_counter = 0
+        self.action = np.array([0, 0])
+
         if not self.actions_in_state:
             obs_space = gym.spaces.Box(np.array([-1.0, -1.0, -1.0, -1.0]), np.array([1.0, 1.0, 1.0, 1.0]))
         else:
@@ -108,14 +118,30 @@ class FineTuneEnv(CustomEnv):
     def update_observation(self, obs):
         self.observation = obs
 
+    def calculate_obs(self, action):
+        if self.actions_in_state:
+            last_actions = self.observation[-2:]
+
+        self.observation = self.dynamics_func(self.observation, action, scaling=self.scaling)
+
+        if self.actions_in_state:
+            self.observation[-1] = last_actions[0]
+            self.observation[-2] = action[0]
+
+        if self.render_mode == "human":
+            self.action = action
+            self.step_counter += 1
+
+        return self.observation
+
     def step(self, action):
-        last_actions = self.observation[-2:]
+        if self.actions_in_state:
+            last_actions = self.observation[-2:]
 
         if self.reward_name == "saturated_distance_from_target":
             reward = self.reward_func(self.observation, action, self.state_dict)
         else:
             reward = self.reward_func(self.observation, action, self.state_dict) / self.max_episode_steps
-
         info = {}
         truncated = False
         terminated = False
@@ -125,3 +151,43 @@ class FineTuneEnv(CustomEnv):
 
         return self.observation, reward, terminated, truncated, info
 
+    def getXY(self, point):
+        transformed = (self.window_size // 2 + point[0] * self.pendulum_length * 2,
+                       self.window_size // 2 + point[1] * self.pendulum_length * 2)
+        return transformed
+    def render(self, mode="human"):
+        self._render_frame()
+
+    def _render_frame(self):
+        if self.window is None and self.render_mode == "human":
+            pygame.init()
+            pygame.display.init()
+            self.window = pygame.display.set_mode((self.window_size, self.window_size))
+        if self.clock is None and self.render_mode == "human":
+            self.clock = pygame.time.Clock()
+
+        canvas = pygame.Surface((self.window_size, self.window_size))
+
+        y, x1, x2, v1, v2, action, goal, dt, threshold, u_p, u_pp = get_state_values(self.observation, self.action,
+                                                                                     self.robot, self.dynamics_func)
+        canvas.fill((255, 255, 255))
+
+        pygame.draw.line(canvas, (0, 0, 0), self.getXY(np.array([0, 0])), self.getXY(x1), 5)
+        pygame.draw.line(canvas, (0, 0, 0), self.getXY(x1), self.getXY(x2), 5)
+
+        pygame.draw.circle(canvas, (60, 60, 230), self.getXY(np.array([0, 0])), 10)
+        pygame.draw.circle(canvas, (60, 60, 230), self.getXY(x1), 10)
+        pygame.draw.circle(canvas, (60, 60, 230), self.getXY(x2), 5)
+        pygame.draw.circle(canvas, (255, 200, 200), self.getXY(goal), threshold * 4 * self.pendulum_length)
+        pygame.draw.circle(canvas, (255, 50, 50), self.getXY(goal), threshold * 2 * self.pendulum_length)
+
+        myFont = pygame.font.SysFont("Times New Roman", 36)
+
+        canvas.blit(myFont.render(str(self.step_counter), 1, (0, 0, 0), ), (10, self.window_size - 80))
+        canvas.blit(myFont.render(str(round(self.action[0], 4)), 1, (0, 0, 0), ), (10, self.window_size - 40))
+
+        if self.render_mode == "human":
+            self.window.blit(canvas, canvas.get_rect())
+            pygame.event.pump()
+            pygame.display.update()
+            self.clock.tick(self.metadata["render_fps"])

@@ -187,7 +187,7 @@ def saturated_distance_from_target(observation, action, env_type, dynamic_func, 
     exp_indx = -sat_dist - np.linalg.norm(u) - np.linalg.norm(u_diff)
 
     exp_term = np.exp(exp_indx)
-    return exp_term
+    return exp_term**2 * 100
 
 
 

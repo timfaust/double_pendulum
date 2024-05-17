@@ -52,4 +52,4 @@ if __name__ == '__main__':
         sac.simulate(model_path=args.model_path, tf=10.0)
 
     if args.mode == "fine_tune":
-        sac.simulate(model_path=args.model_path, tf=3.0, fine_tune=True)
+        sac.simulate(model_path=args.model_path, tf=10.0, fine_tune=True, train_freq=100)

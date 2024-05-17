@@ -157,12 +157,13 @@ class Trainer:
         else:
             return CallbackList([eval_callback, checkpoint_callback])
 
-    def simulate(self, model_path="/best_model/best_model", tf=10.0, fine_tune=False):
+    def simulate(self, model_path="/best_model/best_model", tf=10.0, fine_tune=False, train_freq=50):
         model_path = self.log_dir + model_path
         model = SAC.load(model_path, print_system_info=True)
 
         callbacks = self.get_callback_list()
         env = self.eval_environment
+        eval_env = None
 
         if fine_tune:
             fine_tune_env = FineTuneEnv(self.robot, self.seed, self.data["train_env"], self.data)
@@ -170,8 +171,10 @@ class Trainer:
             self.load_custom_params(model)
             model.set_env(envs)
             env = fine_tune_env
+            eval_env = FineTuneEnv(self.robot, self.seed, self.data["eval_env"], self.data)
+            eval_env.render_mode = 'human'
 
-        controller = GeneralController(env, model, self.robot, callbacks=callbacks, fine_tune=fine_tune)
+        controller = GeneralController(env, model, self.robot, callbacks=callbacks, fine_tune=fine_tune, train_freq=train_freq, eval_env=eval_env)
         controller.init()
         controller.simulation.set_state(0, [0, 0, 0, 0])
 
@@ -179,7 +182,7 @@ class Trainer:
             t0=0.0,
             x0=[0.0, 0.0, 0.0, 0.0],
             tf=tf,
-            dt=controller.dt * 0.1,
+            dt=controller.dt,
             controller=controller,
             integrator=controller.integrator,
             save_video=False,
@@ -188,6 +191,7 @@ class Trainer:
         )
 
         if fine_tune:
+            model.train(model.gradient_steps, model.batch_size)
             model.save(os.path.join(self.log_dir, "saved_model", "fine_tuned_model"))
 
         save_trajectory(os.path.join(self.log_dir, "sim_swingup.csv"), T=T, X_meas=X, U_con=U)
