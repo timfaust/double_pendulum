@@ -2,15 +2,11 @@ import ast
 import json
 import os
 import re
-from typing import Type
 from stable_baselines3.common.callbacks import BaseCallback
 from torch.utils.tensorboard import SummaryWriter
-import optax
-import gymnasium as gym
 from tqdm.auto import tqdm
 import numpy as np
 from double_pendulum.utils.csv_trajectory import save_trajectory
-import jax
 from stable_baselines3.common.callbacks import (
     EvalCallback,
     CallbackList,
@@ -23,27 +19,6 @@ from double_pendulum.utils.plotting import plot_timeseries
 
 from examples.reinforcement_learning.General.policies.custom_sac import CustomSAC
 from examples.reinforcement_learning.General.score import calculate_score
-
-
-def linear_schedule(initial_value):
-    if isinstance(initial_value, str):
-        initial_value = float(initial_value)
-
-    def func(progress):
-        return progress * initial_value
-
-    return func
-
-
-def exponential_schedule(initial_value):
-    if isinstance(initial_value, str):
-        initial_value = float(initial_value)
-
-    def func(progress):
-        k = 5
-        return initial_value * np.exp(-k * (1 - progress))
-
-    return func
 
 
 class ScoreCallback(BaseCallback):
@@ -130,7 +105,7 @@ class Trainer:
         callback_list = self.get_callback_list()
 
         # keys which can be replaced from param
-        valid_keys = ['gradient_steps', 'ent_coef', 'learning_rate', 'qf_learning_rate', 'batch_size', 'buffer_size', 'target_update_interval', 'train_freq']
+        valid_keys = ['actor_schedule', 'critic_schedule', 'entropy_schedule', 'gradient_steps', 'ent_coef', 'learning_rate', 'qf_learning_rate', 'batch_size', 'buffer_size', 'target_update_interval', 'train_freq']
         filtered_data = {key: value for key, value in self.environment.param_data.items() if key in valid_keys}
         if isinstance(filtered_data['train_freq'], str) and "'" in filtered_data['train_freq']:
             filtered_data['train_freq'] = ast.literal_eval(filtered_data['train_freq'])

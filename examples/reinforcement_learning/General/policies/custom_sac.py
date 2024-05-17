@@ -1,9 +1,12 @@
+import ast
+import re
 from typing import List
 
 import numpy as np
 from stable_baselines3 import SAC
 from stable_baselines3.common.type_aliases import RolloutReturn
 from stable_baselines3.common.utils import polyak_update
+from torch.optim import lr_scheduler
 
 from examples.reinforcement_learning.General.environments import GeneralEnv
 from examples.reinforcement_learning.General.policies.common import CustomPolicy
@@ -11,18 +14,107 @@ import torch as th
 from torch.nn import functional as F
 
 
+def parse_args_kwargs(input_string):
+    arg_pattern = re.compile(r'(?P<arg>\[.*?\]|[^,]+)')
+    kwarg_pattern = re.compile(r'(?P<key>\w+)\s*=\s*(?P<value>.+)')
+
+    params = []
+    kwargs = {}
+    matches = arg_pattern.findall(input_string.replace(' ', ''))
+
+    for match in matches:
+        kwarg_match = kwarg_pattern.match(match)
+        if kwarg_match:
+            key = kwarg_match.group('key').strip()
+            value = kwarg_match.group('value').strip()
+            kwargs[key] = ast.literal_eval(value)
+        else:
+            params.append(ast.literal_eval(match.strip()))
+
+    return params, kwargs
+
+
+def create_lr_schedule(optimizer, schedule_str):
+    try:
+        if schedule_str.replace(".", "", 1).isdigit():
+            lr = float(schedule_str)
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = lr
+                param_group['initial_lr'] = lr
+            return None
+
+        pattern = r"(\w+)\s*\((.*)\)"
+        match = re.match(pattern, schedule_str)
+        if not match:
+            raise ValueError(f"Invalid schedule string format: '{schedule_str}'")
+
+        name = match.group(1)
+        params, kwargs = parse_args_kwargs(match.group(2))
+
+        scheduler_dict = {
+            "StepLR": lr_scheduler.StepLR,
+            "MultiStepLR": lr_scheduler.MultiStepLR,
+            "ExponentialLR": lr_scheduler.ExponentialLR,
+            "CosineAnnealingLR": lr_scheduler.CosineAnnealingLR,
+            "ReduceLROnPlateau": lr_scheduler.ReduceLROnPlateau,
+            "CyclicLR": lr_scheduler.CyclicLR,
+            "OneCycleLR": lr_scheduler.OneCycleLR,
+            "CosineAnnealingWarmRestarts": lr_scheduler.CosineAnnealingWarmRestarts,
+        }
+
+        if name not in scheduler_dict:
+            raise ValueError(f"Scheduler '{name}' is not supported.")
+
+        scheduler_class = scheduler_dict[name]
+        if kwargs:
+            scheduler = scheduler_class(optimizer, *params, **kwargs)
+        else:
+            scheduler = scheduler_class(optimizer, *params)
+
+        return scheduler
+
+    except Exception as e:
+        raise ValueError(f"Error parsing schedule string '{schedule_str}': {e}")
+
+
 class CustomSAC(SAC):
     def __init__(self, *args, **kwargs):
+        self.schedulers = []
+        schedule_params = {
+            'actor_schedule': "",
+            'critic_schedule': "",
+            'entropy_schedule': ""
+        }
+
+        for key in list(kwargs.keys()):
+            if key in schedule_params:
+                schedule_params[key] = str(kwargs.pop(key))
+
         super().__init__(*args, **kwargs)
 
-    # rollout is one step in each environment
+        if schedule_params['actor_schedule']:
+            self.schedulers.append(create_lr_schedule(self.actor.optimizer, schedule_params['actor_schedule']))
+        if schedule_params['critic_schedule']:
+            self.schedulers.append(create_lr_schedule(self.critic.optimizer, schedule_params['critic_schedule']))
+        if schedule_params['entropy_schedule']:
+            self.schedulers.append(create_lr_schedule(self.ent_coef_optimizer, schedule_params['entropy_schedule']))
+
     def collect_rollouts(self, *args, **kwargs) -> RolloutReturn:
         result = super().collect_rollouts(*args, **kwargs)
         envs: List[GeneralEnv] = [monitor.env for monitor in args[0].envs]
         progress = self.num_timesteps/envs[0].training_steps
         self.policy_class.progress = progress
         self.policy.after_rollout(envs, *args, **kwargs)
+
+        schedule_progress = int(int(envs[0].training_steps / (len(envs) * 100)) * len(envs))
+        if self.num_timesteps % schedule_progress == 0:
+            self.step_schedules()
+
         return result
+
+    def step_schedules(self):
+        for s in self.schedulers:
+            s.step()
 
     def train(self, gradient_steps: int, batch_size: int = 64) -> None:
         # Switch to train mode (this affects batch norm / dropout)
