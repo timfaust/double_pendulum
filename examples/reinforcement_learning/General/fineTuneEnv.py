@@ -56,8 +56,8 @@ class FineTuneEnv(CustomEnv):
                                                                             state_dict,
                                                                             self.virtual_sensor_state_tracking)
 
-        self.window_size = 800
-        self.pendulum_length = 350
+        self.window_size = 600
+        self.pendulum_length = 250
         self.render_mode = "None"
         self.name = "Train-env"
         self.window = None
@@ -102,15 +102,17 @@ class FineTuneEnv(CustomEnv):
             observation = np.append(observation, np.zeros(2))
         return observation
 
-    def get_envs(self, log_dir):
+    def get_envs(self, log_dir, n_envs=None):
         if self.same_env:
             dynamics_function = self.dynamics_func
         else:
             dynamics_function = None
+        if n_envs is None:
+            n_envs = self.n_envs
 
         envs = make_vec_env(
             env_id=FineTuneEnv,
-            n_envs=self.n_envs,
+            n_envs=n_envs,
             env_kwargs={
                 "robot": self.robot,
                 "seed": self.seed,

@@ -165,8 +165,8 @@ class Trainer:
         if fine_tune:
             fine_tune_env = FineTuneEnv(self.robot, self.seed, self.data["train_env"], self.data)
             fine_tune_env.render_mode = 'human'
-
             env = fine_tune_env
+
             eval_env = FineTuneEnv(self.robot, self.seed, self.data["eval_env"], self.data)
             eval_env.render_mode = 'human'
 
@@ -187,12 +187,12 @@ class Trainer:
             eval_env = None
             model = SAC.load(model_path, print_system_info=True)
 
-        controller = GeneralController(env, model, self.robot, callbacks=None, fine_tune=fine_tune, train_freq=train_freq, eval_env=eval_env)
+        controller = GeneralController(env, model, self.robot, self.log_dir, callbacks=None, fine_tune=fine_tune, train_freq=train_freq, eval_env=eval_env)
         controller.init()
         best_model_reward = 0
         for i in range(steps):
             controller.reset()
-
+            sim_save_path = "sim_video_" + str(i + 1) + ".gif"
             T, X, U = controller.simulation.simulate_and_animate(
                 t0=0.0,
                 x0=[0.0, 0.0, 0.0, 0.0],
@@ -201,7 +201,7 @@ class Trainer:
                 controller=controller,
                 integrator=controller.integrator,
                 save_video=True,
-                video_name=os.path.join(self.log_dir, "sim_video.gif"),
+                video_name=os.path.join(self.log_dir, sim_save_path),
                 scale=0.25
             )
 
@@ -213,21 +213,22 @@ class Trainer:
                     model.save(os.path.join(self.log_dir, "best_model", "best_fine_tuned_model"))
                     best_model_reward = mean_reward
 
+            traj_save_path = "sim_swingup_" + str(i + 1) + ".csv"
+            save_trajectory(os.path.join(self.log_dir, traj_save_path), T=T, X_meas=X, U_con=U)
 
-        save_trajectory(os.path.join(self.log_dir, "sim_swingup.csv"), T=T, X_meas=X, U_con=U)
-
-        plot_timeseries(
-            T,
-            X,
-            U,
-            X_meas=controller.simulation.meas_x_values,
-            pos_y_lines=[-np.pi, 0.0, np.pi],
-            vel_y_lines=[0.0],
-            tau_y_lines=[-5.0, 0.0, 5.0],
-            save_to=os.path.join(self.log_dir, "timeseries"),
-            show=True,
-            scale=0.5,
-        )
+            time_save_path = "timeseries_" + str(i + 1)
+            plot_timeseries(
+                T,
+                X,
+                U,
+                X_meas=controller.simulation.meas_x_values,
+                pos_y_lines=[-np.pi, 0.0, np.pi],
+                vel_y_lines=[0.0],
+                tau_y_lines=[-5.0, 0.0, 5.0],
+                save_to=os.path.join(self.log_dir, time_save_path),
+                show=False,
+                scale=0.5,
+            )
 
     def load_custom_params(self, agent):
         for key in self.data:

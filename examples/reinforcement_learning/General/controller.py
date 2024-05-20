@@ -3,10 +3,13 @@ import numpy as np
 from sbx.sac.sac import SAC
 from stable_baselines3.common.vec_env import VecEnv
 from stable_baselines3.common.type_aliases import TrainFreq, TrainFrequencyUnit
+from stable_baselines3.common.noise import VectorizedActionNoise, OrnsteinUhlenbeckActionNoise
 import pygame
 
+
 class GeneralController(AbstractController):
-    def __init__(self, environment, model: SAC, robot, eval_env=None, callbacks=None, fine_tune=False, train_freq=100):
+    def __init__(self, environment, model: SAC, robot, log_dir, eval_env=None, callbacks=None, fine_tune=False,
+                 train_freq=100):
         super().__init__()
 
         self.model = model
@@ -25,7 +28,7 @@ class GeneralController(AbstractController):
         self.train_every_n_step = train_freq
         self.actions = [0]
         self.buffer_actions = [0]
-        self.action = 0
+        self.eval_action = np.array([0])
         self.rewards = []
         self.eval_env = eval_env
         self.window_size = 800
@@ -38,9 +41,23 @@ class GeneralController(AbstractController):
                 "run",
                 False,
             )
-            self.model.replay_buffer.reset()
+
+            self.environment.same_env = True
+            self.greedy_envs = self.environment.get_envs(log_dir, 100)
+            self.greedy_envs.reset()
+
+            if (
+                    self.model.action_noise is not None
+                    and isinstance(self.model.action_noise, VectorizedActionNoise)
+            ):
+                self.action_noise = VectorizedActionNoise(self.model.action_noise.base_noise, 100)
+            else:
+                action_noise = OrnsteinUhlenbeckActionNoise(mean=np.array([0.0]), sigma=0.1 * np.ones(1), theta=0.15,
+                                                            dt=1e-2)
+                self.action_noise = VectorizedActionNoise(action_noise, 100)
 
             pygame.init()
+            self.model.replay_buffer.reset()
 
             if not self.callbacks is None:
                 self.callbacks.on_training_start(locals(), globals())
@@ -49,13 +66,14 @@ class GeneralController(AbstractController):
         self.simulation.set_state(0, [0, 0, 0, 0])
         self.simulation.reset()
         self.actions = [0]
-        self.action = np.array([0])
+        self.eval_action = np.array([0])
         self.buffer_actions = [0]
         self.last_actions = [0, 0]
         self.steps = 0
         self.rewards.clear()
         if self.fine_tune:
             self.eval_env.reset()
+            self.greedy_envs.reset()
             self.model.env.reset()
 
     def get_control_output_(self, x, t=None):
@@ -67,31 +85,32 @@ class GeneralController(AbstractController):
             eval_obs = obs
 
             if self.fine_tune:
+                envs = self.model.get_env().envs
+                for env in envs:
+                    env.update_observation(obs)
+
+                if self.eval_env is not None:
+                    eval_obs = self.eval_env.calculate_obs(self.eval_action)
+
                 if self.steps > 0:
-                    envs = self.model.get_env().envs
-
-                    for env in envs:
-                        env.update_observation(obs)
-                    if self.eval_env is not None:
-                        eval_obs = self.eval_env.calculate_obs(self.action)
-
                     self.finish_last_rollaout(actions=self.actions, buffer_actions=self.buffer_actions,
-                                            env=self.model.get_env(),
-                                            action_noise=self.model.action_noise,
-                                            callback=self.callbacks,
-                                            learning_starts=self.model.learning_starts,
-                                            replay_buffer=self.model.replay_buffer,
-                                            log_interval=4)
+                                              env=self.model.get_env(),
+                                              action_noise=self.model.action_noise,
+                                              callback=self.callbacks,
+                                              learning_starts=self.model.learning_starts,
+                                              replay_buffer=self.model.replay_buffer,
+                                              log_interval=4)
 
                     if self.steps % (self.train_every_n_step) == 0:
                         self.model.train(self.model.gradient_steps, self.model.batch_size)
 
                 self.collect_rollout(env=self.model.env,
-                                                train_freq=self.model.train_freq,
-                                                callback=self.callbacks)
+                                     train_freq=self.model.train_freq,
+                                     callback=self.callbacks)
 
                 action, _ = self.model.predict(obs, deterministic=False)
-                self.action = self.adjust_action(obs, eval_obs)
+                action = self.adjust_action(action, obs)
+                self.eval_action, _ = self.model.predict(eval_obs, deterministic=True)
 
                 self.eval_env.render()
                 self.model.env.render()
@@ -123,33 +142,32 @@ class GeneralController(AbstractController):
         self.rewards.clear()
         print("n_steps:", self.steps)
         return mean_reward
-    def adjust_action(self, obs, eval_obs):
-        """
-        diff = eval_obs[:4] - obs[:4]
-        print("obs", obs[:2])
-        print("eval_obs", eval_obs[:2])
-        print("diff_x", diff[:2])
 
-        K_p = np.array([.1, 0.1])
-        K_v = np.array([0.0, 0.0])
+    def adjust_action(self, action, obs):
 
-        return np.clip(K_p @ diff[:2].T + K_v @ diff[-2:].T, -1, 1)
-        """
-        action, _ = self.model.predict(eval_obs, deterministic=True)
+        if self.action_noise is not None:
+            actions = np.clip(action + self.action_noise(), -1, 1)
+            for env in self.greedy_envs.envs:
+                env.update_observation(obs)
+
+            new_obs, rewards, dones, infos = self.greedy_envs.step(actions)
+            action = actions[np.argmax(rewards)]
+
         return action
 
     def _sample_action(
-        self,
-        action,
-        n_envs,
+            self,
+            action,
+            n_envs,
     ):
         buffer_actions = np.array([action for _ in range(n_envs)])
         actions = buffer_actions
         return actions, buffer_actions
+
     def collect_rollout(self,
                         env,
                         callback,
-                        train_freq : TrainFreq):
+                        train_freq: TrainFreq):
 
         # Switch to eval mode (this affects batch norm / dropout)
         self.model.policy.set_training_mode(False)
@@ -170,12 +188,11 @@ class GeneralController(AbstractController):
             # Sample a new noise matrix
             self.model.actor.reset_noise(env.num_envs)
 
-
     def finish_last_rollaout(self, actions, buffer_actions, env, callback,
-                            replay_buffer,
-                            action_noise,
-                            learning_starts: int = 0,
-                            log_interval= None):
+                             replay_buffer,
+                             action_noise,
+                             learning_starts: int = 0,
+                             log_interval=None):
 
         new_obs, rewards, dones, infos = env.step(actions)
         self.rewards.append(np.mean(rewards))
@@ -191,7 +208,8 @@ class GeneralController(AbstractController):
         self.model._update_info_buffer(infos, dones)
 
         # Store data in replay buffer (normalized action and unnormalized observation)
-        self.model._store_transition(replay_buffer, buffer_actions, new_obs, rewards, dones, infos)  # type: ignore[arg-type]
+        self.model._store_transition(replay_buffer, buffer_actions, new_obs, rewards, dones,
+                                     infos)  # type: ignore[arg-type]
 
         self.model._update_current_progress_remaining(self.model.num_timesteps, self.model._total_timesteps)
 

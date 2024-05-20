@@ -138,10 +138,10 @@ def random_dynamics(robot, dt, max_torque, class_obj, sigma=0.1, plant_class=Sym
 def fine_tune_dynamics(robot, dt, max_torque, class_obj):
     mpar = load_param(robot, max_torque, simplify=False)
     mpar.g = np.random.normal(mpar.g, 0.01 * mpar.g)
-    mpar.m = np.random.normal(mpar.m, 0.01 * np.array(mpar.m)).tolist()
-    mpar.l = np.random.normal(mpar.l, 0.05 * np.array(mpar.l)).tolist()
-    mpar.cf = abs(np.random.normal(mpar.cf, 0.1 * np.array(mpar.cf))).tolist()
-    mpar.b = abs(np.random.normal(mpar.b, 0.1 * np.array(mpar.b))).tolist()
+    mpar.m = np.random.normal(mpar.m, 0.05 * np.array(mpar.m)).tolist()
+    mpar.l = np.random.normal(mpar.l, 0.09 * np.array(mpar.l)).tolist()
+    mpar.cf = abs(np.random.normal(mpar.cf, 0.2 * np.array(mpar.cf))).tolist()
+    mpar.b = abs(np.random.normal(mpar.b, 0.2 * np.array(mpar.b))).tolist()
     plant = SymbolicDoublePendulum(model_pars=mpar)
     return general_dynamics(robot, plant, dt, max_torque, class_obj)
 def push_dynamics(robot, dt, max_torque, class_obj):
