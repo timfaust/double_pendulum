@@ -5,17 +5,17 @@ import numpy as np
 
 class Visualizer:
     def __init__(self, env_type, observation_dict):
-        self.pendulum_length_visualization = 350
+        self.pendulum_length_visualization = 200
         self.reward_visualization = 0
         self.action_visualization = None
         self.acc_reward_visualization = 0
-        self.window_width = 1000
-        self.window_height = 1000
-        self.metrics_width = 2000
+        self.window_width = 500
+        self.window_height = 500
+        self.metrics_width = 1000
         self.full_window_width = self.window_width + self.metrics_width
         self.window = None
         self.clock = None
-        self.metadata_visualization = {"render_modes": ["human"], "render_fps": 120}
+        self.metadata_visualization = {"render_modes": ["human"], "render_fps": 45}
         self.env_type = env_type
         self.observation_dict = observation_dict
 

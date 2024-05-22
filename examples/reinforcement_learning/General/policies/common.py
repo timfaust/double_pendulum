@@ -107,7 +107,7 @@ class DefaultActor(Actor):
 
     def get_action_dist_params(self, obs: PyTorchObs) -> Tuple[th.Tensor, th.Tensor, Dict[str, th.Tensor]]:
         features = self.extract_features(obs, self.features_extractor)
-        latent_pi = self.latent_pi(features)
+        latent_pi = self.latent_pi(features) #entry to policy NN
         mean_actions = self.mu(latent_pi)
 
         if self.use_sde:

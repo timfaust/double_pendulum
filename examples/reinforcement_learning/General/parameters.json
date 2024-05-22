@@ -55,17 +55,17 @@
         "max_torque": 5,
         "learning_rate": 0.001,
         "gradient_steps": 3,
-        "max_episode_steps": 1000,
-        "training_steps": 10000000,
+        "max_episode_steps": 300,
+        "training_steps": 1000000,
         "use_action_noise": 1,
-        "eval_freq": 1000,
+        "eval_freq": 100000,
         "n_eval_episodes": 1,
         "render_eval": 1,
         "render_every_steps": 5,
         "render_every_envs": 20,
         "verbose": 0,
         "show_progress_bar": 1,
-        "save_freq": 1000000
+        "save_freq": 500
       },
       "random": {
         "train_env": {

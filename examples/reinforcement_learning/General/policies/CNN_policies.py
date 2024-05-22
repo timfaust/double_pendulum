@@ -8,7 +8,6 @@ from examples.reinforcement_learning.General.environments import GeneralEnv
 from examples.reinforcement_learning.General.policies.common import DefaultTranslator, DefaultActor, CustomPolicy, \
     DefaultCritic
 
-#TODO: Input dimension must be: batch_size, input features, sequence length for 1d conv
 
 class CNNModule(nn.Module):
     def __init__(self, translator):
@@ -19,7 +18,7 @@ class CNNModule(nn.Module):
 
         self.cnn_layers = nn.Sequential(
             nn.Conv1d(
-                in_channels=5,# #self.input_features, #TODO: parametrize
+                in_channels=5,
                 out_channels=16,
                 kernel_size=5,
                 stride=1,
@@ -45,30 +44,30 @@ class CNNModule(nn.Module):
 
 
         #cnn_output = self.cnn_layers(obs_reshaped)
-        print("Conv1d Layers:")
+        #print("Conv1d Layers:")
         cnn_output_layer1 = self.cnn_layers[0](obs_reshaped)
-        print(cnn_output_layer1.shape)
+        #print(cnn_output_layer1.shape)
 
 
         cnn_output_layer1 = self.cnn_layers[1](cnn_output_layer1)
 
 
         cnn_output_layer2 = self.cnn_layers[2](cnn_output_layer1)
-        print(cnn_output_layer2.shape)
+        #print(cnn_output_layer2.shape)
 
         cnn_output_layer2 = self.cnn_layers[3](cnn_output_layer2)
 
 
-        print("Flatten Layer")
+        #print("Flatten Layer")
         cnn_output_layer3 = self.cnn_layers[4](cnn_output_layer2)
-        print(cnn_output_layer3.shape)
+        #print(cnn_output_layer3.shape)
         mapped_features = self.feature_mapper(cnn_output_layer3)
         return mapped_features
 
 class CNNTranslator(DefaultTranslator):
     def __init__(self):
         self.reset()
-        self.timesteps = 30
+        self.timesteps = 30  #
         self.observation_dim = 5 #dont change
         self.cnn_output = 5 #TODO change
         self.cnn_input = 5 #TODO
@@ -76,7 +75,7 @@ class CNNTranslator(DefaultTranslator):
         self.padding = 0 #TODO
         self.stride = 1 #TODO
 
-        input_dim = self.timesteps * self.observation_dim #must be 150
+        input_dim = self.observation_dim * self.timesteps #must be 150
         super().__init__(input_dim)
 
     def build_state(self, dirty_observation: np.ndarray, clean_action: float, **kwargs) -> np.ndarray:
@@ -122,18 +121,19 @@ class CNN_SAC_Policy(CustomPolicy):
     critic_class = CNNCritic
 
     def __init__(self,*args, **kwargs):
-        super().__init__(*args, **kwargs)
 
         translator = self.actor_class.get_translator()
         #cnn_input_dim = self.translator.get_observation_dim
         #cnn_output_dim = self.translator.get_input_dim
 
-        self.additional_actor_kwargs['stride'] = translator.stride
-        self.additional_critic_kwargs['stride'] = translator.stride
+        self.additional_actor_kwargs['features_dim'] = translator.observation_dim   #entry dim for actor NN
+        self.additional_critic_kwargs['features_dim'] = translator.observation_dim
 
+        super().__init__(*args, **kwargs)
 
 
         cnn_net = CNNModule(translator)
+
         self.actor.cnn_net = cnn_net
         self.critic.cnn_net = cnn_net
         self.critic_target.cnn_net = cnn_net
