@@ -35,14 +35,14 @@ def parse_args_kwargs(input_string):
 
 
 def create_lr_schedule(optimizer, schedule_str):
-    try:
-        if schedule_str.replace(".", "", 1).isdigit():
-            lr = float(schedule_str)
-            for param_group in optimizer.param_groups:
-                param_group['lr'] = lr
-                param_group['initial_lr'] = lr
-            return None
+    if schedule_str.replace(".", "", 1).isdigit():
+        lr = float(schedule_str)
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
+            param_group['initial_lr'] = lr
+        return None
 
+    try:
         pattern = r"(\w+)\s*\((.*)\)"
         match = re.match(pattern, schedule_str)
         if not match:
@@ -50,6 +50,18 @@ def create_lr_schedule(optimizer, schedule_str):
 
         name = match.group(1)
         params, kwargs = parse_args_kwargs(match.group(2))
+
+        if 'lr' not in kwargs:
+            raise ValueError("Learning rate ('lr') must be specified in the schedule string.")
+
+        lr = kwargs.pop('lr')
+
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
+            param_group['initial_lr'] = lr
+
+        if name == 'ConstantLR':
+            return None
 
         scheduler_dict = {
             "StepLR": lr_scheduler.StepLR,
@@ -102,12 +114,13 @@ class CustomSAC(SAC):
     def collect_rollouts(self, *args, **kwargs) -> RolloutReturn:
         result = super().collect_rollouts(*args, **kwargs)
         envs: List[GeneralEnv] = [monitor.env for monitor in args[0].envs]
-        progress = self.num_timesteps/envs[0].training_steps
+        progress = self.num_timesteps / envs[0].training_steps
         self.policy_class.progress = progress
         self.policy.after_rollout(envs, *args, **kwargs)
 
-        schedule_progress = int(int(envs[0].training_steps / (len(envs) * 100)) * len(envs))
-        if self.num_timesteps % schedule_progress == 0:
+        total_training_steps = envs[0].training_steps
+        schedule_interval = total_training_steps / 100
+        if self.num_timesteps % schedule_interval < len(envs):
             self.step_schedules()
 
         return result
@@ -126,7 +139,7 @@ class CustomSAC(SAC):
             optimizers += [self.ent_coef_optimizer]
 
         # Update learning rate according to lr schedule
-        self._update_learning_rate(optimizers)
+        # self._update_learning_rate(optimizers)
 
         ent_coef_losses, ent_coefs = [], []
         actor_losses, critic_losses = [], []
@@ -217,6 +230,14 @@ class CustomSAC(SAC):
         self.logger.record("train/critic_loss", np.mean(critic_losses))
         if len(ent_coef_losses) > 0:
             self.logger.record("train/ent_coef_loss", np.mean(ent_coef_losses))
+
+        actor_lr = self.actor.optimizer.param_groups[0]['lr']
+        critic_lr = self.critic.optimizer.param_groups[0]['lr']
+        entropy_lr = self.ent_coef_optimizer.param_groups[0]['lr']
+
+        self.logger.record("train/actor_lr", actor_lr)
+        self.logger.record("train/critic_lr", critic_lr)
+        self.logger.record("train/entropy_lr", entropy_lr)
 
         self.policy.after_train()
         for name, param in self.actor.named_parameters():
