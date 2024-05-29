@@ -127,6 +127,7 @@ dependencies:
       - dill==0.3.7
       - dm-tree==0.1.8
       - docutils==0.18.1
+      - doublependulum==1.0.0
       - drake==1.22.0
       - etils==1.5.2
       - exceptiongroup==1.2.0
