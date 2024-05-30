@@ -21,6 +21,7 @@ from double_pendulum.controller.abstract_controller import AbstractController
 from double_pendulum.utils.plotting import plot_timeseries
 
 from examples.reinforcement_learning.General.policies.custom_sac import CustomSAC
+from examples.reinforcement_learning.General.tdmpc2.tdmpc2.custom_tdmpc2 import Custom_TDMPC2
 from examples.reinforcement_learning.General.score import calculate_score
 
 
@@ -119,6 +120,43 @@ class Trainer:
             self.action_noise = None
 
     def train(self):
+        if not os.path.exists(self.log_dir):
+            os.makedirs(self.log_dir)
+
+        self.environment.render_mode = None
+        self.environment.reset()
+
+        envs = self.environment.get_envs(log_dir=self.log_dir)
+        callback_list = self.get_callback_list()
+
+        # keys which can be replaced from param
+        valid_keys = ['gradient_steps', 'ent_coef', 'learning_rate', 'qf_learning_rate']
+        filtered_data = {key: value for key, value in self.environment.param_data.items() if key in valid_keys}
+
+        if not any("SAC" in attr or "sac" in attr for attr in dir(self.policy) if isinstance(attr,str)):
+            agent = Custom_TDMPC2(
+            self.policy,
+            envs,
+            tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
+            action_noise=self.action_noise,
+            seed=self.environment.seed,
+            **filtered_data
+            )
+        else: agent = CustomSAC(
+            self.policy,
+            envs,
+            tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
+            action_noise=self.action_noise,
+            seed=self.environment.seed,
+            **filtered_data)
+
+        self.load_custom_params(agent)
+
+        agent.learn(self.training_steps, callback=callback_list)
+        agent.save(os.path.join(self.log_dir, "saved_model", "trained_model"))
+
+
+    def train_MPC(self):
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir)
 

@@ -9,7 +9,7 @@ from stable_baselines3.sac.policies import SACPolicy, Actor, LOG_STD_MIN, LOG_ST
 from torch import nn
 import torch as th
 from examples.reinforcement_learning.General.environments import GeneralEnv
-
+from examples.reinforcement_learning.General.tdmpc2.tdmpc2.tdmpc2 import TDMPC2
 
 class DefaultTranslator:
     """Translate observation into the model state for the Networks"""
@@ -148,3 +148,16 @@ class CustomPolicy(SACPolicy):
     def after_reset(cls, environment: GeneralEnv):
         pass
 
+class CustomPolicy_MPC(TDMPC2):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+    @classmethod
+    def after_rollout(cls, envs: List[GeneralEnv], progress, *args, **kwargs):
+        pass
+
+    @classmethod
+    def after_reset(cls, environment: GeneralEnv):
+        pass
