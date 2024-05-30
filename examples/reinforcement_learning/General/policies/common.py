@@ -13,7 +13,7 @@ from examples.reinforcement_learning.General.tdmpc2.tdmpc2.tdmpc2 import TDMPC2
 
 class DefaultTranslator:
     """Translate observation into the model state for the Networks"""
-    def __init__(self, input_dim: int):
+    def __init__(self, input_dim: int = 150):
         self.obs_space = gym.spaces.Box(-np.ones(input_dim), np.ones(input_dim))
         self.act_space = gym.spaces.Box(np.array([-1.0]), np.array([1.0]))
 

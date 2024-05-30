@@ -32,7 +32,7 @@ class GeneralEnv(CustomEnv):
 
         self.policy = policy
         self.translator = policy.actor_class.get_translator() if any("SAC" in attr or "sac" in attr for attr in
-                                                                     dir(self.policy) if isinstance(attr, str)) else None
+                                                                     dir(self.policy) if isinstance(attr, str)) else policy.translator_obj.get_translator()
         # Translator is only for SAC Algorithms to translate State of model for Networks
         self.seed = seed
         self.is_evaluation_environment = is_evaluation_environment

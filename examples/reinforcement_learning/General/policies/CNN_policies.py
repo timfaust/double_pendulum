@@ -93,6 +93,7 @@ class CNNTranslator(DefaultTranslator):
 
         output = np.concatenate(output)
         return output
+
 class CNNActor(DefaultActor):
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
