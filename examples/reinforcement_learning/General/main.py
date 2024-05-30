@@ -13,7 +13,7 @@ from examples.reinforcement_learning.General.trainer import Trainer
 from stable_baselines3.common.noise import OrnsteinUhlenbeckActionNoise
 import argparse
 
-seed = 4
+seed = 42
 
 if __name__ == '__main__':
 
