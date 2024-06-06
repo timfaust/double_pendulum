@@ -24,6 +24,12 @@ from examples.reinforcement_learning.General.policies.custom_sac import CustomSA
 from examples.reinforcement_learning.General.tdmpc2.tdmpc2.custom_tdmpc2 import Custom_TDMPC2
 from examples.reinforcement_learning.General.score import calculate_score
 
+from examples.reinforcement_learning.General.tdmpc2.tdmpc2.custom_tdmpc2 import hydra_load_cfg
+import hydra
+from omegaconf import DictConfig
+
+
+from examples.reinforcement_learning.General.tdmpc2.tdmpc2.common.parser import parse_cfg
 
 def linear_schedule(initial_value):
     if isinstance(initial_value, str):
@@ -98,6 +104,7 @@ class ProgressBarCallback(BaseCallback):
 
 
 class Trainer:
+
     def __init__(self, name, env_type, param_name, policy, seed, action_noise=None):
         self.environment = GeneralEnv(env_type, param_name, policy, seed=seed)
         self.eval_environment = GeneralEnv(env_type, param_name, policy, is_evaluation_environment=True, seed=seed)
@@ -119,7 +126,8 @@ class Trainer:
         if not self.use_action_noise:
             self.action_noise = None
 
-    def train(self):
+    #@hydra.main(config_name='config', config_path='.')
+    def train(self):#, cfg: DictConfig):
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir)
 
@@ -134,12 +142,16 @@ class Trainer:
         filtered_data = {key: value for key, value in self.environment.param_data.items() if key in valid_keys}
 
         if not any("SAC" in attr or "sac" in attr for attr in dir(self.policy) if isinstance(attr,str)):
+            #cfg = parse_cfg(cfg)
+
+            #cfg = hydra_load_cfg(config_name='config', config_path='.')
             agent = Custom_TDMPC2(
+            #cfg,
             self.policy,
             envs,
-            #tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
-            #action_noise=self.action_noise,
-            #seed=self.environment.seed,
+            tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
+            action_noise=self.action_noise,
+            seed=self.environment.seed,
             **filtered_data
             )
         else: agent = CustomSAC(

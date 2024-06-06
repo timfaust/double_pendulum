@@ -10,7 +10,7 @@ from examples.reinforcement_learning.General.trainer import Trainer
 from stable_baselines3.common.noise import OrnsteinUhlenbeckActionNoise
 import argparse
 from tdmpc2.tdmpc2.tdmpc2_policy import TDMPC2_Policy
-
+from examples.reinforcement_learning.General.tdmpc2.tdmpc2.config_loader import ConfigLoader
 import os
 
 
@@ -35,10 +35,14 @@ if __name__ == '__main__':
 
     action_noise = OrnsteinUhlenbeckActionNoise(mean=np.array([0.0]), sigma=0.1 * np.ones(1), theta=0.15, dt=1e-2)
     agent = Trainer(args.name, args.env_type, args.param, TDMPC2_Policy, seed, action_noise)
+    print(f"Current working directory: {os.getcwd()}")
 
+    cfg = ConfigLoader('tdmpc2/tdmpc2/config.yaml')
 
     if args.mode == "train":
         print("training new model")
+
+
         agent.train()
         print("training finished")
 
