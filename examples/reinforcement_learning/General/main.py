@@ -20,7 +20,7 @@ if __name__ == '__main__':
 
     # arguments for trainer
     parser = argparse.ArgumentParser()
-    parser.add_argument('--name', default="past_actions_no_noise")
+    parser.add_argument('--name', default="past_actions_200")
     parser.add_argument('--mode', default="train", choices=["train", "retrain", "evaluate", "simulate"])
     parser.add_argument('--model_path', default="/best_model/best_model")
     parser.add_argument('--env_type', default="pendubot", choices=["pendubot", "acrobot"])
