@@ -108,7 +108,8 @@ class Visualizer:
             'distance_next': round(distance_next, 4),
             'v_1': round(y[2]/20, 4),
             'v_2': round(y[3]/20, 4),
-            'action': round(action/5, 4)
+            'action': round(action/5, 4),
+            'time': self.observation_dict["T"][-1]
         }
 
         return x1, x2, x3, goal, threshold, metrics
