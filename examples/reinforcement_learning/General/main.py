@@ -12,7 +12,7 @@ import argparse
 from tdmpc2.tdmpc2.tdmpc2_policy import TDMPC2_Policy
 from examples.reinforcement_learning.General.tdmpc2.tdmpc2.config_loader import ConfigLoader
 import os
-
+#from trainer import master_train
 
 
 seed = 42
@@ -34,6 +34,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     action_noise = OrnsteinUhlenbeckActionNoise(mean=np.array([0.0]), sigma=0.1 * np.ones(1), theta=0.15, dt=1e-2)
+
+
     agent = Trainer(args.name, args.env_type, args.param, TDMPC2_Policy, seed, action_noise)
     print(f"Current working directory: {os.getcwd()}")
 
@@ -41,7 +43,7 @@ if __name__ == '__main__':
 
     if args.mode == "train":
         print("training new model")
-
+        #master_train(args.name, args.env_type, args.param, TDMPC2_Policy, seed, action_noise)
 
         agent.train()
         print("training finished")

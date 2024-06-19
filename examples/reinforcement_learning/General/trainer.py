@@ -31,6 +31,11 @@ from omegaconf import DictConfig
 
 from examples.reinforcement_learning.General.tdmpc2.tdmpc2.common.parser import parse_cfg
 
+#@hydra.main(config_name='config', config_path='.')
+#def master_train(name, env_type, param, Policy, seed, action_noise,cfg: DictConfig):
+#    agent = Trainer(name, env_type, param, Policy, seed, action_noise)
+
+
 def linear_schedule(initial_value):
     if isinstance(initial_value, str):
         initial_value = float(initial_value)
@@ -142,11 +147,9 @@ class Trainer:
         filtered_data = {key: value for key, value in self.environment.param_data.items() if key in valid_keys}
 
         if not any("SAC" in attr or "sac" in attr for attr in dir(self.policy) if isinstance(attr,str)):
-            #cfg = parse_cfg(cfg)
 
             #cfg = hydra_load_cfg(config_name='config', config_path='.')
             agent = Custom_TDMPC2(
-            #cfg,
             self.policy,
             envs,
             tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
