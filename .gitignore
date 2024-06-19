@@ -31,3 +31,19 @@ examples/reinforcement_learning/General/log_data/
 examples/reinforcement_learning/SAC_Local/log_data/*
 
 examples/reinforcement_learning/General/old
+
+leaderboard/acrobot/simulation_v1/data/*
+leaderboard/acrobot/robustness_v1/data/*
+leaderboard/acrobot/real_hardware_v1/data/*
+leaderboard/acrobot/real_hardware_v1/src_data/*
+leaderboard/pendubot/simulation_v1/data/*
+leaderboard/pendubot/robustness_v1/data/*
+leaderboard/pendubot/real_hardware_v1/data/*
+leaderboard/pendubot/real_hardware_v1/src_data/*
+leaderboard/acrobot/simulation_v2/data/*
+leaderboard/acrobot/robustness_v2/data/*
+leaderboard/pendubot/simulation_v2/data/*
+leaderboard/pendubot/robustness_v2/data/*
+data/experiment_records/*
+*local*
+

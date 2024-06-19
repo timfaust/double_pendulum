@@ -5,6 +5,13 @@
 
 <div align="center">
 
+## :bangbang: IROS 2024 Competition :bangbang:
+
+We are hosting a competition at [IROS 2024](https://iros2024-abudhabi.org/).
+
+If you are interested in participating, check out our competition website:
+[IROS 2024 Competition](https://ai-olympics.dfki-bremen.de/).
+
 # Dual Purpose Acrobot & Pendubot Platform
 </div>
 
@@ -75,11 +82,17 @@ make doc
 in the main directory. Afterwards you can open the file
 *docs/build/_build/html/index.html* in your browser.
 
-## Getting Started
+## Getting Started - Software
 
 For getting started check out the scripts in the [examples/ideal](examples/ideal) folder
 which simulate and control the double pendulum, acrobot and pendubot under ideal
 conditions.
+
+## Getting Started - Hardware
+
+If you want to assemble your own physical double pendulum similar to the one
+used in this repository, you can have a look at the
+[hardware documentation](https://dfki-ric-underactuated-lab.github.io/double_pendulum/hardware.html).
 
 ## Repository Structure
 
@@ -156,6 +169,26 @@ fraction of successful swing-up motions under varying conditions.
 <img width="800" src="docs/figures/benchmark_scores_C.0.3.1.png">
 </div>
 
+## Leaderboards #
+
+On key feature of this project is the comparison of different control methods,
+may it be from classical control, optimal control to reinforcement learning.
+For this there is a leaderboard where the control methods are ranked with
+respect to various criteria.
+
+This repository features three
+[RealAIGym leaderboards](https://dfki-ric-underactuated-lab.github.io/real_ai_gym_leaderboard/)
+to compare control methods:
+
+* Simulation Leaderboard ([Acrobot](https://dfki-ric-underactuated-lab.github.io/real_ai_gym_leaderboard/acrobot_simulation_performance_leaderboard_v2.html), [Pendubot](https://dfki-ric-underactuated-lab.github.io/real_ai_gym_leaderboard/pendubot_simulation_performance_leaderboard_v2.html))
+* Robustness Leaderboard ([Acrobot](https://dfki-ric-underactuated-lab.github.io/real_ai_gym_leaderboard/acrobot_simulation_robustness_leaderboard_v2.html), [Pendubot](https://dfki-ric-underactuated-lab.github.io/real_ai_gym_leaderboard/pendubot_simulation_robustness_leaderboard_v2.html))
+* Real Hardware Leaderboard ([Acrobot](https://dfki-ric-underactuated-lab.github.io/real_ai_gym_leaderboard/acrobot_real_system_leaderboard_v1.html), [Pendubot](https://dfki-ric-underactuated-lab.github.io/real_ai_gym_leaderboard/pendubot_real_system_leaderboard_v1.html))
+
+Have a look at the
+[instructions](https://dfki-ric-underactuated-lab.github.io/double_pendulum/leaderboard.html),
+if you want to submit a controller to the leaderboards.
+
+
 ## Authors #
 
 * [Shivesh Kumar](https://robotik.dfki-bremen.de/en/about-us/staff/person/shku02) (Project Supervisor)
@@ -169,7 +202,7 @@ fraction of successful swing-up motions under varying conditions.
 
 Feel free to contact us if you have questions about the test bench. Enjoy!
 
-## Contributing
+## Contributing #
 
 Contributions to this project, especially in the form of new controllers, are
 very welcome!
@@ -209,12 +242,19 @@ follow each individual license agreement.
 
 ## Citation
 
-1. Wiebe F., Kumar S., Shala L., Vyas S., Javadi M., Kirchner F., (2023). An Open Source Dual Purpose Acrobot and Pendubot Platform for Benchmarking Control Algorithms for Underactuated Robotics. In: IEEE Robotics and Automation Magazine (RAM), 2023, under review.
+1. F. Wiebe, S. Kumar, L. J. Shala, S. Vyas, M. Javadi and F. Kirchner,
+   "Open Source Dual-Purpose Acrobot and Pendubot Platform: Benchmarking
+    Control Algorithms for Underactuated Robotics," in IEEE Robotics &
+    Automation Magazine, vol. 31, no. 2, pp. 113-124, June 2024,
+    doi: 10.1109/MRA.2023.3341257.
 ```bibtex
-@ARTICLE{2023_ram_wiebe_double_pendulum,
-  author={Wiebe, Felix and Kumar, Shivesh and Shala, Lasse and Vyas, Shubham and Javadi, Mahdi and Kirchner, Frank},
-  journal={IEEE Robotics and Automation Magazine}, 
-  title={An Open Source Dual Purpose Acrobot and Pendubot Platform for Benchmarking Control Algorithms for Underactuated Robotics}, 
-  year={2023},
-  note={under review}}
+@ARTICLE{10375556,
+  author={Wiebe, Felix and Kumar, Shivesh and Shala, Lasse J. and Vyas, Shubham and Javadi, Mahdi and Kirchner, Frank},
+  journal={IEEE Robotics & Automation Magazine}, 
+  title={Open Source Dual-Purpose Acrobot and Pendubot Platform: Benchmarking Control Algorithms for Underactuated Robotics}, 
+  year={2024},
+  volume={31},
+  number={2},
+  pages={113-124},
+  doi={10.1109/MRA.2023.3341257}}
 ```
