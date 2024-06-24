@@ -122,5 +122,5 @@ class CustomPolicy(SACPolicy):
             # 'action_bias': 0.005 * factor
         }
 
-        environment.change_dynamics(sigmas)
+        environment.change_dynamics(sigmas, cls.progress)
 

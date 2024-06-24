@@ -258,7 +258,7 @@ class GeneralEnv(CustomEnv):
         if self.reward_name == "saturated_distance_from_target":
             return self.reward_func(new_observation, action, self.observation_dict)
         else:
-            return self.reward_func(new_observation, action, self.observation_dict)  # / self.max_episode_steps
+            return self.reward_func(new_observation, action, self.observation_dict)
 
     def append_observation_dict(self, clean_observation, dirty_observation, clean_action: float, dirty_action: float):
         time = 0
@@ -270,7 +270,7 @@ class GeneralEnv(CustomEnv):
         self.observation_dict['X_meas'].append(dirty_observation)
         self.observation_dict['X_real'].append(clean_observation)
 
-    def change_dynamics(self, sigmas):
+    def change_dynamics(self, sigmas, progress):
         plant = self.dynamics_func.simulator.plant
 
         plant_parameters = {

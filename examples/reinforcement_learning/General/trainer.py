@@ -8,7 +8,6 @@ from tqdm.auto import tqdm
 import numpy as np
 from double_pendulum.utils.csv_trajectory import save_trajectory
 from stable_baselines3.common.callbacks import (
-    EvalCallback,
     CallbackList,
     CheckpointCallback
 )
@@ -17,6 +16,7 @@ from examples.reinforcement_learning.General.environments import GeneralEnv
 from double_pendulum.controller.abstract_controller import AbstractController
 from double_pendulum.utils.plotting import plot_timeseries
 
+from examples.reinforcement_learning.General.override_sb3.callbacks import CustomEvalCallback
 from examples.reinforcement_learning.General.override_sb3.custom_sac import CustomSAC
 from examples.reinforcement_learning.General.score import calculate_score
 
@@ -183,13 +183,13 @@ class Trainer:
 
         eval_envs = self.get_eval_envs()
 
-        eval_callback = EvalCallback(
+        eval_callback = CustomEvalCallback(
             eval_envs,
             best_model_save_path=os.path.join(self.log_dir, 'best_model'),
             log_path=self.log_dir,
             eval_freq=int(self.eval_freq / self.environment.n_envs),
             verbose=self.verbose,
-            n_eval_episodes=self.n_eval_episodes,
+            n_eval_episodes=self.n_eval_episodes * self.eval_environment.n_envs,
             render=self.render_eval,
             deterministic=True
         )
