@@ -1,9 +1,9 @@
 import random
 import torch
 
-from examples.reinforcement_learning.General.policies.common import CustomPolicy
-from examples.reinforcement_learning.General.policies.lstm_policy import LSTMSACPolicy
-from examples.reinforcement_learning.General.policies.past_actions_policy import PastActionsSACPolicy
+from examples.reinforcement_learning.General.override_sb3.common import CustomPolicy
+from examples.reinforcement_learning.General.override_sb3.lstm_policy import LSTMSACPolicy
+from examples.reinforcement_learning.General.override_sb3.past_actions_policy import PastActionsSACPolicy
 from examples.reinforcement_learning.General.reward_functions import *
 from examples.reinforcement_learning.General.trainer import Trainer
 from stable_baselines3.common.noise import OrnsteinUhlenbeckActionNoise

@@ -9,7 +9,7 @@ from stable_baselines3.common.utils import polyak_update
 from torch.optim import lr_scheduler
 
 from examples.reinforcement_learning.General.environments import GeneralEnv
-from examples.reinforcement_learning.General.policies.common import CustomPolicy
+from examples.reinforcement_learning.General.override_sb3.common import CustomPolicy
 import torch as th
 from torch.nn import functional as F
 

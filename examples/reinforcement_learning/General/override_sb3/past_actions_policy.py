@@ -1,5 +1,5 @@
 import numpy as np
-from examples.reinforcement_learning.General.policies.common import DefaultTranslator, DefaultActor, CustomPolicy, \
+from examples.reinforcement_learning.General.override_sb3.common import DefaultTranslator, DefaultActor, CustomPolicy, \
     DefaultCritic
 from double_pendulum.utils.wrap_angles import wrap_angles_diff
 

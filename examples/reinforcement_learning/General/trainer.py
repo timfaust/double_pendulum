@@ -17,7 +17,7 @@ from examples.reinforcement_learning.General.environments import GeneralEnv
 from double_pendulum.controller.abstract_controller import AbstractController
 from double_pendulum.utils.plotting import plot_timeseries
 
-from examples.reinforcement_learning.General.policies.custom_sac import CustomSAC
+from examples.reinforcement_learning.General.override_sb3.custom_sac import CustomSAC
 from examples.reinforcement_learning.General.score import calculate_score
 
 

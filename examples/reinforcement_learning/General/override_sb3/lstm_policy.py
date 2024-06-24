@@ -8,7 +8,7 @@ from stable_baselines3.sac.policies import Actor
 from torch import nn
 import torch as th
 from examples.reinforcement_learning.General.environments import GeneralEnv
-from examples.reinforcement_learning.General.policies.common import DefaultTranslator, DefaultActor, CustomPolicy, DefaultCritic
+from examples.reinforcement_learning.General.override_sb3.common import DefaultTranslator, DefaultActor, CustomPolicy, DefaultCritic
 import torch.nn.functional as F
 
 
