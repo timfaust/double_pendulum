@@ -258,10 +258,10 @@ class GeneralController(AbstractController):
 
         if self.scaling:
             obs = self.dynamics_func.normalize_state(x)
-            action = self.model.predict(observation=self.environment.translator.build_state(obs, obs), deterministic=True)
+            action = self.model.predict(observation=self.environment.translator.build_state(self.environment, obs, obs), deterministic=True)
             u = self.dynamics_func.unscale_action(action)
         else:
-            action = self.model.predict(observation=self.environment.translator.build_state(x, x), deterministic=True)
+            action = self.model.predict(observation=self.environment.translator.build_state(self.environment, x, x), deterministic=True)
             u = self.dynamics_func.unscale_action(action)
 
         return u

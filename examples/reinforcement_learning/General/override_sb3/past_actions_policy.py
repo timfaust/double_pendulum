@@ -1,4 +1,6 @@
 import numpy as np
+
+from examples.reinforcement_learning.General.environments import GeneralEnv
 from examples.reinforcement_learning.General.override_sb3.common import DefaultTranslator, DefaultActor, CustomPolicy, \
     DefaultCritic
 from double_pendulum.utils.wrap_angles import wrap_angles_diff
@@ -11,7 +13,7 @@ class PastActionsTranslator(DefaultTranslator):
         self.reset()
         super().__init__(21 + self.past_action_number)
 
-    def build_state(self, dirty_observation: np.ndarray, clean_action: float, **kwargs) -> np.ndarray:
+    def build_state(self, env: GeneralEnv, dirty_observation: np.ndarray, clean_action: float, **kwargs) -> np.ndarray:
         observation = dirty_observation.copy()
         l = [0.2, 0.3]
         x = np.array(

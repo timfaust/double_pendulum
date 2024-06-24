@@ -66,7 +66,7 @@ class LSTMTranslator(DefaultTranslator):
 
         super().__init__(self.timesteps * self.observation_dim)
 
-    def build_state(self, dirty_observation: np.ndarray, clean_action: float, **kwargs) -> np.ndarray:
+    def build_state(self, env: GeneralEnv, dirty_observation: np.ndarray, clean_action: float, **kwargs) -> np.ndarray:
         if len(kwargs) > 0:
             lstm_memory = [np.append(x, u) for x, u in zip(kwargs['X_meas'][-self.timesteps:], kwargs['U_con'][-self.timesteps:])]
             lstm_memory = np.array(lstm_memory)

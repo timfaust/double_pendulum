@@ -147,7 +147,7 @@ class GeneralEnv(CustomEnv):
         dirty_observation = self.apply_observation_disturbances(clean_observation)
         self.append_observation_dict(clean_observation, dirty_observation, 0.0, 0.0)
         self.observation_dict['reward'].append(0.0)
-        state = self.translator.build_state(dirty_observation, 0.0)
+        state = self.translator.build_state(self, dirty_observation, 0.0)
 
         return state
 
@@ -233,7 +233,7 @@ class GeneralEnv(CustomEnv):
         clean_observation = self.get_new_observation(dirty_action)
         dirty_observation = self.apply_observation_disturbances(clean_observation)
         self.append_observation_dict(clean_observation, dirty_observation, clean_action, dirty_action)
-        new_state = self.translator.build_state(dirty_observation, clean_action, **self.observation_dict)
+        new_state = self.translator.build_state(self, dirty_observation, clean_action, **self.observation_dict)
         self.observation = new_state
 
         reward = self.get_reward(dirty_observation, clean_action)

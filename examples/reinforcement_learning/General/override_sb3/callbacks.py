@@ -93,7 +93,7 @@ class CustomEvalCallback(EvalCallback):
             self.logger.record("eval/std_reward", float(std_reward))
             self.logger.record("eval/mean_ep_length", mean_ep_length)
             with SummaryWriter(self.logger.dir) as writer:
-                writer.add_histogram("eval/hist_reward", np.array(episode_rewards))
+                writer.add_histogram("eval/hist_reward", np.array(episode_rewards), self.num_timesteps)
 
             if len(self._is_success_buffer) > 0:
                 success_rate = np.mean(self._is_success_buffer)
