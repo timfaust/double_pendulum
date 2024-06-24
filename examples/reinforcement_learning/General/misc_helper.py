@@ -15,15 +15,15 @@ def debug_reset(low_pos=[-0.5, 0, 0, 0]):
     return general_reset(low_pos, [0.0, 0.0, 0.0, 0.0])
 
 
-def high_reset(low_pos=[-0.5, 0, 0, 0]):
+def high_reset():
     return general_reset([0, 0, 0, 0], [0.025, 0.025, 0.05, 0.05])
 
 
-def random_reset(low_pos=[-0.5, 0, 0, 0]):
+def random_reset():
     return general_reset([0, 0, 0, 0], [0.5, 0.5, 0.75, 0.75])
 
 
-def semi_random_reset(low_pos=[-0.5, 0, 0, 0]):
+def semi_random_reset():
     return general_reset([0, 0, 0, 0], [0.5, 0.1, 0.5, 0.2])
 
 
@@ -60,11 +60,22 @@ def no_termination(observation):
     return False
 
 
-def kill_switch(observation, new_state, ignore_state=True):
-    if np.max(np.abs(new_state[:2])) > 2 * np.pi and not ignore_state:
-        print("Terminated at state: ", new_state)
-        return True
-    if np.max(np.abs(observation[2:4])) * 20 > 18:
-        print("Terminated at velocity: ", observation[2:4] * 20)
-        return True
-    return False
+def punish_limit(observation, dynamics_function, k=100):
+    angle_threshold = dynamics_function.max_angle * 0.95
+    velocity_threshold = dynamics_function.max_velocity
+
+    angle_max = np.max(np.abs(observation[:2]))/angle_threshold
+    if angle_max > 1:
+        return 0
+    velocity_max = np.max(np.abs(observation[2:4]))/velocity_threshold
+    if velocity_max > 1:
+        return 0
+    angle_factor = 1 - np.exp(-k * np.abs(angle_max - 1))
+    velocity_factor = 1 - np.exp(-k * np.abs(velocity_max - 1))
+    return min(angle_factor, velocity_factor)
+
+
+def kill_switch(observation, dynamics_func):
+    if punish_limit(observation, dynamics_func) > 0:
+        return False
+    return True

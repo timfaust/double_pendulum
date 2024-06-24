@@ -1,131 +1,29 @@
 import numpy as np
 from double_pendulum.utils.wrap_angles import wrap_angles_diff
-from src.python.double_pendulum.analysis.leaderboard import get_max_tau, get_energy, \
-    get_integrated_torque, get_torque_cost, get_tau_smoothness, get_velocity_cost
+
+from examples.reinforcement_learning.General.misc_helper import punish_limit
+from examples.reinforcement_learning.General.score import get_score
+
+def get_e_decay(x, x_max, factor=5):
+    c = np.exp(-factor)
+    return np.clip((np.exp(-x/x_max*factor) - c)/(1 - c), 0, 1)
+
+def get_i_decay(x, factor=4):
+    return 1/(factor * x + 1)
+
+def get_unscaled_action(observation_dict, t_minus=0):
+    unscaled_action = observation_dict['dynamics_func'].unscale_action(np.array([observation_dict['U_con'][t_minus-1]]))
+    max_value_index = np.argmax(np.abs(unscaled_action))
+    max_action_value = unscaled_action[max_value_index]
+    return max_action_value
 
 
-def get_swingup_time(
-    T,
-    X,
-    plant=None,
-    height=0.9,
-):
-    fk = plant.forward_kinematics(X.T[:2])
-    ee_pos_y = fk[1][1]
-
-    goal_height = height * (plant.l[0] + plant.l[1])
-
-    up = np.where(ee_pos_y > goal_height, True, False)
-
-    time_index = len(T) - 1
-    for i in range(len(up) - 2, 0, -1):
-        if up[i]:
-            time_index = i
-        else:
-            break
-
-    else:
-        time_index = np.argwhere(up)[0][0]
-    time = T[time_index]
-
-    return time
-
-
-def get_score(state_dict):
-    step = len(state_dict["T"])
-    max_episode_steps = state_dict["max_episode_steps"]
-    if step == max_episode_steps:
-        return calculate_score(state_dict)
-    return 0
-
-
-def calculate_score(state_dict, verbose=False, step=False, check_swingup=True):
-    normalize = {
-        "swingup_time": 10.0,
-        "max_tau": 6.0,
-        "energy": 100.0,
-        "integ_tau": 60.0,
-        "tau_cost": 360.0,
-        "tau_smoothness": 12.0,
-        "velocity_cost": 1000,
-    }
-    weights = {
-        "swingup_time": 0.2,
-        "max_tau": 0.1,
-        "energy": 0.1,
-        "integ_tau": 0.1,
-        "tau_cost": 0.1,
-        "tau_smoothness": 0.2,
-        "velocity_cost": 0.2,
-    }
-
-    T = np.array(state_dict["T"])
-    X = np.array(state_dict["X_meas"])
-    U = np.array(state_dict["U_con"])
-
-    if len(np.array(state_dict["T"])) < 2:
-        return 1
-
-    if step:
-        T = np.copy(T)[-2:]
-        X = np.copy(X)[-2:]
-        U = np.copy(U)[-2:]
-
-    if check_swingup:
-        swingup_time = get_swingup_time(T=T, X=X, plant=state_dict["plant"], height=0.9)
-        success = int(swingup_time < T[-1])
-    else:
-        success = 1
-        swingup_time = 0
-
-    max_tau = get_max_tau(U)
-    energy = get_energy(X, U)
-    integ_tau = get_integrated_torque(T, U)
-    tau_cost = get_torque_cost(T, U)
-    tau_smoothness = get_tau_smoothness(U)
-    velocity_cost = get_velocity_cost(T, X)
-
-    score = success * (
-            1.0
-            - (
-                    weights["swingup_time"]
-                    * swingup_time
-                    / normalize["swingup_time"]
-                    + weights["max_tau"] * max_tau / normalize["max_tau"]
-                    + weights["energy"] * energy / normalize["energy"]
-                    + weights["integ_tau"] * integ_tau / normalize["integ_tau"]
-                    + weights["tau_cost"] * tau_cost / normalize["tau_cost"]
-                    + weights["tau_smoothness"]
-                    * tau_smoothness
-                    / normalize["tau_smoothness"]
-                    + weights["velocity_cost"]
-                    * velocity_cost
-                    / normalize["velocity_cost"]
-            )
-    )
-
-    if verbose:
-        print("calculate_score")
-        print("swingup_time: " + str(swingup_time))
-        print("max_tau: " + str(max_tau))
-        print("energy: " + str(energy))
-        print("integ_tau: " + str(integ_tau))
-        print("tau_cost: " + str(tau_cost))
-        print("tau_smoothness: " + str(tau_smoothness))
-        print("velocity_cost: " + str(velocity_cost))
-        print("success: " + str(success))
-        print("score: " + str(score))
-    return score
-
-
-def get_state_values(observation, action, robot, dynamic_func):
-
-
+def get_state_values(env_type, observation_dict):
     l = [0.2, 0.3]
+    unscaled_observation = observation_dict['dynamics_func'].unscale_state(observation_dict['X_meas'][-1])
+    unscaled_action = get_unscaled_action(observation_dict)
 
-    s = dynamic_func.unscale_state(observation)
-
-    y = wrap_angles_diff(s) #now both angles from -pi to pi
+    y = wrap_angles_diff(unscaled_observation) #now both angles from -pi to pi
 
     #cartesians of elbow x1 and end effector x2
     x1 = np.array([np.sin(y[0]), np.cos(y[0])]) * l[0]
@@ -139,39 +37,42 @@ def get_state_values(observation, action, robot, dynamic_func):
     goal = np.array([0, -0.5])
 
     dt_goal = 0.05
-    threshold_distance = 0.005
+    threshold_distance = 0.01
 
-    dt = dynamic_func.dt
-    torque_limit = dynamic_func.torque_limit[0]
     u_p, u_pp = 0, 0
-    if len(observation) > 4:
-        u_p = (action - observation[-2]) / dt
-        u_pp = (action - 2 * observation[-2] + observation[-1])/(dt * dt)
+    if len(observation_dict['U_con']) > 1:
+        dt = observation_dict['T'][-1] - observation_dict['T'][-2]
+        u_p = (unscaled_action - get_unscaled_action(observation_dict, -1)) / dt
+        if len(observation_dict['U_con']) > 2:
+            u_pp = (unscaled_action - 2 * get_unscaled_action(observation_dict, -1) + get_unscaled_action(observation_dict, -2))/(dt * dt)
 
-    return s, x1, x2, v1, v2, action * torque_limit, goal, dt_goal, threshold_distance, u_p * torque_limit, u_pp * torque_limit
-
-
-def score_reward(observation, action, env_type, dynamic_func, state_dict, state_tracking):
-    return get_score(state_dict) * int(state_dict["max_episode_steps"])
+    return unscaled_observation, x1, x2, v1, v2, unscaled_action, goal, dt_goal, threshold_distance, u_p, u_pp
 
 
-def future_pos_reward(observation, action, env_type, dynamic_func, state_dict, state_tracking):
-    y, x1, x2, v1, v2, action, goal, dt_goal, threshold_distance, u_p, u_pp = get_state_values(observation, action, env_type, dynamic_func)
-    distance = np.linalg.norm(x2 + dt_goal * v2 - goal)
-    reward = 1 / (distance + 0.01)
-    if distance < threshold_distance:
-        v_total = np.linalg.norm(v1) + np.linalg.norm(v2) + np.linalg.norm(action) + np.linalg.norm(u_p)
-        reward += 1 / (v_total + 0.001)
-    return reward
+def score_reward(observation, action, env_type, dynamic_func, observation_dict):
+    return get_score(observation_dict) * int(observation_dict["max_episode_steps"])
 
 
-def pos_reward(observation, action, env_type, dynamic_func, state_dict, state_tracking):
-    y, x1, x2, v1, v2, action, goal, dt, threshold, _, _ = get_state_values(observation, action, env_type, dynamic_func)
+def future_pos_reward(observation, action, env_type, dynamic_func, observation_dict):
+    y, x1, x2, v1, v2, action, goal, dt_goal, threshold_distance, u_p, u_pp = get_state_values(env_type, observation_dict)
+    x3 = x2 + dt_goal * v2
+    distance = np.linalg.norm(x3 - goal)
+    reward = get_i_decay(distance, 4)
+    # reward = get_e_decay(distance, 1)
+    if (x3 - goal)[1] < threshold_distance:
+        abstract_distance = np.linalg.norm(v1) + np.linalg.norm(v2) #+ np.linalg.norm(action)/100# + np.linalg.norm(u_p)/10
+        reward += get_i_decay(abstract_distance, 4)
+        # reward += get_e_decay(abstract_distance, 10)
+    return reward * punish_limit(y, observation_dict['dynamics_func'])
+
+
+def pos_reward(observation, action, env_type, dynamic_func, observation_dict):
+    y, x1, x2, v1, v2, action, goal, dt, threshold, _, _ = get_state_values(env_type, observation_dict)
     distance = np.linalg.norm(x2 - goal)
     return 1 / (distance + 0.0001)
 
 
-def saturated_distance_from_target(observation, action, env_type, dynamic_func, state_dict, state_tracking):
+def saturated_distance_from_target(observation, action, env_type, dynamic_func, observation_dict):
     u = dynamic_func.unscale_action(action)
     u_diff = 0
     if len(observation) > 4:
@@ -185,18 +86,12 @@ def saturated_distance_from_target(observation, action, env_type, dynamic_func, 
 
     sat_dist = np.dot(diff.T, diff)
     exp_indx = -sat_dist - np.linalg.norm(u) - np.linalg.norm(u_diff)
-    if np.max(np.abs(x[2:4])) > 18:
-        return 0.0
-
-    """if np.max(np.abs(state_tracking[:2])) > 1.1 * np.pi and env_type == "acrobot":
-        return 0.0"""
 
     exp_term = np.exp(exp_indx)
     return exp_term
 
 
-
-def quadratic_rew(observation, action, env_type, dynamic_func, state_dict, state_tracking):
+def quadratic_rew(observation, action, env_type, dynamic_func, observation_dict):
     #quadtratic cost and quadtratic penalties
     l = [0.2, 0.3]
     if env_type == 'pendubot':
@@ -213,7 +108,7 @@ def quadratic_rew(observation, action, env_type, dynamic_func, state_dict, state
 
 
 
-    y, x1, x2, v1, v2, action, goal, dt, threshold, _, _ = get_state_values(observation, action, env_type, dynamic_func)
+    y, x1, x2, v1, v2, action, goal, dt, threshold, _, _ = get_state_values(env_type, observation_dict)
 
 
     #defining custom goal for state (pos1, pos2, angl_vel1, angl_vel2)

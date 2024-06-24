@@ -1,10 +1,12 @@
 import json
 
 from stable_baselines3.common.env_util import make_vec_env
+from sympy import lambdify
 
 from examples.reinforcement_learning.General.misc_helper import updown_reset, balanced_reset, no_termination, \
     noisy_reset, low_reset, high_reset, random_reset, semi_random_reset, debug_reset, kill_switch
 from examples.reinforcement_learning.General.reward_functions import get_state_values
+from examples.reinforcement_learning.General.visualizer import Visualizer
 from src.python.double_pendulum.simulation.gym_env import CustomEnv
 import pygame
 import numpy as np
@@ -14,238 +16,304 @@ from examples.reinforcement_learning.General.dynamics_functions import default_d
 from examples.reinforcement_learning.General.reward_functions import future_pos_reward, pos_reward, quadratic_rew, saturated_distance_from_target, score_reward
 from double_pendulum.simulation.simulation import Simulator
 
+
 class GeneralEnv(CustomEnv):
-    metadata = {"render_modes": ["human"], "render_fps": 120}
 
     def __init__(
         self,
-        robot,
-        param,
+        env_type,
+        param_name,
+        policy_class,
         seed,
         path="parameters.json",
-        eval=False,
-        dynamics_function=None,
-        plant=None
+        is_evaluation_environment=False,
+        existing_dynamics_function=None,
+        existing_plant=None
     ):
 
+        self.policy_class = policy_class
+        self.translator = policy_class.actor_class.get_translator()
         self.seed = seed
-        self.eval = eval
-        self.param = param
-        self.pendulum_length = 350
-        self.reward = 0
-        self.action = None
-        self.acc_reward = 0
-        self.robot = robot
-        self.data = json.load(open(path))[param]
+        self.is_evaluation_environment = is_evaluation_environment
+        self.param_name = param_name
+        self.env_type = env_type
+        self.param_data = json.load(open(path))[param_name]
 
-        type = "train_env"
-        if self.eval:
-            type = "eval_env"
+        self.type = None
+        self.render_every_steps = None
+        self.render_every_envs = None
+        self.same_environment = None
+        self.n_envs = None
+        self.training_steps = None
+        self.initialize_from_params()
 
-        if dynamics_function is None:
-            dynamics_function = globals()[self.data[type]["dynamics_function"]]
-        reset_function = globals()[self.data[type]["reset_function"]]
-        dynamic_class_name = self.data["dynamic_class"]
-        low_pos = [-0.5, 0, 0, 0]
-        if dynamic_class_name == "custom_dynamics_func_PI":
-            low_pos = [1.0, 0, 0, 0]
-        self.reset_function = lambda: reset_function(low_pos)
-        reward_function = globals()[self.data[type]["reward_function"]]
-        self.reward_name = self.data[type]["reward_function"]
-        self.n_envs = self.data[type]["n_envs"]
-        self.same_env = self.data[type]["same_env"]
-
-        self.dynamics_function = dynamics_function
-        self.reward_function = lambda obs, act, state_dict: reward_function(obs, act, robot, self.dynamics_func, state_dict)
-        self.max_episode_steps = self.data["max_episode_steps"]
-        self.render_every_steps = self.data["render_every_steps"]
-        self.render_every_envs = self.data["render_every_envs"]
-        self.actions_in_state = self.data["actions_in_state"] == 1
-        self.use_sim = self.data["use_sim_values"] == 1
+        self.plant = None
         self.simulation = None
-        if not plant is None:
-            self.plant = plant
-            self.simulation = Simulator(plant=plant)
+        self.reward_function = None
+        self.reward_name = None
+        self.reset_function = None
+        dynamics_function = self.initialize_functions(existing_dynamics_function, existing_plant, env_type)
 
-        if hasattr(dynamics_function, '__code__'):
-            dynamics_function, self.simulation, self.plant = dynamics_function(robot, self.data["dt"], self.data["max_torque"], globals()[dynamic_class_name])
+        self.clean_action_history = None
+        self.velocity_noise = None
+        self.velocity_bias = None
+        self.position_noise = None
+        self.position_bias = None
+        self.action_noise = None
+        self.action_bias = None
+        self.start_delay = None
+        self.delay = None
+        self.initialize_disturbances()
 
-        if not self.actions_in_state:
-            obs_space = gym.spaces.Box(np.array([-1.0, -1.0, -1.0, -1.0]), np.array([1.0, 1.0, 1.0, 1.0]))
-        else:
-            obs_space = gym.spaces.Box(np.array([-1.0, -1.0, -1.0, -1.0, -1.0, -1.0]), np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0]))
+        self.mpar = load_param(self.env_type, self.param_data["max_torque"])
+        self.observation_dict = {"T": [], 'X_meas': [], 'X_real': [], 'U_con': [], 'U_meas': [], 'reward': [], "push": [], "max_episode_steps": self.max_episode_steps, "current_force": []}
+        self.render_mode = "None"
+        self.visualizer = Visualizer(self.env_type, self.observation_dict)
 
-        act_space = gym.spaces.Box(np.array([-1.0]), np.array([1.0]))
         super().__init__(
             dynamics_function,
             self.reward_function,
-            no_termination,
+            lambda observation: kill_switch(observation, dynamics_function),
             self.custom_reset,
-            obs_space,
-            act_space,
+            self.translator.obs_space,
+            self.translator.act_space,
             self.max_episode_steps,
             True
         )
 
-        self.window_size = 800
-        self.render_mode = "None"
-        self.window = None
-        self.clock = None
+        self.observation_dict['dynamics_func'] = self.dynamics_func
+        self.dynamics_func.simulator.plant.observation_dict = self.observation_dict
 
-        self.mpar = load_param(robot, self.dynamics_func.torque_limit)
-        self.state_dict = {"T": [], "X_meas": [], "U_con": [], "push": [], "plant": self.dynamics_func.simulator.plant, "max_episode_steps": self.max_episode_steps, "current_force": []}
-        self.dynamics_func.simulator.plant.state_dict = self.state_dict
+    def initialize_disturbances(self):
+        self.clean_action_history = np.array([0.0])
+        self.velocity_noise = 0.0
+        self.velocity_bias = 0.0
+        self.position_noise = 0.0
+        self.position_bias = 0.0
+        self.action_noise = 0.0
+        self.action_bias = 0.0
+        self.start_delay = 0.0
+        self.delay = 0.0
+
+    def initialize_from_params(self):
+        self.type = "train_env"
+        if self.is_evaluation_environment:
+            self.type = "eval_env"
+        self.n_envs = self.param_data[self.type]["n_envs"]
+        self.same_environment = self.param_data[self.type]["same_environment"]
+        self.max_episode_steps = self.param_data["max_episode_steps"]
+        self.render_every_steps = self.param_data["render_every_steps"]
+        self.render_every_envs = self.param_data["render_every_envs"]
+        self.training_steps = self.param_data["training_steps"]
+
+    def initialize_functions(self, existing_dynamics_function, existing_plant, env_type):
+        dynamics_function_class = None
+        if existing_dynamics_function is None:
+            dynamics_function_class = globals()[self.param_data[self.type]["dynamics_function"]]
+
+        if existing_plant is not None:
+            self.plant = existing_plant
+            self.simulation = Simulator(plant=existing_plant)
+
+        normalization_class_name = self.param_data["normalization"]
+        low_pos = [-0.5, 0, 0, 0]
+        if normalization_class_name == "custom_dynamics_func_PI":
+            low_pos = [-1.0, 0, 0, 0]
+
+        if dynamics_function_class is not None and hasattr(dynamics_function_class, '__code__'):
+            existing_dynamics_function, self.simulation, self.plant = dynamics_function_class(env_type, self.param_data["dt"], self.param_data["max_torque"], globals()[normalization_class_name])
+
+        reset_function = globals()[self.param_data[self.type]["reset_function"]]
+        self.reset_function = lambda: reset_function(low_pos)
+
+        reward_function = globals()[self.param_data[self.type]["reward_function"]]
+        self.reward_name = self.param_data[self.type]["reward_function"]
+        self.reward_function = lambda obs, act, observation_dict: reward_function(obs, act, env_type, existing_dynamics_function, observation_dict)
+
+        return existing_dynamics_function
 
     def custom_reset(self):
-        observation = self.reset_function()
-        if self.actions_in_state:
-            observation = np.append(observation, np.zeros(2))
-        return observation
+        if self.simulation is not None:
+            self.simulation.reset()
+        for key in self.observation_dict:
+            if key != 'dynamics_func' and key != 'max_episode_steps':
+                self.observation_dict[key].clear()
+        self.clean_action_history = np.array([0.0])
+        self.visualizer.reset()
+        self.policy_class.after_environment_reset(self)
+        self.translator.reset()
+
+        clean_observation = np.array(self.reset_function())
+        dirty_observation = self.apply_observation_disturbances(clean_observation)
+        self.append_observation_dict(clean_observation, dirty_observation, 0.0, 0.0)
+        self.observation_dict['reward'].append(0.0)
+        state = self.translator.build_state(dirty_observation, 0.0)
+
+        return state
 
     def get_envs(self, log_dir):
-        if self.same_env:
-            dynamics_function = self.dynamics_func
-            plant = self.plant
-        else:
-            dynamics_function = self.dynamics_function
-            plant = None
+        existing_dynamics_function = None
+        existing_plant = None
+        if self.same_environment:
+            existing_dynamics_function = self.dynamics_func
+            existing_plant = self.plant
 
         envs = make_vec_env(
             env_id=GeneralEnv,
             n_envs=self.n_envs,
             env_kwargs={
-                "robot": self.robot,
-                "param": self.param,
-                "dynamics_function": dynamics_function,
-                "eval": self.eval,
-                "plant": plant,
-                "seed": self.seed
+                "env_type": self.env_type,
+                "param_name": self.param_name,
+                "existing_dynamics_function": existing_dynamics_function,
+                "is_evaluation_environment": self.is_evaluation_environment,
+                "existing_plant": existing_plant,
+                "seed": self.seed,
+                "policy_class": self.policy_class
             },
             monitor_dir=log_dir,
             seed=self.seed
         )
         return envs
 
-    def reset(self, seed=None, options=None):
-        observation, info = super().reset(seed, options)
+    # TODO: currently normalized noise
+    def apply_observation_disturbances(self, clean_observation):
+        dirty_observation = clean_observation.copy()
+        dirty_observation[:2] += np.random.normal(self.position_bias, self.position_noise, size=2)
+        dirty_observation[-2:] += np.random.normal(self.velocity_bias, self.velocity_noise, size=2)
 
-        if self.simulation is not None:
-            self.simulation.reset()
-        for key in self.state_dict:
-            if key != 'plant' and key != 'max_episode_steps':
-                self.state_dict[key].clear()
-        self.reward = 0
-        self.acc_reward = 0
-        self.action = np.array([0, 0])
-        return observation, info
+        return dirty_observation
 
-    def step(self, action):
-        last_actions = self.observation[-2:]
-        if self.actions_in_state:
-            self.observation = self.observation[:-2]
+    # TODO: make more efficient with direct calculation of indizes
+    def find_delay_action(self):
+        list = self.observation_dict['T']
+        timestep = list[-1]
+        delay = self.delay
+        if timestep < self.start_delay:
+            delay = self.start_delay
+        target = np.around(timestep - delay, decimals=5)
+        index = 0
+        # if target >= 0:
+        #     index = np.round(target / self.dynamics_func.dt, decimals=0).astype(int) + 1
+        for i in reversed(range(len(list))):
+            value = list[i]
+            if value <= target:
+                index = i + 1
+                break
+        delayed_action = self.clean_action_history[index]
+        return delayed_action
 
-        self.observation = self.dynamics_func(self.observation, action, scaling=self.scaling)
+    # TODO: currently normalized noise
+    def get_dirty_action(self, clean_action):
+        self.clean_action_history = np.append(self.clean_action_history, clean_action)
+        dirty_action = self.find_delay_action()
+        dirty_action += np.random.normal(self.action_bias, self.action_noise)
+        return dirty_action
 
-        if not self.simulation is None and self.use_sim:
-            self.simulation.step(self.dynamics_func.unscale_action(action), self.dynamics_func.dt)
-            t, x = self.simulation.get_state()
-            self.observation = self.dynamics_func.normalize_state(x)
+    def get_last_clean_observation(self):
+        return self.observation_dict['X_real'][-1].copy()
 
-        time = self.dynamics_func.dt
-        if len(self.state_dict["T"]) > 0:
-            time = time + self.state_dict["T"][-1]
-        self.state_dict["T"].append(time)
-        self.state_dict["U_con"].append(self.dynamics_func.unscale_action(action))
-        self.state_dict["X_meas"].append(self.dynamics_func.unscale_state(self.observation))
+    def get_new_observation(self, dirty_action, internal_dt=0.0):
+        if internal_dt == 0.0:
+            internal_dt = self.dynamics_func.dt
 
-        if self.actions_in_state:
-            self.observation = np.append(self.observation, last_actions)
-        if self.reward_name == "saturated_distance_from_target":
-            reward = self.reward_func(self.observation, action, self.state_dict)
-        else:
-            reward = self.reward_func(self.observation, action, self.state_dict)/self.max_episode_steps
-        terminated = self.terminated_func(self.observation)
+        dt = self.dynamics_func.dt
+        self.dynamics_func.dt = internal_dt
 
-        if np.max(np.abs(self.observation[2:4])) * 20 > 18:
-            print(self.observation)
+        new_observation = self.get_last_clean_observation()
+        for i in range(0, np.round(dt/internal_dt).astype(int)):
+            new_observation = self.dynamics_func(new_observation, np.array([dirty_action]), scaling=self.scaling)
+
+        self.dynamics_func.dt = dt
+        return new_observation
+
+    def step(self, clean_action):
+        clean_action = clean_action[0].astype(np.float64)
+        dirty_action = self.get_dirty_action(clean_action)
+
+        clean_observation = self.get_new_observation(dirty_action)
+        dirty_observation = self.apply_observation_disturbances(clean_observation)
+        self.append_observation_dict(clean_observation, dirty_observation, clean_action, dirty_action)
+        new_state = self.translator.build_state(dirty_observation, clean_action, **self.observation_dict)
+        self.observation = new_state
+
+        reward = self.get_reward(dirty_observation, clean_action)
+        self.observation_dict['reward'].append(reward)
+        terminated = self.terminated_func(self.observation_dict['dynamics_func'].unscale_state(self.observation_dict['X_meas'][-1]))
+        truncated = self.check_episode_end()
+
+        self.update_visualizer(reward, clean_action)
 
         info = {}
+        return self.observation, reward, terminated, truncated, info
+
+    def check_episode_end(self):
         truncated = False
         self.step_counter += 1
         if self.step_counter >= self.max_episode_steps:
             truncated = True
             self.step_counter = 0
+        return truncated
 
-        if self.actions_in_state:
-            self.observation[-1] = last_actions[0]
-            self.observation[-2] = action[0]
-        if self.render_mode == "human":
-            self.reward = reward
-            self.acc_reward += reward
-            self.action = action
-        return self.observation, reward, terminated, truncated, info
+    def get_reward(self, new_observation, action):
+        if self.reward_name == "saturated_distance_from_target":
+            return self.reward_func(new_observation, action, self.observation_dict)
+        else:
+            return self.reward_func(new_observation, action, self.observation_dict)  # / self.max_episode_steps
+
+    def append_observation_dict(self, clean_observation, dirty_observation, clean_action: float, dirty_action: float):
+        time = 0
+        if len(self.observation_dict["T"]) > 0:
+            time = self.dynamics_func.dt + self.observation_dict["T"][-1]
+        self.observation_dict["T"].append(np.around(time, decimals=5))
+        self.observation_dict['U_con'].append(clean_action)
+        self.observation_dict['U_meas'].append(dirty_action)
+        self.observation_dict['X_meas'].append(dirty_observation)
+        self.observation_dict['X_real'].append(clean_observation)
+
+    def change_dynamics(self, sigmas):
+        plant = self.dynamics_func.simulator.plant
+
+        plant_parameters = {
+            'l': self.mpar.l,
+            'm': self.mpar.m,
+            'b': self.mpar.b,
+            'cf': self.mpar.cf
+        }
+
+        for key, value in plant_parameters.items():
+            if key in sigmas:
+                setattr(plant, key, np.abs(np.array(value) + np.random.normal(0.0, sigmas[key], 2)).tolist())
+
+        environment_parameters = [
+            'velocity_noise', 'velocity_bias', 'position_noise', 'position_bias',
+            'action_noise', 'action_bias', 'start_delay', 'delay'
+        ]
+        for param in environment_parameters:
+            if param in sigmas:
+                value = np.random.normal(0.0, sigmas[param])
+                if 'bias' not in param:
+                    value = np.abs(value)
+                setattr(self, param, value)
+
+        self.update_plant()
+
+    def update_plant(self):
+        plant = self.dynamics_func.simulator.plant
+        M = plant.replace_parameters(plant.M)
+        C = plant.replace_parameters(plant.C)
+        G = plant.replace_parameters(plant.G)
+        F = plant.replace_parameters(plant.F)
+        plant.M_la = lambdify(plant.x, M)
+        plant.C_la = lambdify(plant.x, C)
+        plant.G_la = lambdify(plant.x, G)
+        plant.F_la = lambdify(plant.x, F)
 
     def render(self, mode="human"):
-        if self.step_counter % self.render_every_steps == 0:
-            self._render_frame()
+        if self.render_mode == "human" and self.step_counter % self.render_every_steps == 0 and len(self.observation_dict['X_meas']) > 1:
+            self.visualizer.render()
 
-    def getXY(self, point):
-        transformed = (self.window_size // 2 + point[0]*self.pendulum_length*2, self.window_size // 2 + point[1]*self.pendulum_length*2)
-        return transformed
-
-    def _render_frame(self):
-        if self.window is None and self.render_mode == "human":
-            pygame.init()
-            pygame.display.init()
-            self.window = pygame.display.set_mode((self.window_size, self.window_size))
-        if self.clock is None and self.render_mode == "human":
-            self.clock = pygame.time.Clock()
-
-        canvas = pygame.Surface((self.window_size, self.window_size))
-        y, x1, x2, v1, v2, action, goal, dt, threshold, u_p, u_pp = get_state_values(self.observation, self.action, self.robot, self.dynamics_func)
-        x3 = x2 + dt * v2
-        """if self.robot == "pendubot":
-            action = action[0]
-        else:
-            action = action[1]"""
-
-        action = action[0]
-        distance = np.linalg.norm(x2 - goal)
-        distance_next = np.linalg.norm(x3 - goal)
-        v1_total = np.linalg.norm(v1)
-        v2_total = np.linalg.norm(v2)
-        x_1 = self.observation[0]
-        x_2 = self.observation[1]
-        canvas.fill((255, 255, 255))
-
-        if distance_next < threshold:
-            canvas.fill((184, 255, 191))
-        pygame.draw.line(canvas, (0, 0, 0), self.getXY(np.array([0,0])), self.getXY(x1), 5)
-        pygame.draw.line(canvas, (0, 0, 0), self.getXY(x1), self.getXY(x2), 5)
-
-        pygame.draw.circle(canvas, (60, 60, 230), self.getXY(np.array([0,0])), 10)
-        pygame.draw.circle(canvas, (60, 60, 230), self.getXY(x1), 10)
-        pygame.draw.circle(canvas, (60, 60, 230), self.getXY(x2), 5)
-        pygame.draw.circle(canvas, (255, 200, 200), self.getXY(goal), threshold * 4 * self.pendulum_length)
-        pygame.draw.circle(canvas, (255, 50, 50), self.getXY(goal), threshold * 2 * self.pendulum_length)
-        pygame.draw.circle(canvas, (95, 2, 99), self.getXY(x3), threshold * 2 * self.pendulum_length)
-
-        myFont = pygame.font.SysFont("Times New Roman", 36)
-        acc_reward = myFont.render(str(np.round(self.acc_reward, 5)), 1, (0, 0, 0), )
-        reward = myFont.render(str(np.round(self.reward, 5)), 1, (0, 0, 0), )
-        canvas.blit(acc_reward, (10, 10))
-        canvas.blit(reward, (10, 60))
-        canvas.blit(myFont.render(str(self.step_counter), 1, (0, 0, 0), ), (10, self.window_size - 320))
-        canvas.blit(myFont.render(str(round(x_1, 4)), 1, (0, 0, 0), ), (10, self.window_size - 280))
-        canvas.blit(myFont.render(str(round(x_2, 4)), 1, (0, 0, 0), ), (10, self.window_size - 240))
-        canvas.blit(myFont.render(str(round(distance, 4)), 1, (0, 0, 0), ), (10, self.window_size - 200))
-        canvas.blit(myFont.render(str(round(distance_next, 4)), 1, (0, 0, 0), ), (10, self.window_size - 160))
-        canvas.blit(myFont.render(str(round(v1_total, 4)), 1, (0, 0, 0), ), (10, self.window_size - 120))
-        canvas.blit(myFont.render(str(round(v2_total, 4)), 1, (0, 0, 0), ), (10, self.window_size - 80))
-        canvas.blit(myFont.render(str(round(action, 4)), 1, (0, 0, 0), ), (10, self.window_size - 40))
-
+    def update_visualizer(self, reward, action):
         if self.render_mode == "human":
-            self.window.blit(canvas, canvas.get_rect())
-            pygame.event.pump()
-            pygame.display.update()
-            self.clock.tick(self.metadata["render_fps"])
+            self.visualizer.reward_visualization = reward
+            self.visualizer.acc_reward_visualization += reward
+            self.visualizer.action_visualization = action

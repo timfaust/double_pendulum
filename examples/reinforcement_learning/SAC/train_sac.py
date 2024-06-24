@@ -20,51 +20,84 @@ from double_pendulum.utils.wrap_angles import wrap_angles_top
 from double_pendulum.utils.wrap_angles import wrap_angles_diff
 
 # setting log path for the training
-# log_dir = "./log_data/SAC_training"
-log_dir = "./log_data_designC.1/SAC_training"
+log_dir = "./log_data/SAC_training"
+# log_dir = "./log_data_designC.1/SAC_training"
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
 
 # define robot variation
-# robot = "acrobot"
-robot = "pendubot"
+robot = "acrobot"
+# robot = "pendubot"
 
 # model and reward parameter
 max_velocity = 20
 if robot == "pendubot":
     torque_limit = [5.0, 0.0]
+    # design A.0
+    # design = "design_A.0"
+    # model = "model_2.0"
+    # load_path = "../../../data/controller_parameters/design_C.1/model_1.1/pendubot/lqr/"
+    # warm_start_path = ""
+    # Q = np.zeros((4, 4))
+    # Q[0, 0] = 8.0
+    # Q[1, 1] = 5.0
+    # Q[2, 2] = 0.1
+    # Q[3, 3] = 0.1
+    # R = np.array([[0.0001]])
+    # r_line = 500
+    # r_vel = 0
+    # r_lqr = 1e4
+
+    # design C.1
     design = "design_C.1"
     model = "model_1.0"
     load_path = "../../../data/controller_parameters/design_C.1/model_1.1/pendubot/lqr/"
     warm_start_path = ""
     # define para for quadratic reward
     Q = np.zeros((4, 4))
-    Q[0, 0] = 8.0
-    Q[1, 1] = 5.0
-    Q[2, 2] = 0.1
-    Q[3, 3] = 0.1
-    R = np.array([[0.0001]])
-    r_line = 500
+    Q[0, 0] = 100.0
+    Q[1, 1] = 100.0
+    Q[2, 2] = 1.0
+    Q[3, 3] = 1.0
+    R = np.array([[0.01]])
+    r_line = 1e3
     r_vel = 0
-    r_lqr = 1e4
+    r_lqr = 1e5
 
 
 elif robot == "acrobot":
     torque_limit = [0.0, 5.0]
+
+    # design C.0
+    # design = "design_C.0"
+    # model = "model_3.0"
+    # load_path = "../../../data/controller_parameters/design_C.0/acrobot/lqr/roa"
+    # warm_start_path = ""
+    # Q = np.zeros((4, 4))
+    # Q[0, 0] = 10.0
+    # Q[1, 1] = 10.0
+    # Q[2, 2] = 0.2
+    # Q[3, 3] = 0.2
+    # R = np.array([[0.0001]])
+    # r_line = 500
+    # r_vel = 1e4
+    # r_lqr = 1e4
+
+    # design C.1
     design = "design_C.1"
     model = "model_1.0"
     load_path = "../../../data/controller_parameters/design_C.1/model_1.1/acrobot/lqr/"
     warm_start_path = ""
     # define para for quadratic reward
     Q = np.zeros((4, 4))
-    Q[0, 0] = 10.0
-    Q[1, 1] = 10.0
-    Q[2, 2] = 0.2
-    Q[3, 3] = 0.2
-    R = np.array([[0.0001]])
-    r_line = 500
+    Q[0, 0] = 100.0
+    Q[1, 1] = 105.0
+    Q[2, 2] = 1.0
+    Q[3, 3] = 1.0
+    R = np.array([[0.01]])
+    r_line = 1e3
     r_vel = 1e4
-    r_lqr = 1e4
+    r_lqr = 1e5
 
 model_par_path = (
         "../../../data/system_identification/identified_parameters/"
@@ -97,12 +130,12 @@ termination = False
 
 #tuning parameter
 n_envs = 100 # we found n_envs > 50 has very little improvement in training speed.
-training_steps = 2e7 # default = 1e6
+training_steps = 3e7 # default = 1e6
 verbose = 1
 # reward_threshold = -0.01
-reward_threshold = 3e7
-eval_freq=5000
-n_eval_episodes=5
+reward_threshold = 1e10
+eval_freq=2500
+n_eval_episodes=10
 learning_rate=0.01
 ##############################################################################
 # initialize double pendulum dynamics
@@ -128,6 +161,7 @@ def reward_func(observation, action):
     # define reward para according to robot type
     control_line = 0.4
     v_thresh = 8.0
+    # v_thresh = 10.0
     vflag = False
     flag = False
     bonus = False
@@ -179,7 +213,9 @@ def reward_func(observation, action):
 
     ## stage2: control line reward
     if flag:
+        print("stage1 reward=",reward)
         reward += r_line
+        print("stage2 reward=", reward)
         ## stage 3: roa reward
         if bonus:
             # roa method

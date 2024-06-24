@@ -7,9 +7,9 @@ from scipy.stats import norm
 
 from src.python.double_pendulum.utils.wrap_angles import wrap_angles_diff
 
-
+# TODO: needed? rework?
 class PushDoublePendulum(SymbolicDoublePendulum):
-    state_dict = None
+    observation_dict = None
 
     def __init__(self, model_pars):
         super().__init__(model_pars=model_pars)
@@ -29,7 +29,7 @@ class PushDoublePendulum(SymbolicDoublePendulum):
         push = self.check_push()
 
         if push:
-            f = np.array(self.state_dict["current_force"])
+            f = np.array(self.observation_dict["current_force"])
             angle = wrap_angles_diff(x)
             l_00 = np.sin(angle[0]) * self.l[0]
             l_01 = np.cos(angle[0]) * self.l[0]
@@ -47,8 +47,8 @@ class PushDoublePendulum(SymbolicDoublePendulum):
             y = np.sin(angle)
             return np.array([x, y]) * np.sqrt(np.random.uniform(force[0], force[1]))
 
-        push_list = self.state_dict["push"]
-        if len(push_list) > len(self.state_dict["T"]):
+        push_list = self.observation_dict["push"]
+        if len(push_list) > len(self.observation_dict["T"]):
             return push_list[-1]
 
         push_value = False
@@ -68,8 +68,8 @@ class PushDoublePendulum(SymbolicDoublePendulum):
                 else:
                     break
 
-            false_time = self.state_dict["T"][-1] - self.state_dict["T"][-consecutive_falses]
-            true_time = self.state_dict["T"][-1] - self.state_dict["T"][-consecutive_trues]
+            false_time = self.observation_dict["T"][-1] - self.observation_dict["T"][-consecutive_falses]
+            true_time = self.observation_dict["T"][-1] - self.observation_dict["T"][-consecutive_trues]
             if consecutive_falses == 0:
                 false_time = 0
             if consecutive_trues == 0:
@@ -79,7 +79,7 @@ class PushDoublePendulum(SymbolicDoublePendulum):
             end_push_probability = norm.cdf(true_time, loc=end_time, scale=sigma_end)
 
             if np.random.rand() < start_push_probability:
-                self.state_dict["current_force"] = random_force().tolist()
+                self.observation_dict["current_force"] = random_force().tolist()
                 push_value = True
 
             elif np.random.rand() < end_push_probability:
@@ -92,7 +92,7 @@ class PushDoublePendulum(SymbolicDoublePendulum):
         return push_value
 
 
-def load_param(robot, torque_limit, simplify=True, real_robot=True):
+def load_param(robot, torque_limit, no_friction=True, real_robot=True):
     if robot == "pendubot":
         design = "design_C.1"
         model = "model_1.0"
@@ -117,7 +117,7 @@ def load_param(robot, torque_limit, simplify=True, real_robot=True):
     )
     mpar = model_parameters(filepath=model_par_path)
     mpar.set_torque_limit(torque_limit=torque_array)
-    if simplify:
+    if no_friction:
         mpar.set_motor_inertia(0.0)
         mpar.set_damping([0., 0.])
         mpar.set_cfric([0., 0.])
@@ -125,8 +125,8 @@ def load_param(robot, torque_limit, simplify=True, real_robot=True):
     return mpar
 
 
-def random_dynamics(robot, dt, max_torque, class_obj, sigma=0.03, plant_class=SymbolicDoublePendulum, use_random=True):
-    mpar = load_param(robot, max_torque, simplify=False)
+def random_dynamics(robot, dt, max_torque, class_obj, sigma=0.07, plant_class=SymbolicDoublePendulum, use_random=True):
+    mpar = load_param(robot, max_torque, no_friction=False)
     if use_random:
         mpar.g = np.random.normal(mpar.g, sigma * mpar.g)
         mpar.m = np.random.normal(mpar.m, sigma * np.array(mpar.m)).tolist()
@@ -154,7 +154,7 @@ def default_dynamics(robot, dt, max_torque, class_obj):
 
 
 def real_robot(robot, dt, max_torque, class_obj):
-    mpar = load_param(robot, max_torque, simplify=False, real_robot=True)
+    mpar = load_param(robot, max_torque, no_friction=False, real_robot=True)
     plant = SymbolicDoublePendulum(model_pars=mpar)
     return general_dynamics(robot, plant, dt, max_torque, class_obj)
 
@@ -180,28 +180,30 @@ def general_dynamics(robot, plant, dt, max_torque, class_obj):
 
 class custom_dynamics_func_4PI(double_pendulum_dynamics_func):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.max_angle = 2 * np.pi
+
     def unscale_state(self, observation):
         if self.state_representation == 2:
             x = np.array(
                 [
-                    observation[0] * 2 * np.pi + np.pi,
-                    observation[1] * 2 * np.pi,
+                    observation[0] * self.max_angle + np.pi,
+                    observation[1] * self.max_angle,
                     observation[2] * self.max_velocity,
                     observation[3] * self.max_velocity,
                 ]
             )
         elif self.state_representation == 3:
             x = super().unscale_state(observation)
-        if len(observation) > 4:
-            return np.append(x, observation[-2:] * self.torque_limit)
         return x
 
     def normalize_state(self, state):
         if self.state_representation == 2:
             observation = np.array(
                 [
-                    ((state[0] + np.pi) % (4 * np.pi) - 2 * np.pi) / (2 * np.pi),
-                    ((state[1] + 2 * np.pi) % (4 * np.pi) - 2 * np.pi) / (2 * np.pi),
+                    ((state[0] + np.pi) % (2 * self.max_angle) - self.max_angle) / self.max_angle,
+                    ((state[1] + self.max_angle) % (2 * self.max_angle) - self.max_angle) / self.max_angle,
                     np.clip(state[2], -self.max_velocity, self.max_velocity)
                     / self.max_velocity,
                     np.clip(state[3], -self.max_velocity, self.max_velocity)
@@ -210,8 +212,6 @@ class custom_dynamics_func_4PI(double_pendulum_dynamics_func):
             )
         elif self.state_representation == 3:
             observation = super().normalize_state(state)
-        if len(state) > 4:
-            return np.append(observation, state[-2:] / self.torque_limit)
         return observation
 
 
@@ -244,8 +244,6 @@ class custom_dynamics_func_PI(double_pendulum_dynamics_func):
             )
         else:
             x = super().unscale_state(observation)
-        if len(observation) > 4:
-            return np.append(x, observation[-2:] * self.torque_limit)
         return x
 
     def normalize_state(self, state):
@@ -266,7 +264,4 @@ class custom_dynamics_func_PI(double_pendulum_dynamics_func):
             )
         else:
             observation = super().normalize_state(state)
-
-        if len(state) > 4:
-            return np.append(observation, state[-2:] / self.torque_limit)
         return observation

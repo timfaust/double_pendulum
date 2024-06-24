@@ -1,31 +1,34 @@
 import random
 import torch
 
+from examples.reinforcement_learning.General.policies.common import CustomPolicy
+from examples.reinforcement_learning.General.policies.lstm_policy import LSTMSACPolicy
+from examples.reinforcement_learning.General.policies.past_actions_policy import PastActionsSACPolicy
 from examples.reinforcement_learning.General.reward_functions import *
 from examples.reinforcement_learning.General.trainer import Trainer
 from stable_baselines3.common.noise import OrnsteinUhlenbeckActionNoise
 import argparse
 
-seed = 42
+seed = 43
 
 if __name__ == '__main__':
 
+    # set seeds
     np.random.seed(seed)
     torch.manual_seed(seed)
     random.seed(seed)
 
+    # arguments for trainer
     parser = argparse.ArgumentParser()
-
-    parser.add_argument('--name', default="real_Robot_acro_4state_8_3.5")
-    parser.add_argument('--mode', default="evaluate", choices=["train", "retrain", "evaluate", "simulate"])
+    parser.add_argument('--name', default="past_actions_200")
+    parser.add_argument('--mode', default="train", choices=["train", "retrain", "evaluate", "simulate"])
     parser.add_argument('--model_path', default="/best_model/best_model")
-    parser.add_argument('--env_type', default="acrobot", choices=["pendubot", "acrobot"])
-    parser.add_argument('--param', default="real_robot_1")
-
+    parser.add_argument('--env_type', default="pendubot", choices=["pendubot", "acrobot"])
+    parser.add_argument('--param', default="default")
     args = parser.parse_args()
-    env_type = args.env_type
+
     action_noise = OrnsteinUhlenbeckActionNoise(mean=np.array([0.0]), sigma=0.1 * np.ones(1), theta=0.15, dt=1e-2)
-    sac = Trainer(args.name, env_type, args.param, seed, action_noise)
+    sac = Trainer(args.name, args.env_type, args.param, PastActionsSACPolicy, seed, action_noise)
 
     if args.mode == "train":
         print("training new model")
@@ -47,4 +50,4 @@ if __name__ == '__main__':
             print(e)
 
     if args.mode == "simulate":
-        sac.simulate(model_path=args.model_path)
+        sac.simulate(model_path=args.model_path, tf=3.0)
