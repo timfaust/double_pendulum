@@ -3,10 +3,12 @@ import re
 from typing import List
 
 import numpy as np
+from matplotlib import pyplot as plt
 from stable_baselines3 import SAC
 from stable_baselines3.common.type_aliases import RolloutReturn
 from stable_baselines3.common.utils import polyak_update
 from torch.optim import lr_scheduler
+from torch.utils.tensorboard import SummaryWriter
 
 from examples.reinforcement_learning.General.environments import GeneralEnv
 from examples.reinforcement_learning.General.override_sb3.common import CustomPolicy
@@ -153,6 +155,8 @@ class CustomSAC(SAC):
                 self.actor.reset_noise()
 
             # Action by the current actor for the sampled state
+            if self.num_timesteps % 100000 == 0 and gradient_step == 0:
+                replay_data.observations.requires_grad = True
             actions_pi, log_prob = self.actor.action_log_prob(replay_data.observations)
             log_prob = log_prob.reshape(-1, 1)
 
@@ -213,6 +217,27 @@ class CustomSAC(SAC):
             # Optimize the actor
             self.actor.optimizer.zero_grad()
             actor_loss.backward()
+
+            if self.num_timesteps % 100000 == 0 and gradient_step == 0:
+                state_gradients = th.mean(th.abs(replay_data.observations.grad), axis=0)
+                with SummaryWriter(self.logger.dir) as writer:
+                    plt.figure(figsize=(8, 6))
+
+                    colors = plt.get_cmap("viridis")(np.linspace(0, 1, len(state_gradients)))
+
+                    plt.bar(np.arange(len(state_gradients)), state_gradients.detach().cpu().numpy(), color=colors)
+                    plt.xlabel('Feature Index')
+                    plt.ylabel('Gradient')
+                    plt.title('Mean Gradients of Input Features in Batch')
+                    plt.tight_layout()
+
+                    print("print gradients")
+                    plt.savefig(self.logger.dir + '/gradients.png')
+                    plt.close()
+
+                    writer.add_image('Gradient Bar Chart', plt.imread(self.logger.dir + '/gradients.png'),
+                                     self.num_timesteps, dataformats='HWC')
+
             self.policy.after_actor_backward()
             self.actor.optimizer.step()
 
