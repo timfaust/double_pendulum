@@ -32,7 +32,7 @@ class GeneralEnv(CustomEnv):
     ):
 
         self.policy_class = policy_class
-        self.translator = policy_class.actor_class.get_translator()
+        self.translator = policy_class.get_translator()
         self.seed = seed
         self.is_evaluation_environment = is_evaluation_environment
         self.param_name = param_name

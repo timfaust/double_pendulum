@@ -70,18 +70,7 @@ class DefaultCritic(ContinuousCritic):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        kwargs['action_dim'] = get_action_dim(self.action_space)
-        self.q_networks: List[nn.Module] = []
-        for idx in range(kwargs['n_critics']):
-            q_net = self.create_critic(**kwargs)
-            self.add_module(f"qf{idx}", q_net)
-            self.q_networks.append(q_net)
-
-    def create_critic(self, **kwargs):
-        q_net_list = create_mlp(kwargs['features_dim'] + kwargs['action_dim'], 1, kwargs['net_arch'], kwargs['activation_fn'])
-        q_net = nn.Sequential(*q_net_list)
-        return q_net
-
+    # exactly the same as in ContinuousCritic
     def forward(self, obs: th.Tensor, actions: th.Tensor) -> Tuple[th.Tensor, ...]:
         with th.set_grad_enabled(not self.share_features_extractor):
             features = self.extract_features(obs, self.features_extractor)
@@ -94,10 +83,7 @@ class DefaultActor(Actor):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    @classmethod
-    def get_translator(cls) -> DefaultTranslator:
-        return DefaultTranslator(4)
-
+    # exactly the same as in Actor
     def get_action_dist_params(self, obs: PyTorchObs) -> Tuple[th.Tensor, th.Tensor, Dict[str, th.Tensor]]:
         features = self.extract_features(obs, self.features_extractor)
         latent_pi = self.latent_pi(features)
@@ -105,7 +91,7 @@ class DefaultActor(Actor):
 
         if self.use_sde:
             return mean_actions, self.log_std, dict(latent_sde=latent_pi)
-        log_std = self.log_std(latent_pi)  # type: ignore[operator]
+        log_std = self.log_std(latent_pi)
         log_std = th.clamp(log_std, LOG_STD_MIN, LOG_STD_MAX)
         return mean_actions, log_std, {}
 
@@ -118,7 +104,12 @@ class CustomPolicy(SACPolicy):
     progress = 0
 
     def __init__(self, *args, **kwargs):
+        self.translator = self.get_translator()
         super().__init__(*args, **kwargs)
+
+    @classmethod
+    def get_translator(cls) -> DefaultTranslator:
+        return DefaultTranslator(4)
 
     def make_actor(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> Actor:
         actor_kwargs = self._update_features_extractor(self.actor_kwargs, features_extractor)

@@ -24,18 +24,11 @@ class PastActionsTranslator(DefaultTranslator):
         self.clean_action_memory = np.zeros(self.past_action_number)
 
 
-class PastActionsActor(DefaultActor):
+class PastActionsSACPolicy(CustomPolicy):
 
     @classmethod
     def get_translator(cls) -> PastActionsTranslator:
         return PastActionsTranslator()
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-
-class PastActionsSACPolicy(CustomPolicy):
-    actor_class = PastActionsActor
 
     def __init__(self, *args, **kwargs):
         self.additional_actor_kwargs['net_arch'] = [256, 128, 64, 32]
