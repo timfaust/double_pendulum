@@ -91,7 +91,8 @@ class Visualizer:
         pygame.draw.rect(canvas, (0, 0, 0), (graph_x, graph_y, graph_width, graph_height), 1)
 
     def draw_environment(self, canvas):
-        x1, x2, x3, goal, threshold, metrics = self.calculate_positions('X_meas')
+        x1, x2, x3, goal, threshold, metrics = self.calculate_positions('X_real')
+        x1_meas, x2_meas, _, _, _, _ = self.calculate_positions('X_meas')
 
         if metrics['distance_next'] < threshold:
             canvas.fill((184, 255, 191))
@@ -99,9 +100,8 @@ class Visualizer:
 
         self.draw_grid(canvas)
         self.draw_goals(canvas, goal, threshold, x3)
-        self.draw_pendulum(canvas, x1, x2, alpha=50)
 
-        x1, x2, x3, goal, threshold, metrics = self.calculate_positions('X_real')
+        self.draw_pendulum(canvas, x1_meas, x2_meas, alpha=50)
         self.draw_pendulum(canvas, x1, x2)
 
         return metrics

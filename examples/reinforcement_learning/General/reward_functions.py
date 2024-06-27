@@ -84,7 +84,7 @@ def score_reward(observation, action, env_type, dynamic_func, observation_dict):
 
 
 def future_pos_reward(observation, action, env_type, dynamic_func, observation_dict):
-    state_values = get_state_values(observation_dict)
+    state_values = get_state_values(observation_dict, 'X_real')
     reward = get_i_decay(state_values['distance'], 4)
     # reward = get_e_decay(distance, 1)
     if (state_values['x3'] - state_values['goal'])[1] < state_values['threshold_distance']:
