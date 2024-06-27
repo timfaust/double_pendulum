@@ -43,36 +43,67 @@ class SequenceExtractor(BaseFeaturesExtractor):
         raise NotImplementedError("Subclasses must implement this method")
 
 
+class SmoothingFilter(nn.Module):
+    def __init__(self, num_features, kernel_size=5, padding='same'):
+        super(SmoothingFilter, self).__init__()
+        self.num_features = num_features
+        self.conv = nn.Conv1d(
+            in_channels=num_features,
+            out_channels=num_features,
+            kernel_size=kernel_size,
+            padding=padding,
+            groups=num_features,
+            bias=False
+        )
+        nn.init.constant_(self.conv.weight, 1.0 / kernel_size)
+        self.alpha = nn.Parameter(th.zeros(num_features))
+        self.activation = nn.Sigmoid()
+
+    def forward(self, x):
+        # x shape: (batch, timestep, feature)
+        x_t = x.transpose(1, 2)  # Now: (batch, feature, timestep)
+        smoothed = self.conv(x_t)
+        smoothed = smoothed.transpose(1, 2)  # Back to: (batch, timestep, feature)
+
+        # Apply feature-specific smoothing
+        alpha_sigmoid = self.activation(self.alpha.view(1, 1, -1))  # Reshape for broadcasting
+        return alpha_sigmoid * x + (1 - alpha_sigmoid) * smoothed
+
+
 class LSTMExtractor(SequenceExtractor):
-    def __init__(self, observation_space: gym.spaces.Box, translator, hidden_size=16, num_layers=2):
+    def __init__(self, observation_space: gym.spaces.Box, translator, hidden_size=64, num_layers=2):
         super().__init__(observation_space, translator)
+        self.filter = SmoothingFilter(self.input_features, 5)
         self.lstm = nn.LSTM(self.input_features, hidden_size, num_layers, batch_first=True)
         self.fc = nn.Linear(hidden_size, self.output_dim)
         self.activation = nn.Tanh()
+        self.dropout = nn.Dropout(0.2)
 
     def _process_main_features(self, obs: th.Tensor) -> th.Tensor:
         obs_reshaped = obs.view(-1, self.timesteps, self.input_features)
-        _, (hidden, _) = self.lstm(obs_reshaped)
+        smoothed_seq = self.filter(obs_reshaped)
+        _, (hidden, _) = self.lstm(smoothed_seq)
         last_timestep = hidden[-1]
-        fc_output = self.fc(last_timestep)
+        dropped = self.dropout(last_timestep)
+        fc_output = self.fc(dropped)
         return self.activation(fc_output)
 
 
 class ConvExtractor(SequenceExtractor):
-    def __init__(self, observation_space: gym.spaces.Box, translator, channels=[4, 8]):
+    def __init__(self, observation_space: gym.spaces.Box, translator):
         super().__init__(observation_space, translator)
         self.conv_layers = nn.Sequential(
-            nn.Conv2d(1, channels[0], kernel_size=5, stride=1, padding=2),
+            nn.Conv2d(1, 16, kernel_size=5, stride=1, padding=2),
             nn.Tanh(),
-            nn.Conv2d(channels[0], channels[1], kernel_size=5, stride=1, padding=2),
+            nn.Conv2d(16, 32, kernel_size=5, stride=1, padding=2),
             nn.Tanh(),
             nn.AdaptiveAvgPool2d((1, 1))
         )
         self.fc_layers = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(channels[1], channels[0]),
+            nn.Linear(32, 16),
             nn.Tanh(),
-            nn.Linear(channels[0], self.output_dim),
+            nn.Linear(16, self.output_dim),
             nn.Tanh()
         )
 
@@ -85,11 +116,11 @@ class ConvExtractor(SequenceExtractor):
 class SequenceTranslator(DefaultTranslator):
     def __init__(self):
         self.reset()
-        self.timesteps = 50
+        self.timesteps = 200
         self.feature_dim = 5
         self.output_dim = 12
-        self.additional_features = 4 #4 + 17
-        self.net_arch = [64, 32]
+        self.additional_features = 8 #4 + 17
+        self.net_arch = [128, 64, 32]
 
         super().__init__(self.timesteps * self.feature_dim + self.additional_features)
 
@@ -108,8 +139,9 @@ class SequenceTranslator(DefaultTranslator):
         output = np.concatenate(output)
 
         output = np.append(dirty_observation.copy(), output)
-        # additional = get_additional_values(dirty_observation.copy())
-        # output = np.append(additional, output)
+        additional = get_additional_values(dirty_observation.copy())
+        additional_used = np.array([additional[15], additional[6], additional[10], additional[11]])
+        output = np.append(additional_used, output)
 
         return output
 

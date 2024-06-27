@@ -11,10 +11,11 @@ from src.python.double_pendulum.simulation.gym_env import CustomEnv
 import pygame
 import numpy as np
 import gymnasium as gym
-from examples.reinforcement_learning.General.dynamics_functions import default_dynamics, random_dynamics, \
-    random_push_dynamics, push_dynamics, load_param, custom_dynamics_func_PI, custom_dynamics_func_4PI, real_robot
+from examples.reinforcement_learning.General.dynamics_functions import default_dynamics, load_param, custom_dynamics_func_PI, custom_dynamics_func_4PI
 from examples.reinforcement_learning.General.reward_functions import future_pos_reward, pos_reward, quadratic_rew, saturated_distance_from_target, score_reward
 from double_pendulum.simulation.simulation import Simulator
+
+from src.python.double_pendulum.simulation.perturbations import get_random_gauss_perturbation_array
 
 
 class GeneralEnv(CustomEnv):
@@ -63,9 +64,12 @@ class GeneralEnv(CustomEnv):
         self.action_bias = None
         self.start_delay = None
         self.delay = None
+        self.responsiveness = None
+        self.use_perturbations = None
+        self.perturbations = None
         self.initialize_disturbances()
 
-        self.mpar = load_param(self.env_type, self.param_data["max_torque"])
+        self.mpar = load_param(self.param_data["max_torque"])
         self.observation_dict = {"T": [], 'X_meas': [], 'X_real': [], 'U_con': [], 'U_meas': [], 'reward': [], "push": [], "max_episode_steps": self.max_episode_steps, "current_force": []}
         self.render_mode = "None"
         self.visualizer = Visualizer(self.env_type, self.observation_dict)
@@ -94,6 +98,9 @@ class GeneralEnv(CustomEnv):
         self.action_bias = 0.0
         self.start_delay = 0.0
         self.delay = 0.0
+        self.responsiveness = 1
+        self.use_perturbations = True
+        self.perturbations = []
 
     def initialize_from_params(self):
         self.type = "train_env"
@@ -148,6 +155,21 @@ class GeneralEnv(CustomEnv):
         self.append_observation_dict(clean_observation, dirty_observation, 0.0, 0.0)
         self.observation_dict['reward'].append(0.0)
         state = self.translator.build_state(self, dirty_observation, 0.0)
+
+        if self.use_perturbations:
+            n_pert_per_joint = 3
+            min_t_dist = 1.0
+            sigma_minmax = [0.01, 0.05]
+            amplitude_min_max = [0.1, 1.0]
+            perturbation_array, _, _, _ = get_random_gauss_perturbation_array(
+                self.dynamics_func.dt * self.max_episode_steps,
+                self.dynamics_func.dt,
+                n_pert_per_joint,
+                min_t_dist,
+                sigma_minmax,
+                amplitude_min_max,
+            )
+            self.perturbations = perturbation_array
 
         return state
 
@@ -207,6 +229,8 @@ class GeneralEnv(CustomEnv):
         self.clean_action_history = np.append(self.clean_action_history, clean_action)
         dirty_action = self.find_delay_action()
         dirty_action += np.random.normal(self.action_bias, self.action_noise)
+        last_dirty_action = self.observation_dict['U_meas'][-1]
+        dirty_action = last_dirty_action + self.responsiveness * (dirty_action - last_dirty_action)
         return dirty_action
 
     def get_last_clean_observation(self):
@@ -220,8 +244,18 @@ class GeneralEnv(CustomEnv):
         self.dynamics_func.dt = internal_dt
 
         new_observation = self.get_last_clean_observation()
+
+        torque = np.array([dirty_action, 0])
+        if self.env_type == "acrobot":
+            torque = np.array([0, dirty_action])
+
+        if self.use_perturbations:
+            timestep = len(self.observation_dict["T"]) - 1
+            torque[0] += self.perturbations[0][timestep]
+            torque[1] += self.perturbations[1][timestep]
+
         for i in range(0, np.round(dt/internal_dt).astype(int)):
-            new_observation = self.dynamics_func(new_observation, np.array([dirty_action]), scaling=self.scaling)
+            new_observation = self.dynamics_func(new_observation, torque, scaling=self.scaling)
 
         self.dynamics_func.dt = dt
         return new_observation
