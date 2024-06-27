@@ -85,7 +85,6 @@ class GeneralEnv(CustomEnv):
             True
         )
 
-        self.observation_dict['dynamics_func'] = self.dynamics_func
         self.dynamics_func.simulator.plant.observation_dict = self.observation_dict
 
     def initialize_disturbances(self):
@@ -142,6 +141,8 @@ class GeneralEnv(CustomEnv):
     def custom_reset(self):
         if self.simulation is not None:
             self.simulation.reset()
+        if 'dynamics_func' not in self.observation_dict:
+            self.observation_dict['dynamics_func'] = self.dynamics_func
         for key in self.observation_dict:
             if key != 'dynamics_func' and key != 'max_episode_steps':
                 self.observation_dict[key].clear()
@@ -251,8 +252,8 @@ class GeneralEnv(CustomEnv):
 
         if self.use_perturbations:
             timestep = len(self.observation_dict["T"]) - 1
-            torque[0] += self.perturbations[0][timestep]
-            torque[1] += self.perturbations[1][timestep]
+            torque[0] += self.perturbations[0][timestep]/self.dynamics_func.torque_limit[0]
+            torque[1] += self.perturbations[1][timestep]/self.dynamics_func.torque_limit[1]
 
         for i in range(0, np.round(dt/internal_dt).astype(int)):
             new_observation = self.dynamics_func(new_observation, torque, scaling=self.scaling)

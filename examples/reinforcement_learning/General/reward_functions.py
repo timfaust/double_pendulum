@@ -18,12 +18,12 @@ def get_unscaled_action(observation_dict, t_minus=0):
     return max_action_value
 
 
-def get_state_values(observation_dict):
+def get_state_values(observation_dict, key='X_meas'):
     l = [0.2, 0.3]
     dt_goal = 0.05
     threshold_distance = 0.01
 
-    unscaled_observation = observation_dict['dynamics_func'].unscale_state(observation_dict['X_meas'][-1])
+    unscaled_observation = observation_dict['dynamics_func'].unscale_state(observation_dict[key][-1])
     unscaled_action = get_unscaled_action(observation_dict)
 
     y = wrap_angles_diff(unscaled_observation) #now both angles from -pi to pi

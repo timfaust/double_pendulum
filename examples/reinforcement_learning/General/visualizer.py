@@ -5,17 +5,17 @@ import numpy as np
 
 class Visualizer:
     def __init__(self, env_type, observation_dict):
-        self.pendulum_length_visualization = 350
+        self.pendulum_length_visualization = 700
         self.reward_visualization = 0
         self.action_visualization = None
         self.acc_reward_visualization = 0
-        self.window_width = 1000
-        self.window_height = 1000
-        self.metrics_width = 2000
+        self.window_width = 1500
+        self.window_height = 1500
+        self.metrics_width = 3000
         self.full_window_width = self.window_width + self.metrics_width
         self.window = None
         self.clock = None
-        self.metadata_visualization = {"render_modes": ["human"], "render_fps": 120}
+        self.metadata_visualization = {"render_modes": ["human"], "render_fps": 30}
         self.env_type = env_type
         self.observation_dict = observation_dict
 
@@ -45,21 +45,32 @@ class Visualizer:
 
     def draw_graph(self, canvas):
         # Basis-Einstellungen für den Graphen
-        graph_x, graph_y, graph_width, graph_height = self.window_width, 0, self.full_window_width, self.window_height
-        max_value = 1.1
-        min_value = -1.1
+        graph_x, graph_y, graph_width, graph_height = self.window_width, 0, (self.full_window_width - self.window_width)//2, self.window_height
+        max_value = 1.02
+        min_value = -1.02
 
         dirty_actions = self.observation_dict['U_meas']
         clean_actions = self.observation_dict['U_con']
+        dirty_x = [x[1] for x in self.observation_dict['X_meas']]
+        clean_x = [x[1] for x in self.observation_dict['X_real']]
+        dirty_v = [x[3] for x in self.observation_dict['X_meas']]
+        clean_v = [x[3] for x in self.observation_dict['X_real']]
         reward = [x - 1 for x in self.observation_dict['reward']]
 
-        graphs = [
+        graphs_left = [
             (dirty_actions, (255, 0, 0)),
             (clean_actions, (0, 0, 255)),
             (reward, (0, 255, 0))
         ]
 
-        for (graph, color) in graphs:
+        graphs_right = [
+            (dirty_x, (100, 0, 0)),
+            (clean_x, (255, 0, 0)),
+            (dirty_v, (0, 100, 0)),
+            (clean_v, (0, 255, 0))
+        ]
+
+        for (graph, color) in graphs_left:
             if len(graph) > 1:
                 points = []
                 for i, value in enumerate(graph):
@@ -68,10 +79,19 @@ class Visualizer:
                     points.append((x, y))
                 pygame.draw.lines(canvas, color, False, points, 2)
 
+        for (graph, color) in graphs_right:
+            if len(graph) > 1:
+                points = []
+                for i, value in enumerate(graph):
+                    x = graph_x + i * (graph_width / (len(graph) - 1)) + graph_width
+                    y = graph_y + graph_height - ((value - min_value) / (max_value - min_value) * graph_height)
+                    points.append((x, y))
+                pygame.draw.lines(canvas, color, False, points, 2)
+
         pygame.draw.rect(canvas, (0, 0, 0), (graph_x, graph_y, graph_width, graph_height), 1)
 
     def draw_environment(self, canvas):
-        x1, x2, x3, goal, threshold, metrics = self.calculate_positions()
+        x1, x2, x3, goal, threshold, metrics = self.calculate_positions('X_meas')
 
         if metrics['distance_next'] < threshold:
             canvas.fill((184, 255, 191))
@@ -79,6 +99,9 @@ class Visualizer:
 
         self.draw_grid(canvas)
         self.draw_goals(canvas, goal, threshold, x3)
+        self.draw_pendulum(canvas, x1, x2, alpha=50)
+
+        x1, x2, x3, goal, threshold, metrics = self.calculate_positions('X_real')
         self.draw_pendulum(canvas, x1, x2)
 
         return metrics
@@ -89,8 +112,8 @@ class Visualizer:
         for y in range(0, self.window_height, spacing):
             pygame.draw.line(canvas, line_color, (0, y), (self.full_window_width, y), 1)
 
-    def calculate_positions(self):
-        state_values = get_state_values(self.observation_dict)
+    def calculate_positions(self, key):
+        state_values = get_state_values(self.observation_dict, key)
 
         distance_next = (state_values['x3'] - state_values['goal'])[1]
         y = state_values['unscaled_observation']
@@ -111,16 +134,20 @@ class Visualizer:
 
         return state_values['x1'], state_values['x2'], state_values['x3'], state_values['goal'], state_values['threshold_distance'], metrics
 
-    def draw_pendulum(self, canvas, x1, x2):
-        pygame.draw.line(canvas, (0, 0, 0), self.getXY(np.array([0, 0])), self.getXY(x1), 5)
-        pygame.draw.line(canvas, (0, 0, 0), self.getXY(x1), self.getXY(x2), 5)
-        pygame.draw.circle(canvas, (60, 60, 230), self.getXY(np.array([0, 0])), 10)
-        pygame.draw.circle(canvas, (60, 60, 230), self.getXY(x1), 10)
-        pygame.draw.circle(canvas, (60, 60, 230), self.getXY(x2), 5)
+    def draw_pendulum(self, canvas, x1, x2, alpha=255):
+        transparent_surface = pygame.Surface(canvas.get_size(), pygame.SRCALPHA)
+        black = (0, 0, 0, alpha)
+        blue = (60, 60, 230, alpha)
+        pygame.draw.line(transparent_surface, black, self.getXY(np.array([0, 0])), self.getXY(x1), 10)
+        pygame.draw.line(transparent_surface, black, self.getXY(x1), self.getXY(x2), 10)
+        pygame.draw.circle(transparent_surface, blue, self.getXY(np.array([0, 0])), 20)
+        pygame.draw.circle(transparent_surface, blue, self.getXY(x1), 20)
+        pygame.draw.circle(transparent_surface, blue, self.getXY(x2), 10)
+        canvas.blit(transparent_surface, (0, 0))
 
     def draw_goals(self, canvas, goal, threshold, x3):
-        pygame.draw.line(canvas, (255, 50, 50), self.getXY(np.array([-0.5, goal[1] + threshold])), self.getXY(np.array([0.5, goal[1] + threshold])), 3)
-        pygame.draw.circle(canvas, (95, 2, 99), self.getXY(x3), 5)
+        pygame.draw.line(canvas, (255, 50, 50), self.getXY(np.array([-0.5*30/28, goal[1] + threshold])), self.getXY(np.array([0.5*30/28, goal[1] + threshold])), 3)
+        # pygame.draw.circle(canvas, (95, 2, 99), self.getXY(x3), 10)
 
     def blit_texts(self, canvas, metrics):
         myFont = pygame.font.SysFont("Arial", 28)

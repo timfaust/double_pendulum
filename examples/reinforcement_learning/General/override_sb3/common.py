@@ -111,13 +111,13 @@ class CustomPolicy(SACPolicy):
             'b': 0.005 * factor,
             'cf': 0.4 * factor,
             'start_delay': 0.15 * factor,
-            'delay': 0.03 * factor,
-            'velocity_noise': 0.005 * factor,
-            'velocity_bias': 0.005 * factor,
-            'position_noise': 0.005 * factor,
-            'position_bias': 0.005 * factor,
-            'action_noise': 0.0001 * factor,
-            'action_bias': 0.0001 * factor
+            'delay': 0.05 * factor,
+            'velocity_noise': 0.0025 * factor,
+            'velocity_bias': 0.0025 * factor,
+            'position_noise': 0.0025 * factor,
+            'position_bias': 0.0025 * factor,
+            'action_noise': 0.0025 * factor,
+            'action_bias': 0.0025 * factor
         }
 
         environment.change_dynamics(sigmas, cls.progress)
