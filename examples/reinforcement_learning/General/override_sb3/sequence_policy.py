@@ -1,16 +1,9 @@
-from typing import List, Tuple, Dict, Optional
-
 import numpy as np
-from stable_baselines3.common.policies import ContinuousCritic
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
-from stable_baselines3.common.type_aliases import PyTorchObs
-from stable_baselines3.sac.policies import Actor
 from torch import nn
 import torch as th
 from examples.reinforcement_learning.General.environments import GeneralEnv
-from examples.reinforcement_learning.General.override_sb3.common import DefaultTranslator, DefaultActor, CustomPolicy, \
-    DefaultCritic, get_additional_values
-import torch.nn.functional as F
+from examples.reinforcement_learning.General.override_sb3.common import DefaultTranslator, CustomPolicy
 import gymnasium as gym
 
 from examples.reinforcement_learning.General.reward_functions import get_state_values
