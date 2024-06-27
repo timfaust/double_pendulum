@@ -18,26 +18,34 @@ def get_unscaled_action(observation_dict, t_minus=0):
     return max_action_value
 
 
-def get_state_values(env_type, observation_dict):
+def get_state_values(observation_dict):
     l = [0.2, 0.3]
+    dt_goal = 0.05
+    threshold_distance = 0.01
+
     unscaled_observation = observation_dict['dynamics_func'].unscale_state(observation_dict['X_meas'][-1])
     unscaled_action = get_unscaled_action(observation_dict)
 
     y = wrap_angles_diff(unscaled_observation) #now both angles from -pi to pi
 
+    s1 = np.sin(y[0])
+    s2 = np.sin(y[0] + y[1])
+    c1 = np.cos(y[0])
+    c2 = np.cos(y[0] + y[1])
+
     #cartesians of elbow x1 and end effector x2
-    x1 = np.array([np.sin(y[0]), np.cos(y[0])]) * l[0]
-    x2 = x1 + np.array([np.sin(y[0] + y[1]), np.cos(y[0] + y[1])]) * l[1]
+    x1 = np.array([s1, c1]) * l[0]
+    x2 = x1 + np.array([s2, c2]) * l[1]
 
     #cartesian velocities of the joints
-    v1 = np.array([np.cos(y[0]), -np.sin(y[0])]) * y[2] * l[0]
-    v2 = v1 + np.array([np.cos(y[0] + y[1]), -np.sin(y[0] + y[1])]) * (y[2] + y[3]) * l[1]
+    v1 = np.array([c1, -s1]) * y[2] * l[0]
+    v2 = v1 + np.array([c2, -s2]) * (y[2] + y[3]) * l[1]
 
     #goal for cartesian end effector position
     goal = np.array([0, -0.5])
 
-    dt_goal = 0.05
-    threshold_distance = 0.01
+    x3 = x2 + dt_goal * v2
+    distance = np.linalg.norm(x3 - np.array([0, -0.5]))
 
     u_p, u_pp = 0, 0
     if len(observation_dict['U_con']) > 1:
@@ -46,7 +54,29 @@ def get_state_values(env_type, observation_dict):
         if len(observation_dict['U_con']) > 2:
             u_pp = (unscaled_action - 2 * get_unscaled_action(observation_dict, -1) + get_unscaled_action(observation_dict, -2))/(dt * dt)
 
-    return unscaled_observation, x1, x2, v1, v2, unscaled_action, goal, dt_goal, threshold_distance, u_p, u_pp
+    state_values = {
+        "unscaled_observation": unscaled_observation,
+        "x1": x1,
+        "x2": x2,
+        "x3": x3,
+        "s1": s1,
+        "s2": s2,
+        "c1": c1,
+        "c2": c2,
+        "v1": v1,
+        "v2": v2,
+        "omega_squared_1": unscaled_observation[2] ** 2,
+        "omega_squared_2": unscaled_observation[3] ** 2,
+        "goal": goal,
+        "dt_goal": dt_goal,
+        "threshold_distance": threshold_distance,
+        "distance": distance,
+        "unscaled_action": unscaled_action,
+        "u_p": u_p,
+        "u_pp": u_pp
+    }
+
+    return state_values
 
 
 def score_reward(observation, action, env_type, dynamic_func, observation_dict):
@@ -54,22 +84,19 @@ def score_reward(observation, action, env_type, dynamic_func, observation_dict):
 
 
 def future_pos_reward(observation, action, env_type, dynamic_func, observation_dict):
-    y, x1, x2, v1, v2, action, goal, dt_goal, threshold_distance, u_p, u_pp = get_state_values(env_type, observation_dict)
-    x3 = x2 + dt_goal * v2
-    distance = np.linalg.norm(x3 - goal)
-    reward = get_i_decay(distance, 4)
+    state_values = get_state_values(observation_dict)
+    reward = get_i_decay(state_values['distance'], 4)
     # reward = get_e_decay(distance, 1)
-    if (x3 - goal)[1] < threshold_distance:
-        abstract_distance = np.linalg.norm(v1) + np.linalg.norm(v2) #+ np.linalg.norm(action)/100# + np.linalg.norm(u_p)/10
+    if (state_values['x3'] - state_values['goal'])[1] < state_values['threshold_distance']:
+        abstract_distance = np.linalg.norm(state_values['v1']) + np.linalg.norm(state_values['v2']) #+ np.linalg.norm(action)/100# + np.linalg.norm(u_p)/10
         reward += get_i_decay(abstract_distance, 4)
         # reward += get_e_decay(abstract_distance, 10)
-    return reward * punish_limit(y, observation_dict['dynamics_func'])
+    return reward * punish_limit(state_values['unscaled_observation'], observation_dict['dynamics_func'])
 
 
 def pos_reward(observation, action, env_type, dynamic_func, observation_dict):
-    y, x1, x2, v1, v2, action, goal, dt, threshold, _, _ = get_state_values(env_type, observation_dict)
-    distance = np.linalg.norm(x2 - goal)
-    return 1 / (distance + 0.0001)
+    state_values = get_state_values(observation_dict)
+    return 1 / (state_values['distance'] + 0.0001)
 
 
 def saturated_distance_from_target(observation, action, env_type, dynamic_func, observation_dict):
@@ -106,10 +133,7 @@ def quadratic_rew(observation, action, env_type, dynamic_func, observation_dict)
         ]
     )
 
-
-
-    y, x1, x2, v1, v2, action, goal, dt, threshold, _, _ = get_state_values(env_type, observation_dict)
-
+    state_values = get_state_values(observation_dict)
 
     #defining custom goal for state (pos1, pos2, angl_vel1, angl_vel2)
     goal = np.array([np.pi, 0., 0., 0.])
@@ -146,9 +170,9 @@ def quadratic_rew(observation, action, env_type, dynamic_func, observation_dict)
 
 
     cart_goal_x2 = np.array([0, -0.5])
-    cart_err_x2 = x2 - cart_goal_x2
+    cart_err_x2 = state_values['x2'] - cart_goal_x2
 
-    cart_err_x1 = x1 - cart_goal_x1
+    cart_err_x1 = state_values['x1'] - cart_goal_x1
 
     Q2 = np.zeros((2,2))
     Q2[0, 0] = 10.0

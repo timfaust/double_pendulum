@@ -90,13 +90,10 @@ class Visualizer:
             pygame.draw.line(canvas, line_color, (0, y), (self.full_window_width, y), 1)
 
     def calculate_positions(self):
-        y, x1, x2, v1, v2, action, goal, dt, threshold, u_p, u_pp = get_state_values(self.env_type, self.observation_dict)
-        x3 = x2 + dt * v2
+        state_values = get_state_values(self.observation_dict)
 
-        distance = np.linalg.norm(x2 - goal)
-        distance_next = (x3 - goal)[1]
-        v1_total = np.linalg.norm(v1)
-        v2_total = np.linalg.norm(v2)
+        distance_next = (state_values['x3'] - state_values['goal'])[1]
+        y = state_values['unscaled_observation']
 
         metrics = {
             'acc_reward': np.round(self.acc_reward_visualization, 5),
@@ -108,11 +105,11 @@ class Visualizer:
             'distance_next': round(distance_next, 4),
             'v_1': round(y[2]/20, 4),
             'v_2': round(y[3]/20, 4),
-            'action': round(action/5, 4),
+            'action': round(state_values['unscaled_action']/5, 4),
             'time': self.observation_dict["T"][-1]
         }
 
-        return x1, x2, x3, goal, threshold, metrics
+        return state_values['x1'], state_values['x2'], state_values['x3'], state_values['goal'], state_values['threshold_distance'], metrics
 
     def draw_pendulum(self, canvas, x1, x2):
         pygame.draw.line(canvas, (0, 0, 0), self.getXY(np.array([0, 0])), self.getXY(x1), 5)

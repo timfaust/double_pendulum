@@ -13,6 +13,8 @@ from examples.reinforcement_learning.General.override_sb3.common import DefaultT
 import torch.nn.functional as F
 import gymnasium as gym
 
+from examples.reinforcement_learning.General.reward_functions import get_state_values
+
 
 class SequenceExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space: gym.spaces.Box, translator):
@@ -139,9 +141,9 @@ class SequenceTranslator(DefaultTranslator):
         output = np.concatenate(output)
 
         output = np.append(dirty_observation.copy(), output)
-        additional = get_additional_values(dirty_observation.copy())
-        additional_used = np.array([additional[15], additional[6], additional[10], additional[11]])
-        output = np.append(additional_used, output)
+        state_values = get_state_values(env.observation_dict)
+        additional = np.array([state_values['x3'][1], state_values['v2'][0], state_values['c1'], state_values['c2']])
+        output = np.append(additional, output)
 
         return output
 
