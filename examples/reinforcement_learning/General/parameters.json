@@ -56,7 +56,7 @@
       "max_episode_steps": 1000,
       "training_steps": 10000000,
       "use_action_noise": 1,
-      "eval_freq": 50000,
+      "eval_freq": 200000,
       "n_eval_episodes": 1,
       "render_eval": 1,
       "render_every_steps": 1,

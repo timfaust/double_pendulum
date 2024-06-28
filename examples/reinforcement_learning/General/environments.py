@@ -271,7 +271,7 @@ class GeneralEnv(CustomEnv):
         new_state = self.translator.build_state(self, dirty_observation, clean_action, **self.observation_dict)
         self.observation = new_state
 
-        reward = self.get_reward(dirty_observation, clean_action)
+        reward = self.get_reward(clean_observation, clean_action)
         self.observation_dict['reward'].append(reward)
         terminated = self.terminated_func(self.observation_dict['dynamics_func'].unscale_state(self.observation_dict['X_meas'][-1]))
         truncated = self.check_episode_end()

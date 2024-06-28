@@ -79,8 +79,8 @@ class LSTMExtractor(SequenceExtractor):
         smoothed_seq = self.filter(obs_reshaped)
         _, (hidden, _) = self.lstm(smoothed_seq)
         last_timestep = hidden[-1]
-        dropped = self.dropout(last_timestep)
-        fc_output = self.fc(dropped)
+        # dropped = self.dropout(last_timestep)
+        fc_output = self.fc(last_timestep)
         return self.activation(fc_output)
 
 
