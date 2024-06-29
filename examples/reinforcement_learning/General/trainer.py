@@ -21,20 +21,6 @@ from examples.reinforcement_learning.General.override_sb3.custom_sac import Cust
 from examples.reinforcement_learning.General.score import calculate_score
 
 
-class ScoreCallback(BaseCallback):
-    def __init__(self, verbose=0):
-        super(ScoreCallback, self).__init__(verbose)
-
-    def _on_step(self) -> bool:
-        if len(self.training_env.get_attr('observation_dict')[0]['T']) == self.training_env.get_attr('max_episode_steps')[0] - 1:
-            sum = 0
-            observation_dicts = self.training_env.get_attr('observation_dict')
-            for observation_dict in observation_dicts:
-                sum += calculate_score(observation_dict)
-            self.logger.record("rollout/score_mean", sum/len(observation_dicts))
-        return True
-
-
 class ProgressBarCallback(BaseCallback):
     def __init__(self, total_steps, log_dir, data, n_envs):
         super(ProgressBarCallback, self).__init__()

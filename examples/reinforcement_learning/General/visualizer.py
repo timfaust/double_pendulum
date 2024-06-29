@@ -45,11 +45,15 @@ class Visualizer:
 
     def draw_graph(self, canvas):
         # Basis-Einstellungen für den Graphen
-        graph_x, graph_y, graph_width, graph_height = self.window_width, 0, (self.full_window_width - self.window_width)//2, self.window_height
+        graph_x, graph_y, graph_width, graph_height = self.window_width, 0, (self.full_window_width - self.window_width) // 2, self.window_height
         max_value = 1.02
         min_value = -1.02
 
-        dirty_actions = self.observation_dict['U_meas']
+        # Create a transparent surface for drawing
+        graph_surface = pygame.Surface((self.full_window_width, self.window_height), pygame.SRCALPHA)
+        graph_surface.fill((0, 0, 0, 0))  # Fill with transparent color
+
+        dirty_actions = self.observation_dict['U_real']
         clean_actions = self.observation_dict['U_con']
         dirty_x = [x[1] for x in self.observation_dict['X_meas']]
         clean_x = [x[1] for x in self.observation_dict['X_real']]
@@ -58,37 +62,40 @@ class Visualizer:
         reward = [x - 1 for x in self.observation_dict['reward']]
 
         graphs_left = [
-            (dirty_actions, (255, 0, 0)),
-            (clean_actions, (0, 0, 255)),
-            (reward, (0, 255, 0))
+            (clean_actions, (0, 0, 255, 150)),
+            (dirty_actions, (255, 0, 0, 255)),
+            (reward, (0, 255, 0, 255))
         ]
 
         graphs_right = [
-            (dirty_x, (100, 0, 0)),
-            (clean_x, (255, 0, 0)),
-            (dirty_v, (0, 100, 0)),
-            (clean_v, (0, 255, 0))
+            (dirty_x, (100, 0, 0, 150)),
+            (clean_x, (255, 0, 0, 255)),
+            (dirty_v, (0, 100, 0, 150)),
+            (clean_v, (0, 255, 0, 255))
         ]
 
-        for (graph, color) in graphs_left:
+        def draw_line(surface, color, start_pos, end_pos):
+            pygame.draw.line(surface, color, start_pos, end_pos, 2)
+
+        for (graph, color) in graphs_left + graphs_right:
             if len(graph) > 1:
                 points = []
                 for i, value in enumerate(graph):
                     x = graph_x + i * (graph_width / (len(graph) - 1))
+                    if graph in [graph for graph, _ in graphs_right]:
+                        x += graph_width
                     y = graph_y + graph_height - ((value - min_value) / (max_value - min_value) * graph_height)
                     points.append((x, y))
-                pygame.draw.lines(canvas, color, False, points, 2)
 
-        for (graph, color) in graphs_right:
-            if len(graph) > 1:
-                points = []
-                for i, value in enumerate(graph):
-                    x = graph_x + i * (graph_width / (len(graph) - 1)) + graph_width
-                    y = graph_y + graph_height - ((value - min_value) / (max_value - min_value) * graph_height)
-                    points.append((x, y))
-                pygame.draw.lines(canvas, color, False, points, 2)
+                for i in range(len(points) - 1):
+                    draw_line(graph_surface, color, points[i], points[i + 1])
 
+        # Draw the transparent surface onto the main canvas
+        canvas.blit(graph_surface, (0, 0))
+
+        # Draw border
         pygame.draw.rect(canvas, (0, 0, 0), (graph_x, graph_y, graph_width, graph_height), 1)
+        pygame.draw.rect(canvas, (0, 0, 0), (graph_x + graph_width, graph_y, graph_width, graph_height), 1)
 
     def draw_environment(self, canvas):
         x1, x2, x3, goal, threshold, metrics = self.calculate_positions('X_real')

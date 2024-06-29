@@ -1,3 +1,4 @@
+import copy
 import json
 
 from stable_baselines3.common.env_util import make_vec_env
@@ -12,7 +13,7 @@ import pygame
 import numpy as np
 import gymnasium as gym
 from examples.reinforcement_learning.General.dynamics_functions import default_dynamics, load_param, custom_dynamics_func_PI, custom_dynamics_func_4PI
-from examples.reinforcement_learning.General.reward_functions import future_pos_reward, pos_reward, quadratic_rew, saturated_distance_from_target, score_reward
+from examples.reinforcement_learning.General.reward_functions import future_pos_reward, pos_reward, quadratic_rew, saturated_distance_from_target
 from double_pendulum.simulation.simulation import Simulator
 
 from src.python.double_pendulum.simulation.perturbations import get_random_gauss_perturbation_array
@@ -70,7 +71,8 @@ class GeneralEnv(CustomEnv):
         self.initialize_disturbances()
 
         self.mpar = load_param(self.param_data["max_torque"])
-        self.observation_dict = {"T": [], 'X_meas': [], 'X_real': [], 'U_con': [], 'U_meas': [], 'reward': [], "push": [], "max_episode_steps": self.max_episode_steps, "current_force": []}
+        self.observation_dict = {"T": [], 'X_meas': [], 'X_real': [], 'U_con': [], 'U_real': [], 'reward': [], "push": [], "max_episode_steps": self.max_episode_steps, "current_force": []}
+        self.observation_dict_old = None
         self.render_mode = "None"
         self.visualizer = Visualizer(self.env_type, self.observation_dict)
 
@@ -98,7 +100,7 @@ class GeneralEnv(CustomEnv):
         self.start_delay = 0.0
         self.delay = 0.0
         self.responsiveness = 1
-        self.use_perturbations = True
+        self.use_perturbations = False
         self.perturbations = []
 
     def initialize_from_params(self):
@@ -141,6 +143,7 @@ class GeneralEnv(CustomEnv):
     def custom_reset(self):
         if self.simulation is not None:
             self.simulation.reset()
+        self.observation_dict_old = copy.deepcopy(self.observation_dict)
         if 'dynamics_func' not in self.observation_dict:
             self.observation_dict['dynamics_func'] = self.dynamics_func
         for key in self.observation_dict:
@@ -230,7 +233,7 @@ class GeneralEnv(CustomEnv):
         self.clean_action_history = np.append(self.clean_action_history, clean_action)
         dirty_action = self.find_delay_action()
         dirty_action += np.random.normal(self.action_bias, self.action_noise)
-        last_dirty_action = self.observation_dict['U_meas'][-1]
+        last_dirty_action = self.observation_dict['U_real'][-1]
         dirty_action = last_dirty_action + self.responsiveness * (dirty_action - last_dirty_action)
         return dirty_action
 
@@ -301,7 +304,7 @@ class GeneralEnv(CustomEnv):
             time = self.dynamics_func.dt + self.observation_dict["T"][-1]
         self.observation_dict["T"].append(np.around(time, decimals=5))
         self.observation_dict['U_con'].append(clean_action)
-        self.observation_dict['U_meas'].append(dirty_action)
+        self.observation_dict['U_real'].append(dirty_action)
         self.observation_dict['X_meas'].append(dirty_observation)
         self.observation_dict['X_real'].append(clean_observation)
 
@@ -329,6 +332,8 @@ class GeneralEnv(CustomEnv):
                 if 'bias' not in param:
                     value = np.abs(value)
                 setattr(self, param, value)
+
+        self.responsiveness = np.random.uniform(0.3, 1)
 
         self.update_plant()
 

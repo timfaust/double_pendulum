@@ -2,7 +2,6 @@ import numpy as np
 from double_pendulum.utils.wrap_angles import wrap_angles_diff
 
 from examples.reinforcement_learning.General.misc_helper import punish_limit
-from examples.reinforcement_learning.General.score import get_score
 
 def get_e_decay(x, x_max, factor=5):
     c = np.exp(-factor)
@@ -12,7 +11,7 @@ def get_i_decay(x, factor=4):
     return 1/(factor * x + 1)
 
 def get_unscaled_action(observation_dict, t_minus=0):
-    unscaled_action = observation_dict['dynamics_func'].unscale_action(np.array([observation_dict['U_con'][t_minus-1]]))
+    unscaled_action = observation_dict['dynamics_func'].unscale_action(np.array([observation_dict['U_real'][t_minus-1]]))
     max_value_index = np.argmax(np.abs(unscaled_action))
     max_action_value = unscaled_action[max_value_index]
     return max_action_value
@@ -79,16 +78,12 @@ def get_state_values(observation_dict, key='X_meas'):
     return state_values
 
 
-def score_reward(observation, action, env_type, dynamic_func, observation_dict):
-    return get_score(observation_dict) * int(observation_dict["max_episode_steps"])
-
-
 def future_pos_reward(observation, action, env_type, dynamic_func, observation_dict):
     state_values = get_state_values(observation_dict, 'X_real')
     reward = get_i_decay(state_values['distance'], 4)
     # reward = get_e_decay(distance, 1)
     if (state_values['x3'] - state_values['goal'])[1] < state_values['threshold_distance']:
-        abstract_distance = np.linalg.norm(state_values['v1']) + np.linalg.norm(state_values['v2']) #+ np.linalg.norm(action)/100# + np.linalg.norm(u_p)/10
+        abstract_distance = np.linalg.norm(state_values['v1']) + np.linalg.norm(state_values['v2']) + np.linalg.norm(action)/10# + np.linalg.norm(u_p)/10
         reward += get_i_decay(abstract_distance, 4)
         # reward += get_e_decay(abstract_distance, 10)
     return reward * punish_limit(state_values['unscaled_observation'], observation_dict['dynamics_func'])

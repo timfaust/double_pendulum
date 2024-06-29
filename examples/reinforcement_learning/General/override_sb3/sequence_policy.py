@@ -68,16 +68,16 @@ class SmoothingFilter(nn.Module):
 class LSTMExtractor(SequenceExtractor):
     def __init__(self, observation_space: gym.spaces.Box, translator, hidden_size=64, num_layers=2):
         super().__init__(observation_space, translator)
-        self.filter = SmoothingFilter(self.input_features, 5)
+        # self.filter = SmoothingFilter(self.input_features, 5)
         self.lstm = nn.LSTM(self.input_features, hidden_size, num_layers, batch_first=True)
         self.fc = nn.Linear(hidden_size, self.output_dim)
         self.activation = nn.Tanh()
-        self.dropout = nn.Dropout(0.2)
+        # self.dropout = nn.Dropout(0.2)
 
     def _process_main_features(self, obs: th.Tensor) -> th.Tensor:
         obs_reshaped = obs.view(-1, self.timesteps, self.input_features)
-        smoothed_seq = self.filter(obs_reshaped)
-        _, (hidden, _) = self.lstm(smoothed_seq)
+        # smoothed_seq = self.filter(obs_reshaped)
+        _, (hidden, _) = self.lstm(obs_reshaped)
         last_timestep = hidden[-1]
         # dropped = self.dropout(last_timestep)
         fc_output = self.fc(last_timestep)
