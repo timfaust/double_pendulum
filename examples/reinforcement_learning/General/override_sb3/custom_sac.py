@@ -1,5 +1,7 @@
 import ast
 import re
+import sys
+import time
 from typing import List, Optional
 
 import numpy as np
@@ -9,7 +11,7 @@ from stable_baselines3.common.buffers import ReplayBuffer
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.noise import ActionNoise
 from stable_baselines3.common.type_aliases import RolloutReturn, TrainFreq, TrainFrequencyUnit
-from stable_baselines3.common.utils import polyak_update, should_collect_more_steps
+from stable_baselines3.common.utils import polyak_update, should_collect_more_steps, safe_mean
 from stable_baselines3.common.vec_env import VecEnv
 from torch.optim import lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
@@ -96,8 +98,15 @@ def create_lr_schedule(optimizer, schedule_str):
 
 
 class CustomSAC(SAC):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, policy_number, *args, **kwargs):
         self.schedulers = []
+        self.active_policy = 0
+        self.policies = []
+        self.policy_number = policy_number
+        self.replay_buffers = []
+        self.ent_coef_optimizers = []
+        self.log_ent_coefs = []
+
         schedule_params = {
             'actor_schedule': "",
             'critic_schedule': "",
@@ -110,12 +119,32 @@ class CustomSAC(SAC):
 
         super().__init__(*args, **kwargs)
 
-        if schedule_params['actor_schedule']:
-            self.schedulers.append(create_lr_schedule(self.actor.optimizer, schedule_params['actor_schedule']))
-        if schedule_params['critic_schedule']:
-            self.schedulers.append(create_lr_schedule(self.critic.optimizer, schedule_params['critic_schedule']))
-        if schedule_params['entropy_schedule']:
-            self.schedulers.append(create_lr_schedule(self.ent_coef_optimizer, schedule_params['entropy_schedule']))
+        for i in range(len(self.policies)):
+            self.select_policy(i)
+            if schedule_params['actor_schedule']:
+                self.schedulers.append(create_lr_schedule(self.actor.optimizer, schedule_params['actor_schedule']))
+            if schedule_params['critic_schedule']:
+                self.schedulers.append(create_lr_schedule(self.critic.optimizer, schedule_params['critic_schedule']))
+            if schedule_params['entropy_schedule']:
+                self.schedulers.append(create_lr_schedule(self.ent_coef_optimizer, schedule_params['entropy_schedule']))
+
+    def select_policy(self, policy_id):
+        self.active_policy = policy_id
+        self.policy = self.policies[self.active_policy]
+        self.actor = self.policy.actor
+        self.critic = self.policy.critic
+        self.critic_target = self.policy.critic_target
+        self.ent_coef_optimizer = self.ent_coef_optimizers[self.active_policy]
+        self.log_ent_coef = self.log_ent_coefs[self.active_policy]
+        self.replay_buffer = self.replay_buffers[self.active_policy]
+
+    def _setup_model(self) -> None:
+        for i in range(self.policy_number):
+            super()._setup_model()
+            self.log_ent_coefs.append(self.log_ent_coef)
+            self.ent_coef_optimizers.append(self.ent_coef_optimizer)
+            self.replay_buffers.append(self.replay_buffer)
+            self.policies.append(self.policy)
 
     def collect_rollouts(
             self,
@@ -146,6 +175,7 @@ class CustomSAC(SAC):
         :param log_interval: Log data every ``log_interval`` episodes
         :return:
         """
+        self.select_policy(0)
         # Switch to eval mode (this affects batch norm / dropout)
         self.policy.set_training_mode(False)
 
@@ -171,7 +201,7 @@ class CustomSAC(SAC):
             actions, buffer_actions = self._sample_action(learning_starts, action_noise, env.num_envs)
 
             # Rescale and perform action
-            new_obs, rewards, dones, infos = env.step(actions)
+            new_obs, reward_list, dones, infos = env.step(actions)
 
             self.num_timesteps += env.num_envs
             num_collected_steps += 1
@@ -186,9 +216,10 @@ class CustomSAC(SAC):
             # Retrieve reward and episode length if using Monitor wrapper
             self._update_info_buffer(infos, dones)
 
-            # Store data in replay buffer (normalized action and unnormalized observation)
-            self._store_transition(replay_buffer, buffer_actions, new_obs, rewards, dones,
-                                   infos)  # type: ignore[arg-type]
+            for i in range(self.policy_number):
+                # Store data in replay buffer (normalized action and unnormalized observation)
+                self._store_transition(self.replay_buffers[i], buffer_actions, new_obs, reward_list[i], dones,
+                                       infos)  # type: ignore[arg-type]
 
             self._update_current_progress_remaining(self.num_timesteps, self._total_timesteps)
 
@@ -233,6 +264,12 @@ class CustomSAC(SAC):
                 s.step()
 
     def train(self, gradient_steps: int, batch_size: int = 64) -> None:
+        for i in range(len(self.policies)):
+            self.select_policy(i)
+            self.train_policy(gradient_steps, batch_size)
+
+    def train_policy(self, gradient_steps: int, batch_size: int = 64) -> None:
+        logging_name = str(self.active_policy)
         # Switch to train mode (this affects batch norm / dropout)
         self.policy.set_training_mode(True)
         # Update optimizers learning rate
@@ -335,7 +372,7 @@ class CustomSAC(SAC):
                     plt.savefig(self.logger.dir + '/gradients.png')
                     plt.close()
 
-                    writer.add_image('Gradient Bar Chart', plt.imread(self.logger.dir + '/gradients.png'),
+                    writer.add_image('gradient_chart/' + logging_name, plt.imread(self.logger.dir + '/gradients.png'),
                                      self.num_timesteps, dataformats='HWC')
 
             self.policy.after_actor_backward()
@@ -349,29 +386,54 @@ class CustomSAC(SAC):
 
         self._n_updates += gradient_steps
 
-        self.logger.record("train/n_updates", self._n_updates, exclude="tensorboard")
-        self.logger.record("train/ent_coef", np.mean(ent_coefs))
-        self.logger.record("train/actor_loss", np.mean(actor_losses))
-        self.logger.record("train/critic_loss", np.mean(critic_losses))
+        self.logger.record("train/" + logging_name + "/n_updates", self._n_updates, exclude="tensorboard")
+        self.logger.record("train/" + logging_name + "/ent_coef", np.mean(ent_coefs))
+        self.logger.record("train/" + logging_name + "/actor_loss", np.mean(actor_losses))
+        self.logger.record("train/" + logging_name + "/critic_loss", np.mean(critic_losses))
         if len(ent_coef_losses) > 0:
-            self.logger.record("train/ent_coef_loss", np.mean(ent_coef_losses))
+            self.logger.record("train/" + logging_name + "/ent_coef_loss", np.mean(ent_coef_losses))
 
         actor_lr = self.actor.optimizer.param_groups[0]['lr']
         critic_lr = self.critic.optimizer.param_groups[0]['lr']
         entropy_lr = self.ent_coef_optimizer.param_groups[0]['lr']
 
-        self.logger.record("train/actor_lr", actor_lr)
-        self.logger.record("train/critic_lr", critic_lr)
-        self.logger.record("train/entropy_lr", entropy_lr)
+        self.logger.record("train/" + logging_name + "/actor_lr", actor_lr)
+        self.logger.record("train/" + logging_name + "/critic_lr", critic_lr)
+        self.logger.record("train/" + logging_name + "/entropy_lr", entropy_lr)
 
         self.policy.after_train()
-        for name, param in self.actor.named_parameters():
-            if param.grad is not None:
-                self.logger.record(f"actor/grads/{name}", param.grad.norm().item())
-            self.logger.record(f"actor/weights/{name}", param.data.norm().item())
 
-        for name, param in self.critic.named_parameters():
-            if param.grad is not None:
-                self.logger.record(f"critic/grads/{name}", param.grad.norm().item())
-            self.logger.record(f"critic/weights/{name}", param.data.norm().item())
+        def record_grads(logger, model, model_name, logging_name):
+            for name, param in model.named_parameters():
+                if param.grad is not None:
+                    logger.record(f"{model_name}/{logging_name}/grads/{name}", param.grad.norm().item())
+                logger.record(f"{model_name}/{logging_name}/weights/{name}", param.data.norm().item())
+
+        record_grads(self.logger, self.actor, "actor", logging_name)
+        record_grads(self.logger, self.critic, "critic", logging_name)
+
+    def _dump_logs(self) -> None:
+        """
+        Write log.
+        """
+        assert self.ep_info_buffer is not None
+        assert self.ep_success_buffer is not None
+
+        time_elapsed = max((time.time_ns() - self.start_time) / 1e9, sys.float_info.epsilon)
+        fps = int((self.num_timesteps - self._num_timesteps_at_start) / time_elapsed)
+        self.logger.record("time/episodes", self._episode_num, exclude="tensorboard")
+        if len(self.ep_info_buffer) > 0 and len(self.ep_info_buffer[0]) > 0:
+            for i in range(len(self.ep_info_buffer[0])):
+                self.logger.record("rollout/ep_rew_mean_" + str(i), safe_mean([ep_info[i]["r"] for ep_info in self.ep_info_buffer]))
+            self.logger.record("rollout/ep_len_mean", safe_mean([ep_info[0]["l"] for ep_info in self.ep_info_buffer]))
+        self.logger.record("time/fps", fps)
+        self.logger.record("time/time_elapsed", int(time_elapsed), exclude="tensorboard")
+        self.logger.record("time/total_timesteps", self.num_timesteps, exclude="tensorboard")
+        if self.use_sde:
+            self.logger.record("train/std", (self.actor.get_std()).mean().item())
+
+        if len(self.ep_success_buffer) > 0:
+            self.logger.record("rollout/success_rate", safe_mean(self.ep_success_buffer))
+        # Pass the number of timesteps for tensorboard
+        self.logger.dump(step=self.num_timesteps)
 

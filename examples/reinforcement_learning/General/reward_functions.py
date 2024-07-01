@@ -86,7 +86,8 @@ def future_pos_reward(observation, action, env_type, dynamic_func, observation_d
         abstract_distance = np.linalg.norm(state_values['v1']) + np.linalg.norm(state_values['v2']) + np.linalg.norm(action)/10# + np.linalg.norm(u_p)/10
         reward += get_i_decay(abstract_distance, 4)
         # reward += get_e_decay(abstract_distance, 10)
-    return reward * punish_limit(state_values['unscaled_observation'], observation_dict['dynamics_func'])
+    reward = reward * punish_limit(state_values['unscaled_observation'], observation_dict['dynamics_func'])
+    return [reward, reward/2]
 
 
 def pos_reward(observation, action, env_type, dynamic_func, observation_dict):

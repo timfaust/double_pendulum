@@ -1,4 +1,4 @@
-__all__ = ["Monitor", "ResultsWriter", "get_monitor_files", "load_results"]
+__all__ = ["DummyVecEnv", "Monitor", "ResultsWriter", "get_monitor_files", "load_results"]
 
 import csv
 import json
@@ -158,14 +158,26 @@ class Monitor(gym.Wrapper[ObsType, ActType, ObsType, ActType]):
         self.reset_keywords = reset_keywords
         self.info_keywords = info_keywords
         self.allow_early_resets = allow_early_resets
-        self.rewards: List[float] = []
+        self.rewards: List[List[float]] = []
         self.needs_reset = True
-        self.episode_returns: List[float] = []
+        self.episode_returns: List[List[float]] = []
         self.episode_lengths: List[int] = []
         self.episode_times: List[float] = []
         self.total_steps = 0
         # extra info about the current episode, that was passed in during reset()
         self.current_reset_info: Dict[str, Any] = {}
+
+    def append_rewards(self, new_rewards: List[float]):
+        if not self.rewards:
+            self.rewards = [[] for _ in range(len(new_rewards))]
+        for i, reward in enumerate(new_rewards):
+            self.rewards[i].append(reward)
+
+    def append_return(self, reward_list: List[float]):
+        if not self.rewards:
+            self.rewards = [[] for _ in range(len(reward_list))]
+        for i, reward in enumerate(reward_list):
+            self.rewards[i].append(reward)
 
     def reset(self, **kwargs) -> Tuple[ObsType, Dict[str, Any]]:
         """
@@ -197,24 +209,27 @@ class Monitor(gym.Wrapper[ObsType, ActType, ObsType, ActType]):
         """
         if self.needs_reset:
             raise RuntimeError("Tried to step environment that needs reset")
-        observation, reward, terminated, truncated, info = self.env.step(action)
-        self.rewards.append(float(reward))
+        observation, reward_list, terminated, truncated, info = self.env.step(action)
+        self.append_rewards(reward_list)
         if terminated or truncated:
             self.needs_reset = True
-            ep_rew = sum(self.rewards)
-            ep_len = len(self.rewards)
-            ep_info = {"r": round(ep_rew, 6), "l": ep_len, "t": round(time.time() - self.t_start, 6)}
+            ep_rew = [sum(self.rewards[i]) for i in range(len(self.rewards))]
+            ep_len = len(self.rewards[0])
+            t = time.time()
+            ep_info = [{"r": round(ep_rew[i], 6), "l": ep_len, "t": round(t - self.t_start, 6)} for i in range(len(self.rewards))]
             for key in self.info_keywords:
-                ep_info[key] = info[key]
+                for info_entry in ep_info:
+                    info_entry[key] = info[key]
             self.episode_returns.append(ep_rew)
             self.episode_lengths.append(ep_len)
             self.episode_times.append(time.time() - self.t_start)
-            ep_info.update(self.current_reset_info)
+            for info_entry in ep_info:
+                info_entry.update(self.current_reset_info)
             if self.results_writer:
-                self.results_writer.write_row(ep_info)
+                self.results_writer.write_row(ep_info[0])
             info["episode"] = ep_info
         self.total_steps += 1
-        return observation, reward, terminated, truncated, info
+        return observation, np.array(reward_list), terminated, truncated, info
 
     def close(self) -> None:
         """
@@ -367,8 +382,9 @@ class DummyVecEnv(VecEnv):
 
     actions: np.ndarray
 
-    def __init__(self, env_fns: List[Callable[[], gym.Env]]):
+    def __init__(self, env_fns: List[Callable[[], gym.Env]], reward_number):
         self.envs = [_patch_env(fn()) for fn in env_fns]
+        self.reward_number = reward_number
         if len(set([id(env.unwrapped) for env in self.envs])) != len(self.envs):
             raise ValueError(
                 "You tried to create multiple environments, but the function to create them returned the same instance "
@@ -386,7 +402,7 @@ class DummyVecEnv(VecEnv):
 
         self.buf_obs = OrderedDict([(k, np.zeros((self.num_envs, *tuple(shapes[k])), dtype=dtypes[k])) for k in self.keys])
         self.buf_dones = np.zeros((self.num_envs,), dtype=bool)
-        self.buf_rews = np.zeros((self.num_envs,), dtype=np.float32)
+        self.buf_rews = np.zeros((self.num_envs, self.reward_number), dtype=np.float32)
         self.buf_infos: List[Dict[str, Any]] = [{} for _ in range(self.num_envs)]
         self.metadata = env.metadata
 
@@ -410,7 +426,7 @@ class DummyVecEnv(VecEnv):
                 self.buf_infos[env_idx]["terminal_observation"] = obs
                 obs, self.reset_infos[env_idx] = self.envs[env_idx].reset()
             self._save_obs(env_idx, obs)
-        return (self._obs_from_buf(), np.copy(self.buf_rews), np.copy(self.buf_dones), deepcopy(self.buf_infos))
+        return (self._obs_from_buf(), np.copy(self.buf_rews).T, np.copy(self.buf_dones), deepcopy(self.buf_infos))
 
     def reset(self) -> VecEnvObs:
         for env_idx in range(self.num_envs):

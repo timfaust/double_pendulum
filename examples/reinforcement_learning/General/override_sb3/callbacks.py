@@ -23,7 +23,8 @@ except ImportError:
     # if the progress bar is used
     tqdm = None
 
-from stable_baselines3.common.vec_env import DummyVecEnv, VecEnv, sync_envs_normalization, is_vecenv_wrapped, VecMonitor
+from stable_baselines3.common.vec_env import VecEnv, sync_envs_normalization, is_vecenv_wrapped, VecMonitor
+from examples.reinforcement_learning.General.override_sb3.utils import DummyVecEnv
 
 if TYPE_CHECKING:
     from stable_baselines3.common import base_class
@@ -49,6 +50,7 @@ class CustomEvalCallback(EvalCallback):
             # Reset success rate buffer
             self._is_success_buffer = []
 
+            # TODO: self.model policy richtig wählen
             episode_rewards, episode_scores, episode_lengths = evaluate_policy(
                 self.model,
                 self.eval_env,
@@ -81,23 +83,21 @@ class CustomEvalCallback(EvalCallback):
                     **kwargs,
                 )
 
-            mean_reward, std_reward, mean_score, std_score = np.mean(episode_rewards), np.std(episode_rewards), np.mean(episode_scores), np.std(episode_scores)
+            mean_reward, std_reward, mean_score, std_score = np.mean(episode_rewards, axis=0), np.std(episode_rewards, axis=0), np.mean(episode_scores), np.std(episode_scores)
             mean_ep_length, std_ep_length = np.mean(episode_lengths), np.std(episode_lengths)
-            self.last_mean_reward = float(mean_reward)
 
-            if self.verbose >= 1:
-                print(
-                    f"Eval num_timesteps={self.num_timesteps}, " f"episode_reward={mean_reward:.2f} +/- {std_reward:.2f}")
-                print(f"Episode length: {mean_ep_length:.2f} +/- {std_ep_length:.2f}")
             # Add to current Logger
-            self.logger.record("eval/mean_reward", float(mean_reward))
-            self.logger.record("eval/std_reward", float(std_reward))
+            for i in range(len(mean_reward)):
+                self.logger.record("eval/mean_reward_" + str(i), float(mean_reward[i]))
+                self.logger.record("eval/std_reward_" + str(i), float(std_reward[i]))
+                with SummaryWriter(self.logger.dir) as writer:
+                    writer.add_histogram("eval/hist_reward_" + str(i), np.array(episode_rewards)[:, i], self.num_timesteps)
+            with SummaryWriter(self.logger.dir) as writer:
+                writer.add_histogram("eval/hist_score", np.array(episode_scores), self.num_timesteps)
+
             self.logger.record("eval/mean_score", float(mean_score))
             self.logger.record("eval/std_score", float(std_score))
             self.logger.record("eval/mean_ep_length", mean_ep_length)
-            with SummaryWriter(self.logger.dir) as writer:
-                writer.add_histogram("eval/hist_reward", np.array(episode_rewards), self.num_timesteps)
-                writer.add_histogram("eval/hist_score", np.array(episode_scores), self.num_timesteps)
 
             if len(self._is_success_buffer) > 0:
                 success_rate = np.mean(self._is_success_buffer)
@@ -109,12 +109,13 @@ class CustomEvalCallback(EvalCallback):
             self.logger.record("time/total_timesteps", self.num_timesteps, exclude="tensorboard")
             self.logger.dump(self.num_timesteps)
 
-            if mean_reward > self.best_mean_reward:
+            # TODO: nur den ersten?
+            if all(mean_reward > self.best_mean_reward):
                 if self.verbose >= 1:
                     print("New best mean reward!")
                 if self.best_model_save_path is not None:
                     self.model.save(os.path.join(self.best_model_save_path, "best_model"))
-                self.best_mean_reward = float(mean_reward)
+                self.best_mean_reward = mean_reward
                 # Trigger callback on new best model, if needed
                 if self.callback_on_new_best is not None:
                     continue_training = self.callback_on_new_best.on_step()
@@ -198,7 +199,7 @@ def evaluate_policy(
     # Divides episodes among different sub environments in the vector as evenly as possible
     episode_count_targets = np.array([(n_eval_episodes + i) // n_envs for i in range(n_envs)], dtype="int")
 
-    current_rewards = np.zeros(n_envs)
+    current_rewards = np.zeros((env.reward_number, n_envs))
     current_lengths = np.zeros(n_envs, dtype="int")
     observations = env.reset()
     states = None
@@ -216,7 +217,7 @@ def evaluate_policy(
         for i in range(n_envs):
             if episode_counts[i] < episode_count_targets[i]:
                 # unpack values so that the callback can access the local variables
-                reward = rewards[i]
+                reward = rewards[:, i]
                 done = dones[i]
                 info = infos[i]
                 episode_starts[i] = done
@@ -238,11 +239,11 @@ def evaluate_policy(
                             # Only increment at the real end of an episode
                             episode_counts[i] += 1
                     else:
-                        episode_rewards.append(current_rewards[i])
+                        episode_rewards.append(current_rewards[:, i])
                         episode_lengths.append(current_lengths[i])
                         episode_counts[i] += 1
                     episode_scores.append(calculate_score(env.envs[i].env))
-                    current_rewards[i] = 0
+                    current_rewards[:, i] = np.zeros_like(current_rewards[:, i])
                     current_lengths[i] = 0
 
         observations = new_observations

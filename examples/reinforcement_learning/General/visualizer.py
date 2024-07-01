@@ -59,7 +59,7 @@ class Visualizer:
         clean_x = [x[1] for x in self.observation_dict['X_real']]
         dirty_v = [x[3] for x in self.observation_dict['X_meas']]
         clean_v = [x[3] for x in self.observation_dict['X_real']]
-        reward = [x - 1 for x in self.observation_dict['reward']]
+        reward = [x - 1 for x in self.observation_dict['reward_0']]
 
         graphs_left = [
             (clean_actions, (0, 0, 255, 150)),

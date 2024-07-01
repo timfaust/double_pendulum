@@ -59,13 +59,14 @@ class ProgressBarCallback(BaseCallback):
 
 
 class Trainer:
-    def __init__(self, name, env_type, param_name, policy, seed, action_noise=None):
-        self.environment = GeneralEnv(env_type, param_name, policy, seed=seed)
-        self.eval_environment = GeneralEnv(env_type, param_name, policy, is_evaluation_environment=True, seed=seed)
+    def __init__(self, name, env_type, param_name, policy, policy_number, seed, action_noise=None):
+        self.policy_number = policy_number
+        self.policy = policy
+        self.environment = GeneralEnv(env_type, param_name, self.policy, self.policy_number, seed=seed)
+        self.eval_environment = GeneralEnv(env_type, param_name, self.policy, self.policy_number, is_evaluation_environment=True, seed=seed)
         self.log_dir = './log_data/' + name + '/' + env_type
         self.name = name
         self.action_noise = action_noise
-        self.policy = policy
 
         self.use_action_noise = self.environment.param_data["use_action_noise"] == 1
         self.max_episode_steps = self.environment.param_data["max_episode_steps"]
@@ -97,8 +98,9 @@ class Trainer:
             filtered_data['train_freq'] = ast.literal_eval(filtered_data['train_freq'])
 
         agent = CustomSAC(
-            self.policy,
-            envs,
+            policy_number=self.policy_number,
+            policy=self.policy,
+            env=envs,
             tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
             action_noise=self.action_noise,
             seed=self.environment.seed,

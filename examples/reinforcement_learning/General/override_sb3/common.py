@@ -87,16 +87,20 @@ class CustomPolicy(SACPolicy):
         critic = self.critic_class(**critic_kwargs).to(self.device)
         return critic
 
-    def after_rollout(self, envs: List[GeneralEnv]):
+    @classmethod
+    def after_rollout(cls, envs: List[GeneralEnv]):
         pass
 
-    def after_train(self):
+    @classmethod
+    def after_train(cls):
         pass
 
-    def after_actor_backward(self):
+    @classmethod
+    def after_actor_backward(cls):
         pass
 
-    def after_critic_backward(self):
+    @classmethod
+    def after_critic_backward(cls):
         pass
 
     @classmethod
