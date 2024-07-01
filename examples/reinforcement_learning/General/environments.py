@@ -201,7 +201,7 @@ class GeneralEnv(CustomEnv):
         )
         return envs
 
-    # TODO: currently normalized noise
+    # normalized noise
     def apply_observation_disturbances(self, clean_observation):
         dirty_observation = clean_observation.copy()
         dirty_observation[:2] += np.random.normal(self.position_bias, self.position_noise, size=2)
@@ -209,7 +209,6 @@ class GeneralEnv(CustomEnv):
 
         return dirty_observation
 
-    # TODO: make more efficient with direct calculation of indizes
     def find_delay_action(self):
         list = self.observation_dict['T']
         timestep = list[-1]
@@ -228,7 +227,7 @@ class GeneralEnv(CustomEnv):
         delayed_action = self.clean_action_history[index]
         return delayed_action
 
-    # TODO: currently normalized noise
+    # normalized noise
     def get_dirty_action(self, clean_action):
         self.clean_action_history = np.append(self.clean_action_history, clean_action)
         dirty_action = self.find_delay_action()

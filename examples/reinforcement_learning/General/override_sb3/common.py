@@ -87,7 +87,7 @@ class CustomPolicy(SACPolicy):
         critic = self.critic_class(**critic_kwargs).to(self.device)
         return critic
 
-    def after_rollout(self, envs: List[GeneralEnv], *args, **kwargs):
+    def after_rollout(self, envs: List[GeneralEnv]):
         pass
 
     def after_train(self):

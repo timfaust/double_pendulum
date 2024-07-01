@@ -118,7 +118,7 @@ class CustomSAC(SAC):
         envs: List[GeneralEnv] = [monitor.env for monitor in args[0].envs]
         progress = self.num_timesteps / envs[0].training_steps
         self.policy_class.progress = progress
-        self.policy.after_rollout(envs, *args, **kwargs)
+        self.policy.after_rollout(envs)
 
         total_training_steps = envs[0].training_steps
         schedule_interval = total_training_steps / 100
