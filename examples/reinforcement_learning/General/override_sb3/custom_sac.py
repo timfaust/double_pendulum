@@ -141,6 +141,7 @@ class CustomSAC(SAC):
 
     def _setup_model(self) -> None:
         for i in range(self.policy_number):
+            self.replay_buffer = None
             super()._setup_model()
             self.log_ent_coefs.append(self.log_ent_coef)
             self.ent_coef_optimizers.append(self.ent_coef_optimizer)
@@ -267,9 +268,10 @@ class CustomSAC(SAC):
     def train(self, gradient_steps: int, batch_size: int = 64) -> None:
         for i in range(len(self.policies)):
             self.select_policy(i)
-            self.train_policy(gradient_steps, batch_size)
+            # TODO: was wird alles zu oft gemacht?
+            self.train_policy(i, gradient_steps, batch_size)
 
-    def train_policy(self, gradient_steps: int, batch_size: int = 64) -> None:
+    def train_policy(self, policy_id, gradient_steps: int, batch_size: int = 64) -> None:
         logging_name = str(self.active_policy)
         # Switch to train mode (this affects batch norm / dropout)
         self.policy.set_training_mode(True)
@@ -385,7 +387,8 @@ class CustomSAC(SAC):
                 # Copy running stats, see GH issue #996
                 polyak_update(self.batch_norm_stats, self.batch_norm_stats_target, 1.0)
 
-        self._n_updates += gradient_steps
+        if policy_id == 0:
+            self._n_updates += gradient_steps
 
         self.logger.record("train/" + logging_name + "/n_updates", self._n_updates, exclude="tensorboard")
         self.logger.record("train/" + logging_name + "/ent_coef", np.mean(ent_coefs))
