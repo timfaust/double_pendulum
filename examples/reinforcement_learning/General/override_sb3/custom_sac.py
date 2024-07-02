@@ -101,6 +101,7 @@ class CustomSAC(SAC):
     def __init__(self, policy_number, *args, **kwargs):
         self.schedulers = []
         self.active_policy = 0
+        self.sample_policy = 0
         self.policies = []
         self.policy_number = policy_number
         self.replay_buffers = []
@@ -175,7 +176,7 @@ class CustomSAC(SAC):
         :param log_interval: Log data every ``log_interval`` episodes
         :return:
         """
-        self.select_policy(0)
+        self.select_policy(self.sample_policy)
         # Switch to eval mode (this affects batch norm / dropout)
         self.policy.set_training_mode(False)
 
@@ -326,7 +327,7 @@ class CustomSAC(SAC):
                 # add entropy term
                 next_q_values = next_q_values - ent_coef * next_log_prob.reshape(-1, 1)
                 # td error + entropy term
-                target_q_values = replay_data.rewards + (1 - replay_data.dones) * self.gamma * next_q_values
+                target_q_values = replay_data.reward_list + (1 - replay_data.dones) * self.gamma * next_q_values
 
             # Get current Q-values estimates for each critic network
             # using action from the replay buffer

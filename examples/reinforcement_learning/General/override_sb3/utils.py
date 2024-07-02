@@ -158,7 +158,7 @@ class Monitor(gym.Wrapper[ObsType, ActType, ObsType, ActType]):
         self.reset_keywords = reset_keywords
         self.info_keywords = info_keywords
         self.allow_early_resets = allow_early_resets
-        self.rewards: List[List[float]] = []
+        self.reward_list: List[List[float]] = []
         self.needs_reset = True
         self.episode_returns: List[List[float]] = []
         self.episode_lengths: List[int] = []
@@ -168,16 +168,16 @@ class Monitor(gym.Wrapper[ObsType, ActType, ObsType, ActType]):
         self.current_reset_info: Dict[str, Any] = {}
 
     def append_rewards(self, new_rewards: List[float]):
-        if not self.rewards:
-            self.rewards = [[] for _ in range(len(new_rewards))]
+        if not self.reward_list:
+            self.reward_list = [[] for _ in range(len(new_rewards))]
         for i, reward in enumerate(new_rewards):
-            self.rewards[i].append(reward)
+            self.reward_list[i].append(reward)
 
     def append_return(self, reward_list: List[float]):
-        if not self.rewards:
-            self.rewards = [[] for _ in range(len(reward_list))]
+        if not self.reward_list:
+            self.reward_list = [[] for _ in range(len(reward_list))]
         for i, reward in enumerate(reward_list):
-            self.rewards[i].append(reward)
+            self.reward_list[i].append(reward)
 
     def reset(self, **kwargs) -> Tuple[ObsType, Dict[str, Any]]:
         """
@@ -191,7 +191,7 @@ class Monitor(gym.Wrapper[ObsType, ActType, ObsType, ActType]):
                 "Tried to reset an environment before done. If you want to allow early resets, "
                 "wrap your env with Monitor(env, path, allow_early_resets=True)"
             )
-        self.rewards = []
+        self.reward_list = []
         self.needs_reset = False
         for key in self.reset_keywords:
             value = kwargs.get(key)
@@ -213,10 +213,10 @@ class Monitor(gym.Wrapper[ObsType, ActType, ObsType, ActType]):
         self.append_rewards(reward_list)
         if terminated or truncated:
             self.needs_reset = True
-            ep_rew = [sum(self.rewards[i]) for i in range(len(self.rewards))]
-            ep_len = len(self.rewards[0])
+            ep_rew = [sum(self.reward_list[i]) for i in range(len(self.reward_list))]
+            ep_len = len(self.reward_list[0])
             t = time.time()
-            ep_info = [{"r": round(ep_rew[i], 6), "l": ep_len, "t": round(t - self.t_start, 6)} for i in range(len(self.rewards))]
+            ep_info = [{"r": round(ep_rew[i], 6), "l": ep_len, "t": round(t - self.t_start, 6)} for i in range(len(self.reward_list))]
             for key in self.info_keywords:
                 for info_entry in ep_info:
                     info_entry[key] = info[key]

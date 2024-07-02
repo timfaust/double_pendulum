@@ -211,15 +211,15 @@ def evaluate_policy(
             episode_start=episode_starts,
             deterministic=deterministic,
         )
-        new_observations, rewards, dones, infos = env.step(actions)
+        new_observations, reward_list, dones, infos = env.step(actions)
         if current_rewards is None:
-            current_rewards = np.zeros_like(rewards)
-        current_rewards += rewards
+            current_rewards = np.zeros_like(reward_list)
+        current_rewards += reward_list
         current_lengths += 1
         for i in range(n_envs):
             if episode_counts[i] < episode_count_targets[i]:
                 # unpack values so that the callback can access the local variables
-                reward = rewards[:, i]
+                reward = reward_list[:, i]
                 done = dones[i]
                 info = infos[i]
                 episode_starts[i] = done
