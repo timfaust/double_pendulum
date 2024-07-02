@@ -245,8 +245,8 @@ def evaluate_policy(
                         episode_lengths.append(current_lengths[i])
                         episode_counts[i] += 1
                     episode_scores.append(calculate_score(env.envs[i].env))
-                    current_rewards[:, i] = np.zeros_like(current_rewards[:, i])
-                    current_lengths[i] = 0
+                    # current_rewards[:, i] = np.zeros_like(current_rewards[:, i])
+                    # current_lengths[i] = 0
 
         observations = new_observations
 
