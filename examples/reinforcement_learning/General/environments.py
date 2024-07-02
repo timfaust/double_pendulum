@@ -26,7 +26,6 @@ class GeneralEnv(CustomEnv):
         env_type,
         param_name,
         policy_class,
-        reward_number,
         seed,
         path="parameters.json",
         is_evaluation_environment=False,
@@ -34,7 +33,6 @@ class GeneralEnv(CustomEnv):
         existing_plant=None
     ):
 
-        self.reward_number = reward_number
         self.policy_class = policy_class
         self.translator = policy_class.get_translator()
         self.seed = seed
@@ -74,8 +72,6 @@ class GeneralEnv(CustomEnv):
 
         self.mpar = load_param(self.param_data["max_torque"])
         self.observation_dict = {"T": [], 'X_meas': [], 'X_real': [], 'U_con': [], 'U_real': [], "push": [], "max_episode_steps": self.max_episode_steps, "current_force": []}
-        for i in range(self.reward_number):
-            self.observation_dict['reward_' + str(i)] = []
         self.observation_dict_old = None
         self.render_mode = "None"
         self.visualizer = Visualizer(self.env_type, self.observation_dict)
@@ -161,8 +157,6 @@ class GeneralEnv(CustomEnv):
         clean_observation = np.array(self.reset_function())
         dirty_observation = self.apply_observation_disturbances(clean_observation)
         self.append_observation_dict(clean_observation, dirty_observation, 0.0, 0.0)
-        for i in range(self.reward_number):
-            self.observation_dict['reward_' + str(i)].append(0.0)
         state = self.translator.build_state(self, dirty_observation, 0.0)
 
         if self.use_perturbations:
@@ -200,10 +194,6 @@ class GeneralEnv(CustomEnv):
                 "existing_plant": existing_plant,
                 "seed": self.seed,
                 "policy_class": self.policy_class,
-                "reward_number": self.reward_number
-            },
-            vec_env_kwargs={
-                "reward_number": self.reward_number
             },
             monitor_dir=log_dir,
             seed=self.seed
@@ -284,7 +274,11 @@ class GeneralEnv(CustomEnv):
 
         reward_list = self.get_reward(clean_observation, clean_action)
         for i in range(len(reward_list)):
-            self.observation_dict['reward_' + str(i)].append(reward_list[i])
+            key = 'reward_' + str(i)
+            if key not in self.observation_dict:
+                self.observation_dict[key] = []
+                self.observation_dict[key].append(0.0)
+            self.observation_dict[key].append(reward_list[i])
         terminated = self.terminated_func(self.observation_dict['dynamics_func'].unscale_state(self.observation_dict['X_meas'][-1]))
         truncated = self.check_episode_end()
 

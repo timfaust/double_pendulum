@@ -62,8 +62,8 @@ class Trainer:
     def __init__(self, name, env_type, param_name, policy, policy_number, seed, action_noise=None):
         self.policy_number = policy_number
         self.policy = policy
-        self.environment = GeneralEnv(env_type, param_name, self.policy, self.policy_number, seed=seed)
-        self.eval_environment = GeneralEnv(env_type, param_name, self.policy, self.policy_number, is_evaluation_environment=True, seed=seed)
+        self.environment = GeneralEnv(env_type, param_name, self.policy, seed=seed)
+        self.eval_environment = GeneralEnv(env_type, param_name, self.policy, is_evaluation_environment=True, seed=seed)
         self.log_dir = './log_data/' + name + '/' + env_type
         self.name = name
         self.action_noise = action_noise

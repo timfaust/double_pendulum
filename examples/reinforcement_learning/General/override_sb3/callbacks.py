@@ -199,7 +199,7 @@ def evaluate_policy(
     # Divides episodes among different sub environments in the vector as evenly as possible
     episode_count_targets = np.array([(n_eval_episodes + i) // n_envs for i in range(n_envs)], dtype="int")
 
-    current_rewards = np.zeros((env.reward_number, n_envs))
+    current_rewards = None
     current_lengths = np.zeros(n_envs, dtype="int")
     observations = env.reset()
     states = None
@@ -212,6 +212,8 @@ def evaluate_policy(
             deterministic=deterministic,
         )
         new_observations, rewards, dones, infos = env.step(actions)
+        if current_rewards is None:
+            current_rewards = np.zeros_like(rewards)
         current_rewards += rewards
         current_lengths += 1
         for i in range(n_envs):

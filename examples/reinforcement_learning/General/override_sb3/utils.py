@@ -382,9 +382,8 @@ class DummyVecEnv(VecEnv):
 
     actions: np.ndarray
 
-    def __init__(self, env_fns: List[Callable[[], gym.Env]], reward_number):
+    def __init__(self, env_fns: List[Callable[[], gym.Env]]):
         self.envs = [_patch_env(fn()) for fn in env_fns]
-        self.reward_number = reward_number
         if len(set([id(env.unwrapped) for env in self.envs])) != len(self.envs):
             raise ValueError(
                 "You tried to create multiple environments, but the function to create them returned the same instance "
@@ -402,7 +401,7 @@ class DummyVecEnv(VecEnv):
 
         self.buf_obs = OrderedDict([(k, np.zeros((self.num_envs, *tuple(shapes[k])), dtype=dtypes[k])) for k in self.keys])
         self.buf_dones = np.zeros((self.num_envs,), dtype=bool)
-        self.buf_rews = np.zeros((self.num_envs, self.reward_number), dtype=np.float32)
+        self.buf_rews = []
         self.buf_infos: List[Dict[str, Any]] = [{} for _ in range(self.num_envs)]
         self.metadata = env.metadata
 
@@ -411,10 +410,12 @@ class DummyVecEnv(VecEnv):
 
     def step_wait(self) -> VecEnvStepReturn:
         # Avoid circular imports
+        self.buf_rews = []
         for env_idx in range(self.num_envs):
-            obs, self.buf_rews[env_idx], terminated, truncated, self.buf_infos[env_idx] = self.envs[env_idx].step(
+            obs, reward_list, terminated, truncated, self.buf_infos[env_idx] = self.envs[env_idx].step(
                 self.actions[env_idx]
             )
+            self.buf_rews.append(reward_list)
             # convert to SB3 VecEnv api
             self.buf_dones[env_idx] = terminated or truncated
             # See https://github.com/openai/gym/issues/3102
@@ -426,7 +427,7 @@ class DummyVecEnv(VecEnv):
                 self.buf_infos[env_idx]["terminal_observation"] = obs
                 obs, self.reset_infos[env_idx] = self.envs[env_idx].reset()
             self._save_obs(env_idx, obs)
-        return (self._obs_from_buf(), np.copy(self.buf_rews).T, np.copy(self.buf_dones), deepcopy(self.buf_infos))
+        return (self._obs_from_buf(), np.array(self.buf_rews, dtype=np.float32).T, np.copy(self.buf_dones), deepcopy(self.buf_infos))
 
     def reset(self) -> VecEnvObs:
         for env_idx in range(self.num_envs):
