@@ -86,9 +86,10 @@ def kill_switch(observation, dynamics_func):
 def calculate_q_values(reward, gamma):
     actual_Q = deque()
     for r in reversed(reward):
-        q_value = r
         if actual_Q:
-            q_value += actual_Q[0] * gamma
+            q_value = r + actual_Q[0] * gamma
+        else:
+            q_value = r / (1 - gamma)
         actual_Q.appendleft(q_value)
     return np.array(actual_Q)
 

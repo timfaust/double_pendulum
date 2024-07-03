@@ -18,7 +18,6 @@ from double_pendulum.utils.plotting import plot_timeseries
 
 from examples.reinforcement_learning.General.override_sb3.callbacks import CustomEvalCallback
 from examples.reinforcement_learning.General.override_sb3.custom_sac import CustomSAC
-from examples.reinforcement_learning.General.score import calculate_score
 
 
 class ProgressBarCallback(BaseCallback):

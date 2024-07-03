@@ -11,7 +11,6 @@ def get_swingup_time(
     plant,
     eps=[1e-2, 1e-2, 1e-2, 1e-2],
     has_to_stay=True,
-    mpar=None,
     method="height",
     height=0.9,
 ):
@@ -84,7 +83,7 @@ def get_swingup_time(
         fk = plant.forward_kinematics(X.T[:2])
         ee_pos_y = fk[1][1]
 
-        goal_height = height * (mpar.l[0] + mpar.l[1])
+        goal_height = height * (plant.l[0] + plant.l[1])
 
         up = np.where(ee_pos_y > goal_height, True, False)
 
@@ -107,7 +106,7 @@ def get_swingup_time(
 
 
 def calculate_score(
-    env: GeneralEnv,
+    observation_dict,
     weights={
         "swingup_time": 0.2,
         "max_tau": 0.1,
@@ -137,13 +136,14 @@ def calculate_score(
     velocity_costs = []
     successes = []
 
-    T = np.array(env.observation_dict_old["T"])
-    X = np.array([env.dynamics_func.unscale_state(x) for x in env.observation_dict_old['X_real']])
-    U = np.array([env.dynamics_func.unscale_action([u]) for u in env.observation_dict_old['U_real']])
+    T = np.array(observation_dict["T"])
+    X = np.array([observation_dict['dynamics_func'].unscale_state(x) for x in observation_dict['X_real']])
+    U = np.array([observation_dict['dynamics_func'].unscale_action([u]) for u in observation_dict['U_real']])
 
+    # plant = dynamics_func.simulator.plant
     swingup_times.append(
         get_swingup_time(
-            T=T, X=X, plant=env.plant, has_to_stay=True, mpar=env.mpar, method="height", height=0.9
+            T=T, X=X, plant=observation_dict['dynamics_func'].simulator.plant, has_to_stay=True, method="height", height=0.9
         )
     )
     max_taus.append(get_max_tau(U))

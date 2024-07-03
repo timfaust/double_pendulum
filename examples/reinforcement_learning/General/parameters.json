@@ -64,7 +64,7 @@
       "verbose": 0,
       "show_progress_bar": 1,
       "save_freq": 1000000,
-      "gamma": 0.999
+      "gamma": 0.99
     },
     "random": {
       "train_env": {

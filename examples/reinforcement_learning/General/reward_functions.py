@@ -2,7 +2,15 @@ import numpy as np
 from double_pendulum.utils.wrap_angles import wrap_angles_diff
 
 from examples.reinforcement_learning.General.misc_helper import punish_limit, get_state_values, get_i_decay
+from examples.reinforcement_learning.General.score import calculate_score
 
+
+def score_reward(observation, action, env_type, dynamic_func, observation_dict):
+    step = len(observation_dict['T'])
+    max_episode_steps = observation_dict['max_episode_steps']
+    if step == max_episode_steps:
+        return calculate_score(observation_dict)
+    return 0.0
 
 def future_pos_reward(observation, action, env_type, dynamic_func, observation_dict):
     state_values = get_state_values(observation_dict, 'X_real')

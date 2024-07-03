@@ -51,6 +51,7 @@ class CustomEvalCallback(EvalCallback):
             # Reset success rate buffer
             self._is_success_buffer = []
 
+            # TODO: hier policy einstellen
             episode_rewards, episode_scores, episode_lengths = evaluate_policy(
                 self.model,
                 self.eval_env,
@@ -244,9 +245,7 @@ def evaluate_policy(
                         episode_rewards.append(current_rewards[:, i])
                         episode_lengths.append(current_lengths[i])
                         episode_counts[i] += 1
-                    episode_scores.append(calculate_score(env.envs[i].env))
-                    # current_rewards[:, i] = np.zeros_like(current_rewards[:, i])
-                    # current_lengths[i] = 0
+                    episode_scores.append(calculate_score(env.envs[i].env.observation_dict_old))
 
         observations = new_observations
 
