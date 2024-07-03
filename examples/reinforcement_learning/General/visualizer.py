@@ -1,6 +1,8 @@
+from examples.reinforcement_learning.General.misc_helper import calculate_q_values
 from examples.reinforcement_learning.General.reward_functions import get_state_values
 import pygame
 import numpy as np
+import torch as th
 
 
 class Visualizer:
@@ -18,6 +20,7 @@ class Visualizer:
         self.metadata_visualization = {"render_modes": ["human"], "render_fps": 30}
         self.env_type = env_type
         self.observation_dict = observation_dict
+        self.model = None
 
     def init_pygame(self):
         pygame.init()
@@ -44,6 +47,11 @@ class Visualizer:
         return canvas
 
     def draw_graph(self, canvas):
+        reward_name = 'reward_0'
+        gamma = 0.99
+        if self.model is not None:
+            gamma = self.model.gamma
+
         # Basis-Einstellungen für den Graphen
         graph_x, graph_y, graph_width, graph_height = self.window_width, 0, (self.full_window_width - self.window_width) // 2, self.window_height
         max_value = 1.02
@@ -53,25 +61,47 @@ class Visualizer:
         graph_surface = pygame.Surface((self.full_window_width, self.window_height), pygame.SRCALPHA)
         graph_surface.fill((0, 0, 0, 0))  # Fill with transparent color
 
-        dirty_actions = self.observation_dict['U_real']
-        clean_actions = self.observation_dict['U_con']
-        dirty_x = [x[1] for x in self.observation_dict['X_meas']]
-        clean_x = [x[1] for x in self.observation_dict['X_real']]
-        dirty_v = [x[3] for x in self.observation_dict['X_meas']]
-        clean_v = [x[3] for x in self.observation_dict['X_real']]
-        reward = [x - 1 for x in self.observation_dict['reward_0']]
+        dirty_actions = self.observation_dict['U_real'][1:]
+        clean_actions = self.observation_dict['U_con'][1:]
+        dirty_x = [x[1] for x in self.observation_dict['X_meas'][1:]]
+        clean_x = [x[1] for x in self.observation_dict['X_real'][1:]]
+        dirty_v = [x[3] for x in self.observation_dict['X_meas'][1:]]
+        clean_v = [x[3] for x in self.observation_dict['X_real'][1:]]
+        reward = np.array(self.observation_dict[reward_name][1:])
+        actual_Q = calculate_q_values(reward, gamma)
+
+        if self.model is not None:
+            with th.no_grad():
+                device = self.model.critic.device
+                actions = th.tensor(self.observation_dict['U_con'][1:], dtype=th.float32, device=device).unsqueeze(1)
+                states_np = np.array(self.observation_dict['state'][:-1])
+                states = th.tensor(states_np, dtype=th.float32, device=device)
+                q_values, _ = th.min(th.cat(self.model.critic(states, actions), dim=1), dim=1, keepdim=True)
+                predicted_Q = q_values.squeeze(1).cpu().numpy()
+        else:
+            predicted_Q = np.array([])
+
+        reward_shifted = reward - 1
+        actual_Q_scaled = actual_Q / 500 - 1
+        predicted_Q_scaled = predicted_Q / 500 - 1
+
+        reward_shifted = reward_shifted.tolist()
+        actual_Q_scaled = actual_Q_scaled.tolist()
+        predicted_Q_scaled = predicted_Q_scaled.tolist()
 
         graphs_left = [
             (clean_actions, (0, 0, 255, 150)),
             (dirty_actions, (255, 0, 0, 255)),
-            (reward, (0, 255, 0, 255))
+            (reward_shifted, (0, 255, 0, 255))
         ]
 
         graphs_right = [
             (dirty_x, (100, 0, 0, 150)),
             (clean_x, (255, 0, 0, 255)),
             (dirty_v, (0, 100, 0, 150)),
-            (clean_v, (0, 255, 0, 255))
+            (clean_v, (0, 255, 0, 255)),
+            (predicted_Q_scaled, (0, 0, 100, 150)),
+            (actual_Q_scaled, (0, 0, 255, 255))
         ]
 
         def draw_line(surface, color, start_pos, end_pos):

@@ -89,7 +89,6 @@ class Trainer:
         self.environment.reset()
 
         envs = self.environment.get_envs(log_dir=self.log_dir)
-        callback_list = self.get_callback_list()
 
         # keys which can be replaced from param
         valid_keys = ['actor_schedule', 'critic_schedule', 'entropy_schedule', 'gradient_steps', 'ent_coef', 'learning_rate', 'qf_learning_rate', 'batch_size', 'buffer_size', 'target_update_interval', 'train_freq', 'gamma']
@@ -107,6 +106,7 @@ class Trainer:
             **filtered_data
         )
 
+        callback_list = self.get_callback_list(agent)
         agent.learn(self.training_steps, callback=callback_list)
         agent.save(os.path.join(self.log_dir, "saved_model", "trained_model"))
 
@@ -121,14 +121,16 @@ class Trainer:
 
         agent = CustomSAC.load(self.log_dir + model_path, print_system_info=True)
         agent.set_env(envs)
+        agent.connect_visualization()
 
-        callback_list = self.get_callback_list()
+        callback_list = self.get_callback_list(agent)
 
         agent.learn(self.training_steps, callback=callback_list, reset_num_timesteps=True)
         agent.save(os.path.join(self.log_dir, "saved_model", "trained_model"))
 
-    def get_eval_envs(self):
+    def get_eval_envs(self, agent):
         eval_envs = self.eval_environment.get_envs(log_dir=self.log_dir)
+        agent.connect_visualization(eval_envs)
         for i in range(len(eval_envs.envs)):
             monitor = eval_envs.envs[i]
             if self.render_eval and i % self.eval_environment.render_every_envs == 0:
@@ -141,7 +143,7 @@ class Trainer:
 
         agent = CustomSAC.load(self.log_dir + model_path, print_system_info=True)
 
-        eval_envs = self.get_eval_envs()
+        eval_envs = self.get_eval_envs(agent)
 
         episode_rewards = []
         episode_lengths = []
@@ -167,9 +169,9 @@ class Trainer:
         print(f"Average episode length: {np.mean(episode_lengths)}")
         return episode_rewards, episode_lengths
 
-    def get_callback_list(self):
+    def get_callback_list(self, agent):
 
-        eval_envs = self.get_eval_envs()
+        eval_envs = self.get_eval_envs(agent)
 
         eval_callback = CustomEvalCallback(
             eval_envs,

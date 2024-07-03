@@ -90,7 +90,7 @@ def calculate_q_values(reward, gamma):
         if actual_Q:
             q_value += actual_Q[0] * gamma
         actual_Q.appendleft(q_value)
-    return list(actual_Q)
+    return np.array(actual_Q)
 
 
 def get_e_decay(x, x_max, factor=5):

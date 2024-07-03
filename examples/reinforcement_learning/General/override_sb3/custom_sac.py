@@ -120,6 +120,8 @@ class CustomSAC(SAC):
 
         super().__init__(*args, **kwargs)
 
+        self.connect_visualization()
+
         for i in range(len(self.policies)):
             self.select_policy(i)
             if schedule_params['actor_schedule']:
@@ -128,6 +130,12 @@ class CustomSAC(SAC):
                 self.schedulers.append(create_lr_schedule(self.critic.optimizer, schedule_params['critic_schedule']))
             if schedule_params['entropy_schedule']:
                 self.schedulers.append(create_lr_schedule(self.ent_coef_optimizer, schedule_params['entropy_schedule']))
+
+    def connect_visualization(self, env=None):
+        if env is None:
+            env = self.env
+        for monitor in env.envs:
+            monitor.env.visualizer.model = self
 
     def select_policy(self, policy_id):
         self.active_policy = policy_id
