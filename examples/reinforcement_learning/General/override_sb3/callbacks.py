@@ -10,6 +10,7 @@ from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.logger import Logger
 from torch.utils.tensorboard import SummaryWriter
 
+from examples.reinforcement_learning.General.override_sb3.custom_sac import CustomSAC
 from examples.reinforcement_learning.General.score import calculate_score
 
 try:
@@ -50,7 +51,6 @@ class CustomEvalCallback(EvalCallback):
             # Reset success rate buffer
             self._is_success_buffer = []
 
-            # TODO: self.model policy richtig wählen
             episode_rewards, episode_scores, episode_lengths = evaluate_policy(
                 self.model,
                 self.eval_env,
@@ -128,7 +128,7 @@ class CustomEvalCallback(EvalCallback):
 
 
 def evaluate_policy(
-    model: "type_aliases.PolicyPredictor",
+    model: CustomSAC,
     env: Union[gym.Env, VecEnv],
     n_eval_episodes: int = 10,
     deterministic: bool = True,

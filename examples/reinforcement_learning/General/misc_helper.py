@@ -1,3 +1,5 @@
+from collections import deque
+from double_pendulum.utils.wrap_angles import wrap_angles_diff
 import numpy as np
 
 
@@ -79,3 +81,90 @@ def kill_switch(observation, dynamics_func):
     if punish_limit(observation, dynamics_func) > 0:
         return False
     return True
+
+
+def calculate_q_values(reward, gamma):
+    actual_Q = deque()
+    for r in reversed(reward):
+        q_value = r
+        if actual_Q:
+            q_value += actual_Q[0] * gamma
+        actual_Q.appendleft(q_value)
+    return list(actual_Q)
+
+
+def get_e_decay(x, x_max, factor=5):
+    c = np.exp(-factor)
+    return np.clip((np.exp(-x/x_max*factor) - c)/(1 - c), 0, 1)
+
+
+def get_i_decay(x, factor=4):
+    return 1/(factor * x + 1)
+
+
+def get_unscaled_action(observation_dict, t_minus=0):
+    unscaled_action = observation_dict['dynamics_func'].unscale_action(np.array([observation_dict['U_real'][t_minus-1]]))
+    max_value_index = np.argmax(np.abs(unscaled_action))
+    max_action_value = unscaled_action[max_value_index]
+    return max_action_value
+
+
+def get_state_values(observation_dict, key='X_meas'):
+    l = [0.2, 0.3]
+    dt_goal = 0.05
+    threshold_distance = 0.01
+
+    unscaled_observation = observation_dict['dynamics_func'].unscale_state(observation_dict[key][-1])
+    unscaled_action = get_unscaled_action(observation_dict)
+
+    y = wrap_angles_diff(unscaled_observation) #now both angles from -pi to pi
+
+    s1 = np.sin(y[0])
+    s2 = np.sin(y[0] + y[1])
+    c1 = np.cos(y[0])
+    c2 = np.cos(y[0] + y[1])
+
+    #cartesians of elbow x1 and end effector x2
+    x1 = np.array([s1, c1]) * l[0]
+    x2 = x1 + np.array([s2, c2]) * l[1]
+
+    #cartesian velocities of the joints
+    v1 = np.array([c1, -s1]) * y[2] * l[0]
+    v2 = v1 + np.array([c2, -s2]) * (y[2] + y[3]) * l[1]
+
+    #goal for cartesian end effector position
+    goal = np.array([0, -0.5])
+
+    x3 = x2 + dt_goal * v2
+    distance = np.linalg.norm(x3 - np.array([0, -0.5]))
+
+    u_p, u_pp = 0, 0
+    if len(observation_dict['U_con']) > 1:
+        dt = observation_dict['T'][-1] - observation_dict['T'][-2]
+        u_p = (unscaled_action - get_unscaled_action(observation_dict, -1)) / dt
+        if len(observation_dict['U_con']) > 2:
+            u_pp = (unscaled_action - 2 * get_unscaled_action(observation_dict, -1) + get_unscaled_action(observation_dict, -2))/(dt * dt)
+
+    state_values = {
+        "unscaled_observation": unscaled_observation,
+        "x1": x1,
+        "x2": x2,
+        "x3": x3,
+        "s1": s1,
+        "s2": s2,
+        "c1": c1,
+        "c2": c2,
+        "v1": v1,
+        "v2": v2,
+        "omega_squared_1": unscaled_observation[2] ** 2,
+        "omega_squared_2": unscaled_observation[3] ** 2,
+        "goal": goal,
+        "dt_goal": dt_goal,
+        "threshold_distance": threshold_distance,
+        "distance": distance,
+        "unscaled_action": unscaled_action,
+        "u_p": u_p,
+        "u_pp": u_pp
+    }
+
+    return state_values
