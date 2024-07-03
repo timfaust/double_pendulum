@@ -51,6 +51,7 @@ class Visualizer:
         gamma = 0.99
         if self.model is not None:
             gamma = self.model.gamma
+            reward_name = 'reward_' + str(self.model.active_policy)
 
         # Basis-Einstellungen für den Graphen
         graph_x, graph_y, graph_width, graph_height = self.window_width, 0, (self.full_window_width - self.window_width) // 2, self.window_height

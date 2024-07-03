@@ -362,7 +362,7 @@ class GeneralEnv(CustomEnv):
             self.visualizer.render()
 
     def update_visualizer(self, reward_list, action):
-        reward = reward_list[0]
+        reward = reward_list[self.visualizer.model.active_policy]
         if self.render_mode == "human":
             self.visualizer.reward_visualization = reward
             self.visualizer.acc_reward_visualization += reward
