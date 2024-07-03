@@ -271,7 +271,7 @@ class CustomSAC(SAC):
             # TODO: was wird alles zu oft gemacht?
             self.train_policy(i, gradient_steps, batch_size)
 
-    def train_policy(self, policy_id, gradient_steps: int, batch_size: int = 64) -> None:
+    def train_policy(self, policy_id, gradient_steps: int, batch_size: int = 64, critic_loss_goal=-1.0) -> None:
         logging_name = str(self.active_policy)
         # Switch to train mode (this affects batch norm / dropout)
         self.policy.set_training_mode(True)
@@ -286,7 +286,9 @@ class CustomSAC(SAC):
         ent_coef_losses, ent_coefs = [], []
         actor_losses, critic_losses = [], []
 
-        for gradient_step in range(gradient_steps):
+        gradient_step = 0
+        keep_training = True
+        while keep_training:
             # Sample replay buffer
             replay_data = self.replay_buffer.sample(batch_size, env=self._vec_normalize_env)  # type: ignore[union-attr]
 
@@ -339,6 +341,7 @@ class CustomSAC(SAC):
             critic_loss = 0.5 * sum(F.mse_loss(current_q, target_q_values) for current_q in current_q_values)
             assert isinstance(critic_loss, th.Tensor)  # for type checker
             critic_losses.append(critic_loss.item())  # type: ignore[union-attr]
+            critic_loss_item = np.mean(critic_losses)
 
             # Optimize the critic
             self.critic.optimizer.zero_grad()
@@ -387,10 +390,16 @@ class CustomSAC(SAC):
                 # Copy running stats, see GH issue #996
                 polyak_update(self.batch_norm_stats, self.batch_norm_stats_target, 1.0)
 
+            gradient_step += 1
+            keep_training = gradient_step < gradient_steps
+            if critic_loss_goal >= 0 and gradient_step < gradient_steps * 10:
+                keep_training = keep_training or (critic_loss_item > critic_loss_goal)
+
         if policy_id == 0:
-            self._n_updates += gradient_steps
+            self._n_updates += gradient_step
 
         self.logger.record("train/" + logging_name + "/n_updates", self._n_updates, exclude="tensorboard")
+        self.logger.record("train/" + logging_name + "/gradient_steps", gradient_step)
         self.logger.record("train/" + logging_name + "/ent_coef", np.mean(ent_coefs))
         self.logger.record("train/" + logging_name + "/actor_loss", np.mean(actor_losses))
         self.logger.record("train/" + logging_name + "/critic_loss", np.mean(critic_losses))
