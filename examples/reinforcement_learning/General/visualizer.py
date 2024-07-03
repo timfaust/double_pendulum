@@ -83,15 +83,15 @@ class Visualizer:
             predicted_Q = np.array([])
 
         reward_shifted = reward - 1
-        actual_Q_scaled = actual_Q / 500 - 1
-        predicted_Q_scaled = predicted_Q / 500 - 1
+        actual_Q_scaled = actual_Q / 100 - 1
+        predicted_Q_scaled = predicted_Q / 100 - 1
 
         reward_shifted = reward_shifted.tolist()
         actual_Q_scaled = actual_Q_scaled.tolist()
         predicted_Q_scaled = predicted_Q_scaled.tolist()
 
         graphs_left = [
-            (clean_actions, (0, 0, 255, 150)),
+            (clean_actions, (0, 0, 255, 100)),
             (dirty_actions, (255, 0, 0, 255)),
             (reward_shifted, (0, 255, 0, 255))
         ]

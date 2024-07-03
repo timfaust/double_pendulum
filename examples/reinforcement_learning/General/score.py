@@ -1,6 +1,5 @@
 import numpy as np
 
-from examples.reinforcement_learning.General.environments import GeneralEnv
 from src.python.double_pendulum.analysis.leaderboard import get_max_tau, get_energy, \
     get_integrated_torque, get_torque_cost, get_tau_smoothness, get_velocity_cost
 
