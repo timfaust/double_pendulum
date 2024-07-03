@@ -12,6 +12,7 @@ def score_reward(observation, action, env_type, dynamic_func, observation_dict):
         return calculate_score(observation_dict)
     return 0.0
 
+
 def future_pos_reward(observation, action, env_type, dynamic_func, observation_dict):
     state_values = get_state_values(observation_dict, 'X_real')
     reward = get_i_decay(state_values['distance'], 4)
@@ -21,7 +22,7 @@ def future_pos_reward(observation, action, env_type, dynamic_func, observation_d
         reward += get_i_decay(abstract_distance, 4)
         # reward += get_e_decay(abstract_distance, 10)
     reward = reward * punish_limit(state_values['unscaled_observation'], observation_dict['dynamics_func'])
-    return [reward, reward]
+    return [reward, score_reward(observation, action, env_type, dynamic_func, observation_dict)]
 
 
 def pos_reward(observation, action, env_type, dynamic_func, observation_dict):
