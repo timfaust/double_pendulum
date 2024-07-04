@@ -138,11 +138,6 @@ class CustomSAC(SAC):
             monitor.env.visualizer.model = self
 
     def select_policy(self, policy_id):
-        if len(self.replay_buffer_classes) > policy_id:
-            self.replay_buffer_class = self.replay_buffer_classes[policy_id]
-        else:
-            self.replay_buffer_class = ReplayBuffer
-
         self.active_policy = policy_id
         self.policy = self.policies[self.active_policy]
         self.actor = self.policy.actor
@@ -154,6 +149,10 @@ class CustomSAC(SAC):
 
     def _setup_model(self) -> None:
         for i in range(self.policy_number):
+            if len(self.replay_buffer_classes) > i:
+                self.replay_buffer_class = self.replay_buffer_classes[i]
+            else:
+                self.replay_buffer_class = ReplayBuffer
             self.replay_buffer = None
             super()._setup_model()
             self.log_ent_coefs.append(self.log_ent_coef)

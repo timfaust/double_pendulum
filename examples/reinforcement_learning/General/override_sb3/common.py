@@ -14,6 +14,21 @@ from gymnasium import spaces
 
 class ScoreReplayBuffer(ReplayBuffer):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.episode_ids = np.zeros((self.buffer_size, self.n_envs), dtype=np.int32)
+
+    def update_rewards(self, reward):
+        size = self.pos
+        if self.full:
+            size = self.buffer_size
+        for env_id, r in enumerate(reward):
+            if r > 0.0:
+                episode_id = self.episode_ids[self.pos - 1][env_id]
+                for i in range(size):
+                    if self.episode_ids[i][env_id] == episode_id:
+                        self.rewards[i][env_id] = r
+
     def add(
         self,
         obs: np.ndarray,
@@ -43,6 +58,7 @@ class ScoreReplayBuffer(ReplayBuffer):
         self.actions[self.pos] = np.array(action)
         self.rewards[self.pos] = np.array(reward)
         self.dones[self.pos] = np.array(done)
+        self.episode_ids[self.pos] = np.array([info['episode_id'] for info in infos])
 
         if self.handle_timeout_termination:
             self.timeouts[self.pos] = np.array([info.get("TimeLimit.truncated", False) for info in infos])
@@ -51,6 +67,8 @@ class ScoreReplayBuffer(ReplayBuffer):
         if self.pos == self.buffer_size:
             self.full = True
             self.pos = 0
+
+        self.update_rewards(reward)
 
     def sample(self, batch_size: int, env: Optional[VecNormalize] = None) -> ReplayBufferSamples:
         """
@@ -72,6 +90,7 @@ class ScoreReplayBuffer(ReplayBuffer):
             batch_inds = (np.random.randint(1, self.buffer_size, size=batch_size) + self.pos) % self.buffer_size
         else:
             batch_inds = np.random.randint(0, self.pos, size=batch_size)
+        # TODO: only sample when reward > 0
         return self._get_samples(batch_inds, env=env)
 
     def _get_samples(self, batch_inds: np.ndarray, env: Optional[VecNormalize] = None) -> ReplayBufferSamples:
