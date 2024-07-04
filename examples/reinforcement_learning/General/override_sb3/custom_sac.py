@@ -17,7 +17,7 @@ from torch.optim import lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
 
 from examples.reinforcement_learning.General.environments import GeneralEnv
-from examples.reinforcement_learning.General.override_sb3.common import CustomPolicy
+from examples.reinforcement_learning.General.override_sb3.common import CustomPolicy, ScoreReplayBuffer
 import torch as th
 from torch.nn import functional as F
 
@@ -105,6 +105,7 @@ class CustomSAC(SAC):
         self.policies = []
         self.policy_number = policy_number
         self.replay_buffers = []
+        self.replay_buffer_classes = [ReplayBuffer, ScoreReplayBuffer]
         self.ent_coef_optimizers = []
         self.log_ent_coefs = []
 
@@ -138,6 +139,11 @@ class CustomSAC(SAC):
             monitor.env.visualizer.model = self
 
     def select_policy(self, policy_id):
+        if len(self.replay_buffer_classes) > policy_id:
+            self.replay_buffer_class = self.replay_buffer_classes[policy_id]
+        else:
+            self.replay_buffer_class = ReplayBuffer
+
         self.active_policy = policy_id
         self.policy = self.policies[self.active_policy]
         self.actor = self.policy.actor
@@ -228,8 +234,7 @@ class CustomSAC(SAC):
 
             for i in range(self.policy_number):
                 # Store data in replay buffer (normalized action and unnormalized observation)
-                self._store_transition(self.replay_buffers[i], buffer_actions, new_obs, reward_list[i], dones,
-                                       infos)  # type: ignore[arg-type]
+                self._store_transition(self.replay_buffers[i], buffer_actions, new_obs, reward_list[i], dones, infos)  # type: ignore[arg-type]
 
             self._update_current_progress_remaining(self.num_timesteps, self._total_timesteps)
 

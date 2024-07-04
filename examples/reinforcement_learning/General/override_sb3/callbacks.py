@@ -113,7 +113,7 @@ class CustomEvalCallback(EvalCallback):
             self.logger.dump(self.num_timesteps)
 
             # TODO: nur den ersten?
-            if all(mean_reward > self.best_mean_reward):
+            if any(mean_reward > self.best_mean_reward):
                 if self.verbose >= 1:
                     print("New best mean reward!")
                 if self.best_model_save_path is not None:
