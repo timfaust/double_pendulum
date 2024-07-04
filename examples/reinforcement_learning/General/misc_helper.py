@@ -114,8 +114,8 @@ def get_state_values(observation_dict, key='X_meas'):
     l = observation_dict['mpar'].l
     action_key = 'U_con'
     if key == 'X_real':
-        l = observation_dict['dynamics_func'].plant.l
-        action_key = 'real'
+        l = observation_dict['dynamics_func'].simulator.plant.l
+        action_key = 'U_real'
 
     dt_goal = 0.05
     threshold_distance = 0.01

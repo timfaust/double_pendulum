@@ -18,8 +18,6 @@ from double_pendulum.simulation.simulation import Simulator
 
 from src.python.double_pendulum.simulation.perturbations import get_random_gauss_perturbation_array
 
-total_env_id = 0
-
 
 class GeneralEnv(CustomEnv):
 
@@ -79,9 +77,6 @@ class GeneralEnv(CustomEnv):
         self.visualizer = Visualizer(self.env_type, self.observation_dict)
 
         self.episode_id = 0
-        global total_env_id
-        self.env_id = total_env_id
-        total_env_id += 1
 
         super().__init__(
             dynamics_function,
@@ -279,7 +274,7 @@ class GeneralEnv(CustomEnv):
 
         self.update_visualizer(reward_list, clean_action)
 
-        info = {'env_id': self.env_id, 'episode_id': self.episode_id}
+        info = {'episode_id': self.episode_id}
         return self.observation, reward_list, terminated, truncated, info
 
     def check_episode_end(self):
