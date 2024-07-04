@@ -73,7 +73,7 @@ class GeneralEnv(CustomEnv):
         self.initialize_disturbances()
 
         self.mpar = load_param(self.param_data["max_torque"])
-        self.observation_dict = {"T": [], 'X_meas': [], 'X_real': [], 'state': [], 'U_con': [], 'U_real': [], "push": [], "max_episode_steps": self.max_episode_steps, "current_force": []}
+        self.observation_dict = {"T": [], 'X_meas': [], 'X_real': [], 'state': [], 'U_con': [], 'U_real': [], "push": [], "max_episode_steps": self.max_episode_steps, "mpar": self.mpar}
         self.observation_dict_old = None
         self.render_mode = "None"
         self.visualizer = Visualizer(self.env_type, self.observation_dict)
@@ -154,7 +154,7 @@ class GeneralEnv(CustomEnv):
         if 'dynamics_func' not in self.observation_dict:
             self.observation_dict['dynamics_func'] = self.dynamics_func
         for key in self.observation_dict:
-            if key != 'dynamics_func' and key != 'max_episode_steps':
+            if key != 'dynamics_func' and key != 'max_episode_steps' and key != 'mpar':
                 self.observation_dict[key].clear()
         self.clean_action_history = np.array([0.0])
         self.visualizer.reset()

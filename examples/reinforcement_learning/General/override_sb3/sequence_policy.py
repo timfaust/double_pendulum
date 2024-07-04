@@ -135,7 +135,8 @@ class SequenceTranslator(DefaultTranslator):
 
         output = np.append(dirty_observation.copy(), output)
         state_values = get_state_values(env.observation_dict)
-        additional = np.array([state_values['x3'][1], state_values['v2'][0], state_values['c1'], state_values['c2']])
+        l_ges = env.mpar.l[0] + env.mpar.l[1]
+        additional = np.array([state_values['x3'][1]/l_ges, state_values['v2'][0]/env.dynamics_func.max_velocity, state_values['c1'], state_values['c2']])
         output = np.append(additional, output)
 
         return output

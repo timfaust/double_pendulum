@@ -103,21 +103,25 @@ def get_i_decay(x, factor=4):
     return 1/(factor * x + 1)
 
 
-def get_unscaled_action(observation_dict, t_minus=0):
-    unscaled_action = observation_dict['dynamics_func'].unscale_action(np.array([observation_dict['U_real'][t_minus-1]]))
+def get_unscaled_action(observation_dict, t_minus=0, key='U_real'):
+    unscaled_action = observation_dict['dynamics_func'].unscale_action(np.array([observation_dict[key][t_minus-1]]))
     max_value_index = np.argmax(np.abs(unscaled_action))
     max_action_value = unscaled_action[max_value_index]
     return max_action_value
 
 
 def get_state_values(observation_dict, key='X_meas'):
-    # TODO: no hard coding
-    l = [0.2, 0.3]
+    l = observation_dict['mpar'].l
+    action_key = 'U_con'
+    if key == 'X_real':
+        l = observation_dict['dynamics_func'].plant.l
+        action_key = 'real'
+
     dt_goal = 0.05
     threshold_distance = 0.01
 
     unscaled_observation = observation_dict['dynamics_func'].unscale_state(observation_dict[key][-1])
-    unscaled_action = get_unscaled_action(observation_dict)
+    unscaled_action = get_unscaled_action(observation_dict, 0, action_key)
 
     y = wrap_angles_diff(unscaled_observation) #now both angles from -pi to pi
 
@@ -135,17 +139,17 @@ def get_state_values(observation_dict, key='X_meas'):
     v2 = v1 + np.array([c2, -s2]) * (y[2] + y[3]) * l[1]
 
     #goal for cartesian end effector position
-    goal = np.array([0, -0.5])
+    goal = np.array([0, -(l[0] + l[1])])
 
     x3 = x2 + dt_goal * v2
-    distance = np.linalg.norm(x3 - np.array([0, -0.5]))
+    distance = np.linalg.norm(x3 - goal)
 
     u_p, u_pp = 0, 0
     if len(observation_dict['U_con']) > 1:
         dt = observation_dict['T'][-1] - observation_dict['T'][-2]
-        u_p = (unscaled_action - get_unscaled_action(observation_dict, -1)) / dt
+        u_p = (unscaled_action - get_unscaled_action(observation_dict, -1, action_key)) / dt
         if len(observation_dict['U_con']) > 2:
-            u_pp = (unscaled_action - 2 * get_unscaled_action(observation_dict, -1) + get_unscaled_action(observation_dict, -2))/(dt * dt)
+            u_pp = (unscaled_action - 2 * get_unscaled_action(observation_dict, -1, action_key) + get_unscaled_action(observation_dict, -2, action_key))/(dt * dt)
 
     state_values = {
         "unscaled_observation": unscaled_observation,
