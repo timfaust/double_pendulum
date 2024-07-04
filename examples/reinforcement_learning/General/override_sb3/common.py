@@ -8,10 +8,7 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor, create_
 from stable_baselines3.common.type_aliases import PyTorchObs, ReplayBufferSamples
 from stable_baselines3.common.vec_env import VecNormalize
 from stable_baselines3.sac.policies import SACPolicy, Actor, LOG_STD_MIN, LOG_STD_MAX
-from torch import nn
 import torch as th
-from examples.reinforcement_learning.General.environments import GeneralEnv
-from double_pendulum.utils.wrap_angles import wrap_angles_diff
 from gymnasium import spaces
 
 
@@ -98,7 +95,7 @@ class ScoreReplayBuffer(ReplayBuffer):
         return ReplayBufferSamples(*tuple(map(self.to_torch, data)))
 
 
-def get_all_knowing(env: GeneralEnv):
+def get_all_knowing(env):
     plant = env.dynamics_func.simulator.plant
     all_knowing = np.array([plant.l[0], plant.l[1], plant.m[0], plant.m[1], plant.b[0], plant.b[1], plant.cf[0], plant.cf[1], env.delay, env.start_delay])
     return all_knowing
@@ -109,7 +106,7 @@ class DefaultTranslator:
         self.obs_space = gym.spaces.Box(-np.ones(input_dim), np.ones(input_dim))
         self.act_space = gym.spaces.Box(np.array([-1.0]), np.array([1.0]))
 
-    def build_state(self, env: GeneralEnv, dirty_observation: np.ndarray, clean_action: float, **kwargs) -> np.ndarray:
+    def build_state(self, env, dirty_observation: np.ndarray, clean_action: float, **kwargs) -> np.ndarray:
         return dirty_observation
 
     def reset(self):
@@ -174,7 +171,7 @@ class CustomPolicy(SACPolicy):
         return critic
 
     @classmethod
-    def after_rollout(cls, envs: List[GeneralEnv]):
+    def after_rollout(cls, envs):
         pass
 
     @classmethod
@@ -190,7 +187,7 @@ class CustomPolicy(SACPolicy):
         pass
 
     @classmethod
-    def after_environment_reset(cls, environment: GeneralEnv):
+    def after_environment_reset(cls, environment):
         # factor = (cls.progress - 0.1) / 0.4
         # factor = np.clip(factor, 0, 1) * 0.5
         factor = 0.5

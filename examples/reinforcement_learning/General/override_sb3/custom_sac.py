@@ -16,7 +16,6 @@ from stable_baselines3.common.vec_env import VecEnv
 from torch.optim import lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
 
-from examples.reinforcement_learning.General.environments import GeneralEnv
 from examples.reinforcement_learning.General.override_sb3.common import CustomPolicy, ScoreReplayBuffer
 import torch as th
 from torch.nn import functional as F
@@ -261,7 +260,7 @@ class CustomSAC(SAC):
 
         result = RolloutReturn(num_collected_steps * env.num_envs, num_collected_episodes, continue_training)
 
-        envs: List[GeneralEnv] = [monitor.env for monitor in env.envs]
+        envs = [monitor.env for monitor in env.envs]
         progress = self.num_timesteps / envs[0].training_steps
         self.policy_class.progress = progress
         self.policy.after_rollout(envs)
