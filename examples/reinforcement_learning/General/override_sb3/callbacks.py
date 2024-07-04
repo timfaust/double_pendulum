@@ -84,7 +84,8 @@ class CustomEvalCallback(EvalCallback):
                     **kwargs,
                 )
 
-            mean_reward, std_reward, mean_score, std_score = np.mean(episode_rewards, axis=0), np.std(episode_rewards, axis=0), np.mean(episode_scores), np.std(episode_scores)
+            mean_reward, std_reward = np.mean(episode_rewards, axis=0), np.std(episode_rewards, axis=0)
+            mean_score, std_score = np.mean(np.array(episode_scores)[np.array(episode_scores) != 0.0]), np.std(np.array(episode_scores)[np.array(episode_scores) != 0.0])
             mean_ep_length, std_ep_length = np.mean(episode_lengths), np.std(episode_lengths)
 
             # Add to current Logger
@@ -96,6 +97,7 @@ class CustomEvalCallback(EvalCallback):
             with SummaryWriter(self.logger.dir) as writer:
                 writer.add_histogram("eval/hist_score", np.array(episode_scores), self.num_timesteps)
 
+            self.logger.record("eval/failed_attempts", episode_scores.count(0.0))
             self.logger.record("eval/mean_score", float(mean_score))
             self.logger.record("eval/std_score", float(std_score))
             self.logger.record("eval/mean_ep_length", mean_ep_length)
