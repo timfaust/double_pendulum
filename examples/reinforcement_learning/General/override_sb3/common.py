@@ -3,31 +3,54 @@ import gymnasium as gym
 import numpy as np
 from stable_baselines3.common.buffers import ReplayBuffer
 from stable_baselines3.common.policies import ContinuousCritic
-from stable_baselines3.common.preprocessing import get_action_dim
-from stable_baselines3.common.torch_layers import BaseFeaturesExtractor, create_mlp
-from stable_baselines3.common.type_aliases import PyTorchObs, ReplayBufferSamples
-from stable_baselines3.common.vec_env import VecNormalize
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+from stable_baselines3.common.type_aliases import PyTorchObs
 from stable_baselines3.sac.policies import SACPolicy, Actor, LOG_STD_MIN, LOG_STD_MAX
 import torch as th
-from gymnasium import spaces
 
 
 class ScoreReplayBuffer(ReplayBuffer):
 
     def __init__(self, *args, **kwargs):
+        n_envs = kwargs['n_envs']
+        kwargs['n_envs'] = 1
         super().__init__(*args, **kwargs)
-        self.episode_ids = np.zeros((self.buffer_size, self.n_envs), dtype=np.int32)
+        self.episode_ids = np.zeros((self.buffer_size, n_envs), dtype=np.int32)
+        self.old_episode_ids = None
+        self.replay_buffer = ReplayBuffer(
+                self.buffer_size,
+                self.observation_space,
+                self.action_space,
+                device=self.device,
+                n_envs=n_envs,
+                optimize_memory_usage=self.optimize_memory_usage,
+                handle_timeout_termination=self.handle_timeout_termination
+            )
 
-    def update_rewards(self, reward):
-        size = self.pos
-        if self.full:
-            size = self.buffer_size
-        for env_id, r in enumerate(reward):
-            if r > 0.0:
-                episode_id = self.episode_ids[self.pos - 1][env_id]
-                for i in range(size):
-                    if self.episode_ids[i][env_id] == episode_id:
-                        self.rewards[i][env_id] = r
+    def update_score_buffer(self, infos):
+        current_episode_ids = np.array([info['episode_id'] for info in infos])
+        self.episode_ids[self.replay_buffer.pos - 1] = current_episode_ids
+
+        if self.old_episode_ids is not None:
+            difference = current_episode_ids - self.old_episode_ids
+            for env_id, d in enumerate(difference):
+                if d == 1:
+                    episode_id = self.old_episode_ids[env_id]
+                    size = self.replay_buffer.pos
+                    if self.replay_buffer.full:
+                        size = self.replay_buffer.buffer_size
+                    for i in range(size):
+                        if self.episode_ids[i][env_id] == episode_id:
+                            super().add(
+                                self.replay_buffer.observations[i][env_id],
+                                self.replay_buffer.next_observations[i][env_id],
+                                self.replay_buffer.actions[i][env_id],
+                                self.replay_buffer.rewards[self.replay_buffer.pos - 2][env_id],
+                                self.replay_buffer.dones[i][env_id],
+                            [{}]
+                                    )
+
+        self.old_episode_ids = current_episode_ids
 
     def add(
         self,
@@ -38,30 +61,8 @@ class ScoreReplayBuffer(ReplayBuffer):
         done: np.ndarray,
         infos: List[Dict[str, Any]],
     ) -> None:
-        super().add(obs, next_obs, action, reward, done, infos)
-        self.episode_ids[self.pos - 1] = np.array([info['episode_id'] for info in infos])
-        self.update_rewards(reward)
-
-    # TODO: only sample when reward > 0
-    def _get_samples(self, batch_inds: np.ndarray, env: Optional[VecNormalize] = None) -> ReplayBufferSamples:
-        # Sample randomly the env idx
-        env_indices = np.random.randint(0, high=self.n_envs, size=(len(batch_inds),))
-
-        if self.optimize_memory_usage:
-            next_obs = self._normalize_obs(self.observations[(batch_inds + 1) % self.buffer_size, env_indices, :], env)
-        else:
-            next_obs = self._normalize_obs(self.next_observations[batch_inds, env_indices, :], env)
-
-        data = (
-            self._normalize_obs(self.observations[batch_inds, env_indices, :], env),
-            self.actions[batch_inds, env_indices, :],
-            next_obs,
-            # Only use dones that are not due to timeouts
-            # deactivated by default (timeouts is initialized as an array of False)
-            (self.dones[batch_inds, env_indices] * (1 - self.timeouts[batch_inds, env_indices])).reshape(-1, 1),
-            self._normalize_reward(self.rewards[batch_inds, env_indices].reshape(-1, 1), env),
-        )
-        return ReplayBufferSamples(*tuple(map(self.to_torch, data)))
+        self.replay_buffer.add(obs, next_obs, action, reward, done, infos)
+        self.update_score_buffer(infos)
 
 
 def get_all_knowing(env):

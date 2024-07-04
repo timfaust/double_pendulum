@@ -280,7 +280,8 @@ class CustomSAC(SAC):
         for i in range(len(self.policies)):
             self.select_policy(i)
             # TODO: was wird alles zu oft gemacht?
-            self.train_policy(i, gradient_steps, batch_size)
+            if self.replay_buffer.full or self.replay_buffer.pos > 0:
+                self.train_policy(i, gradient_steps, batch_size)
 
     def train_policy(self, policy_id, gradient_steps: int, batch_size: int = 64, critic_loss_goal=-1.0) -> None:
         logging_name = str(self.active_policy)
