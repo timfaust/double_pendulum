@@ -85,7 +85,10 @@ class CustomEvalCallback(EvalCallback):
                 )
 
             mean_reward, std_reward = np.mean(episode_rewards, axis=0), np.std(episode_rewards, axis=0)
-            mean_score, std_score = np.mean(np.array(episode_scores)[np.array(episode_scores) != 0.0]), np.std(np.array(episode_scores)[np.array(episode_scores) != 0.0])
+            success_scores = np.array(episode_scores)[np.array(episode_scores) != 0.0]
+            mean_score, std_score = 0, 0
+            if len(success_scores) > 0:
+                mean_score, std_score = np.mean(success_scores), np.std(success_scores)
             mean_ep_length, std_ep_length = np.mean(episode_lengths), np.std(episode_lengths)
 
             # Add to current Logger
