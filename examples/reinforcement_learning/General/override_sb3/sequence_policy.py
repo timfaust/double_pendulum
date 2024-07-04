@@ -155,6 +155,7 @@ class SequenceSACPolicy(CustomPolicy):
         kwargs.update(dict(
             features_extractor_class=LSTMExtractor,
             features_extractor_kwargs=dict(translator=self.translator),
+            share_features_extractor=True
         ))
 
         super().__init__(*args, **kwargs)
