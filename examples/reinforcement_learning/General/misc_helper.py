@@ -111,6 +111,7 @@ def get_unscaled_action(observation_dict, t_minus=0):
 
 
 def get_state_values(observation_dict, key='X_meas'):
+    # TODO: no hard coding
     l = [0.2, 0.3]
     dt_goal = 0.05
     threshold_distance = 0.01
