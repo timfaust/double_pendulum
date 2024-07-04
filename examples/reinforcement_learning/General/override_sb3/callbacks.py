@@ -33,6 +33,10 @@ if TYPE_CHECKING:
 
 class CustomEvalCallback(EvalCallback):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.best_mean_reward = np.array([-np.inf, -np.inf])
+
     def _on_step(self) -> bool:
         continue_training = True
 
@@ -116,7 +120,7 @@ class CustomEvalCallback(EvalCallback):
             self.logger.dump(self.num_timesteps)
 
             # TODO: nur den ersten?
-            if any(mean_reward > self.best_mean_reward):
+            if np.any(mean_reward > self.best_mean_reward):
                 if self.verbose >= 1:
                     print("New best mean reward!")
                 if self.best_model_save_path is not None:
