@@ -109,7 +109,7 @@ class CustomPolicy(SACPolicy):
         # factor = np.clip(factor, 0, 1) * 0.5
         factor = 0.5
 
-        sigmas = {
+        changing_values = {
             'l': 0.02 * factor,
             'm': 0.04 * factor,
             'b': 0.005 * factor,
@@ -121,8 +121,13 @@ class CustomPolicy(SACPolicy):
             'position_noise': 0.005 * factor,
             'position_bias': 0.005 * factor,
             'action_noise': 0.005 * factor,
-            'action_bias': 0.005 * factor
+            'action_bias': 0.005 * factor,
+            'n_pert_per_joint': 3,
+            'min_t_dist': 1.0,
+            'sigma_minmax': [0.01, 0.05],
+            'amplitude_min_max': [0.1, 1.0],
+            'responsiveness': np.random.uniform(0.3, 1)
         }
 
-        environment.change_dynamics(sigmas, cls.progress)
+        environment.change_dynamics(changing_values, cls.progress)
 

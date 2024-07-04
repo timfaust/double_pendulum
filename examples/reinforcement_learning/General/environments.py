@@ -18,6 +18,8 @@ from double_pendulum.simulation.simulation import Simulator
 
 from src.python.double_pendulum.simulation.perturbations import get_random_gauss_perturbation_array
 
+total_env_id = 0
+
 
 class GeneralEnv(CustomEnv):
 
@@ -75,6 +77,11 @@ class GeneralEnv(CustomEnv):
         self.observation_dict_old = None
         self.render_mode = "None"
         self.visualizer = Visualizer(self.env_type, self.observation_dict)
+
+        self.episode_id = 0
+        global total_env_id
+        self.env_id = total_env_id
+        total_env_id += 1
 
         super().__init__(
             dynamics_function,
@@ -159,21 +166,7 @@ class GeneralEnv(CustomEnv):
         self.append_observation_dict(clean_observation, dirty_observation, 0.0, 0.0)
         state = self.translator.build_state(self, dirty_observation, 0.0)
         self.observation_dict['state'].append(state)
-
-        if self.use_perturbations:
-            n_pert_per_joint = 3
-            min_t_dist = 1.0
-            sigma_minmax = [0.01, 0.05]
-            amplitude_min_max = [0.1, 1.0]
-            perturbation_array, _, _, _ = get_random_gauss_perturbation_array(
-                self.dynamics_func.dt * self.max_episode_steps,
-                self.dynamics_func.dt,
-                n_pert_per_joint,
-                min_t_dist,
-                sigma_minmax,
-                amplitude_min_max,
-            )
-            self.perturbations = perturbation_array
+        self.episode_id += 1
 
         return state
 
@@ -286,7 +279,7 @@ class GeneralEnv(CustomEnv):
 
         self.update_visualizer(reward_list, clean_action)
 
-        info = {}
+        info = {'env_id': self.env_id, 'episode_id': self.episode_id}
         return self.observation, reward_list, terminated, truncated, info
 
     def check_episode_end(self):
@@ -317,7 +310,19 @@ class GeneralEnv(CustomEnv):
         self.observation_dict['X_meas'].append(dirty_observation)
         self.observation_dict['X_real'].append(clean_observation)
 
-    def change_dynamics(self, sigmas, progress):
+    def change_dynamics(self, changing_values, progress):
+
+        if self.use_perturbations and 'n_pert_per_joint' in changing_values and changing_values['n_pert_per_joint'] > 0:
+            perturbation_array, _, _, _ = get_random_gauss_perturbation_array(
+                self.dynamics_func.dt * self.max_episode_steps,
+                self.dynamics_func.dt,
+                changing_values['n_pert_per_joint'],
+                changing_values['min_t_dist'],
+                changing_values['sigma_minmax'],
+                changing_values['amplitude_min_max']
+            )
+            self.perturbations = perturbation_array
+
         plant = self.dynamics_func.simulator.plant
 
         plant_parameters = {
@@ -328,21 +333,24 @@ class GeneralEnv(CustomEnv):
         }
 
         for key, value in plant_parameters.items():
-            if key in sigmas:
-                setattr(plant, key, np.abs(np.array(value) + np.random.normal(0.0, sigmas[key], 2)).tolist())
+            if key in changing_values:
+                setattr(plant, key, np.abs(np.array(value) + np.random.normal(0.0, changing_values[key], 2)).tolist())
 
         environment_parameters = [
             'velocity_noise', 'velocity_bias', 'position_noise', 'position_bias',
             'action_noise', 'action_bias', 'start_delay', 'delay'
         ]
         for param in environment_parameters:
-            if param in sigmas:
-                value = np.random.normal(0.0, sigmas[param])
+            if param in changing_values:
+                value = np.random.normal(0.0, changing_values[param])
                 if 'bias' not in param:
                     value = np.abs(value)
                 setattr(self, param, value)
 
-        self.responsiveness = np.random.uniform(0.3, 1)
+        if 'responsiveness' in changing_values:
+            self.responsiveness = changing_values['responsiveness']
+        else:
+            self.responsiveness = 1
 
         self.update_plant()
 
