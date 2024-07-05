@@ -35,7 +35,8 @@ class ScoreReplayBuffer(ReplayBuffer):
             difference = current_episode_ids - self.old_episode_ids
             for env_id, d in enumerate(difference):
                 if d == 1:
-                    last_reward = self.replay_buffer.rewards[self.replay_buffer.pos - 2][env_id]
+                    # TODO: why  -3?
+                    last_reward = self.replay_buffer.rewards[self.replay_buffer.pos - 3][env_id]
                     episode_id = self.old_episode_ids[env_id]
                     size = self.replay_buffer.pos
                     if self.replay_buffer.full:

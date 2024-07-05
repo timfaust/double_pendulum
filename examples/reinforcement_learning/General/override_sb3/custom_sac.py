@@ -138,14 +138,15 @@ class CustomSAC(SAC):
             monitor.env.visualizer.model = self
 
     def select_policy(self, policy_id):
-        self.active_policy = policy_id
-        self.policy = self.policies[self.active_policy]
-        self.actor = self.policy.actor
-        self.critic = self.policy.critic
-        self.critic_target = self.policy.critic_target
-        self.ent_coef_optimizer = self.ent_coef_optimizers[self.active_policy]
-        self.log_ent_coef = self.log_ent_coefs[self.active_policy]
-        self.replay_buffer = self.replay_buffers[self.active_policy]
+        if len(self.policies) > policy_id >= 0:
+            self.active_policy = policy_id
+            self.policy = self.policies[self.active_policy]
+            self.actor = self.policy.actor
+            self.critic = self.policy.critic
+            self.critic_target = self.policy.critic_target
+            self.ent_coef_optimizer = self.ent_coef_optimizers[self.active_policy]
+            self.log_ent_coef = self.log_ent_coefs[self.active_policy]
+            self.replay_buffer = self.replay_buffers[self.active_policy]
 
     def _setup_model(self) -> None:
         for i in range(self.policy_number):

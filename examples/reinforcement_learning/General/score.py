@@ -123,7 +123,8 @@ def calculate_score(
         "tau_cost": 10.0,
         "tau_smoothness": 1.0,
         "velocity_cost": 1000,
-    }
+    },
+    needs_success=True
 ):
 
     swingup_times = []
@@ -159,7 +160,11 @@ def calculate_score(
         if weights[w] != 0.0:
             nonzero_weigths += 1
 
-    score = successes[-1] * (
+    factor = 1
+    if needs_success:
+        factor = successes[-1]
+
+    score = factor * (
         1.0
         - 1.0
         / nonzero_weigths

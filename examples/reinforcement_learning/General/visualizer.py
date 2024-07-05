@@ -5,6 +5,8 @@ import pygame
 import numpy as np
 import torch as th
 
+from examples.reinforcement_learning.General.score import calculate_score
+
 
 def scale_arrays_together(arr1, arr2, new_min=-1, new_max=1):
     combined = np.concatenate((arr1, arr2))
@@ -36,6 +38,7 @@ class Visualizer:
         self.env_type = env_type
         self.observation_dict = observation_dict
         self.model: CustomSAC = None
+        self.past_scores = []
 
     def init_pygame(self):
         pygame.init()
@@ -87,6 +90,16 @@ class Visualizer:
         actual_Q = calculate_q_values(reward, gamma)
         extracted_features = None
 
+        if len(clean_actions) == 1:
+            self.past_scores = []
+
+        self.past_scores.append(
+            calculate_score(
+                self.observation_dict,
+                needs_success=False
+            ) * 2 - 1
+        )
+
         if self.model is not None:
             with th.no_grad():
                 device = self.model.critic.device
@@ -112,7 +125,8 @@ class Visualizer:
             (clean_v, (0, 255, 0, 255), 1),
             (predicted_Q_scaled, (0, 0, 100, 150), 2),
             (actual_Q_scaled, (0, 0, 255, 255), 2),
-            (reward_shifted, (0, 255, 0, 255), 2),
+            (reward_shifted, (0, 200, 0, 255), 2),
+            (self.past_scores, (200, 0, 0, 255), 2)
         ]
 
         def draw_line(surface, color, start_pos, end_pos):
