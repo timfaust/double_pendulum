@@ -165,24 +165,28 @@ class CustomPolicy(SACPolicy):
         factor = 0.5
 
         changing_values = {
-            'l': 0.02 * factor,
-            'm': 0.04 * factor,
-            'b': 0.005 * factor,
-            'cf': 0.4 * factor,
-            'start_delay': 0.15 * factor,
-            'delay': 0.05 * factor,
-            'velocity_noise': 0.005 * factor,
-            'velocity_bias': 0.005 * factor,
-            'position_noise': 0.005 * factor,
-            'position_bias': 0.005 * factor,
-            'action_noise': 0.005 * factor,
-            'action_bias': 0.005 * factor,
-            'n_pert_per_joint': 3,
+            'l': 0.0 * factor,
+            'm': 0.155 * factor,
+            'b': 0.1 * factor,
+            'coulomb_fric': 0.2 * factor,
+            'com': 0.0625 * factor,
+            'I': 0.0125 * factor,
+            'Ir': 0.0001 * factor,
+            'start_delay': 0.0 * factor,
+            'delay': 0.04 * factor,
+            'velocity_noise': 0.025 * factor,
+            'velocity_bias': 0.0 * factor,
+            'position_noise': 0.0 * factor,
+            'position_bias': 0.0 * factor,
+            'action_noise': 0.22 * factor,
+            'action_bias': 0.0 * factor,
+            'n_pert_per_joint': 1,
             'min_t_dist': 1.0,
-            'sigma_minmax': [0.01, 0.05],
-            'amplitude_min_max': [0.1, 1.0],
-            'responsiveness': np.random.uniform(0.3, 1)
+            'sigma_minmax': [0.05, 0.1],
+            'amplitude_min_max': [0.1, 5.0],
+            'responsiveness': np.random.uniform(0.1, 2)
         }
 
+        # TODO: add measurement delay
         environment.change_dynamics(changing_values, cls.progress)
 

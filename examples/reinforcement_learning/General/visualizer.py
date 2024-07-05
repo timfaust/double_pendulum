@@ -56,6 +56,7 @@ class Visualizer:
         canvas = self.setup_canvas()
         metrics = self.draw_environment(canvas)
         self.draw_graph(canvas)
+        metrics['score'] = self.past_scores[-1]
         self.blit_texts(canvas, metrics)
         self.update_display(canvas)
 

@@ -55,7 +55,6 @@ class CustomEvalCallback(EvalCallback):
             # Reset success rate buffer
             self._is_success_buffer = []
 
-            # TODO: hier policy einstellen
             episode_rewards, episode_scores, episode_lengths = evaluate_policy(
                 self.model,
                 self.eval_env,
@@ -119,7 +118,7 @@ class CustomEvalCallback(EvalCallback):
             self.logger.record("time/total_timesteps", self.num_timesteps, exclude="tensorboard")
             self.logger.dump(self.num_timesteps)
 
-            # TODO: nur den ersten?
+            # TODO: werden neue best models gespeichert?
             if np.any(mean_reward > self.best_mean_reward):
                 if self.verbose >= 1:
                     print("New best mean reward!")

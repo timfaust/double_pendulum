@@ -324,17 +324,28 @@ class GeneralEnv(CustomEnv):
             'l': self.mpar.l,
             'm': self.mpar.m,
             'b': self.mpar.b,
-            'cf': self.mpar.cf
+            'coulomb_fric': self.mpar.cf,
+            'com': self.mpar.r,
+            'I': self.mpar.I,
+            'Ir': self.mpar.Ir,
         }
 
         for key, value in plant_parameters.items():
             if key in changing_values:
-                setattr(plant, key, np.abs(np.array(value) + np.random.normal(0.0, changing_values[key], 2)).tolist())
+                if isinstance(value, list):
+                    new_value = np.array(value) + np.random.normal(0.0, changing_values[key], 2)
+                    if key != 'b':
+                        new_value = np.abs(new_value)
+                    new_value = new_value.tolist()
+                else:
+                    new_value = np.abs(np.array(value) + np.random.normal(0.0, changing_values[key], 1))
+                setattr(plant, key, new_value)
 
         environment_parameters = [
             'velocity_noise', 'velocity_bias', 'position_noise', 'position_bias',
             'action_noise', 'action_bias', 'start_delay', 'delay'
         ]
+
         for param in environment_parameters:
             if param in changing_values:
                 value = np.random.normal(0.0, changing_values[param])
@@ -351,14 +362,7 @@ class GeneralEnv(CustomEnv):
 
     def update_plant(self):
         plant = self.dynamics_func.simulator.plant
-        M = plant.replace_parameters(plant.M)
-        C = plant.replace_parameters(plant.C)
-        G = plant.replace_parameters(plant.G)
-        F = plant.replace_parameters(plant.F)
-        plant.M_la = lambdify(plant.x, M)
-        plant.C_la = lambdify(plant.x, C)
-        plant.G_la = lambdify(plant.x, G)
-        plant.F_la = lambdify(plant.x, F)
+        plant.lambdify_matrices()
 
     def render(self, mode="human"):
         if self.render_mode == "human" and self.step_counter % self.render_every_steps == 0 and len(self.observation_dict['X_meas']) > 1:
