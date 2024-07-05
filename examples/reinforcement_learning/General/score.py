@@ -107,22 +107,22 @@ def get_swingup_time(
 def calculate_score(
     observation_dict,
     weights={
-        "swingup_time": 0.2,
-        "max_tau": 0.1,
-        "energy": 0.0,
-        "integ_tau": 0.1,
-        "tau_cost": 0.0,
-        "tau_smoothness": 0.6,
-        "velocity_cost": 0.2,
+        "swingup_time": 1.0,
+        "max_tau": 0.0,
+        "energy": 1.0,
+        "integ_tau": 0.0,
+        "tau_cost": 1.0,
+        "tau_smoothness": 1.0,
+        "velocity_cost": 1.0,
     },
     normalize={
-        "swingup_time": 10.0,
-        "max_tau": 1.0,
-        "energy": 1.0,
-        "integ_tau": 10.0,
-        "tau_cost": 10.0,
-        "tau_smoothness": 1.0,
-        "velocity_cost": 1000,
+        "swingup_time": 20.0,
+        "max_tau": 1.0,  # not used
+        "energy": 60.0,
+        "integ_tau": 1.0,  # not used
+        "tau_cost": 20.0,
+        "tau_smoothness": 0.1,
+        "velocity_cost": 400,
     },
     needs_success=True
 ):
