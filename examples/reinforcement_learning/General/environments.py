@@ -213,6 +213,11 @@ class GeneralEnv(CustomEnv):
                 index = i + 1
                 break
         delayed_action = self.clean_action_history[index]
+        last = delayed_action
+        if index > 0:
+            last = self.clean_action_history[index - 1]
+        delayed_action = last + self.responsiveness * (delayed_action - last)
+
         return delayed_action
 
     # normalized noise
@@ -220,8 +225,6 @@ class GeneralEnv(CustomEnv):
         self.clean_action_history = np.append(self.clean_action_history, clean_action)
         dirty_action = self.find_delay_action()
         dirty_action += np.random.normal(self.action_bias, self.action_noise)
-        last_dirty_action = self.observation_dict['U_real'][-1]
-        dirty_action = last_dirty_action + self.responsiveness * (dirty_action - last_dirty_action)
         return dirty_action
 
     def get_last_clean_observation(self):
@@ -332,13 +335,16 @@ class GeneralEnv(CustomEnv):
 
         for key, value in plant_parameters.items():
             if key in changing_values:
-                if isinstance(value, list):
-                    new_value = np.array(value) + np.random.normal(0.0, changing_values[key], 2)
-                    if key != 'b':
-                        new_value = np.abs(new_value)
+                sigma = changing_values[key]
+                if key == 'l' or key == 'I' or key == 'm' or key == 'com':
+                    new_value = np.array(value) + np.random.normal([0.0, 0.0], [value[0] * sigma, value[1] * sigma], 2)
                     new_value = new_value.tolist()
-                else:
-                    new_value = np.abs(np.array(value) + np.random.normal(0.0, changing_values[key], 1))
+                elif key == 'coulomb_fric' or key == 'b':
+                    new_value = np.array(value) + np.random.normal(0.0, sigma, 2)
+                    new_value = new_value.tolist()
+                elif key == 'Ir':
+                    new_value = (np.array(value) + np.random.normal(0.0, sigma, 1))[0]
+
                 setattr(plant, key, new_value)
 
         environment_parameters = [

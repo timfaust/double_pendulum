@@ -8,7 +8,7 @@ from scipy.stats import norm
 from src.python.double_pendulum.utils.wrap_angles import wrap_angles_diff
 
 
-def load_param(torque_limit, no_friction=True):
+def load_param(torque_limit, simplify=True):
     design = "design_C.1"
     model = "model_1.0"
     torque_array = [torque_limit, torque_limit]
@@ -22,10 +22,10 @@ def load_param(torque_limit, no_friction=True):
     )
     mpar = model_parameters(filepath=model_par_path)
     mpar.set_torque_limit(torque_limit=torque_array)
-    if no_friction:
+    if simplify:
         mpar.set_motor_inertia(0.0)
-        mpar.set_damping([0., 0.])
-        mpar.set_cfric([0., 0.])
+        mpar.set_damping([0.0, 0.0])
+        mpar.set_cfric([0.0, 0.0])
 
     return mpar
 

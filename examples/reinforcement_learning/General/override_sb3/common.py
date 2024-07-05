@@ -166,11 +166,11 @@ class CustomPolicy(SACPolicy):
 
         changing_values = {
             'l': 0.0 * factor,
-            'm': 0.155 * factor,
+            'm': 0.25 * factor,
             'b': 0.1 * factor,
             'coulomb_fric': 0.2 * factor,
-            'com': 0.0625 * factor,
-            'I': 0.0125 * factor,
+            'com': 0.25 * factor,
+            'I': 0.25 * factor,
             'Ir': 0.0001 * factor,
             'start_delay': 0.0 * factor,
             'delay': 0.04 * factor,
@@ -180,13 +180,13 @@ class CustomPolicy(SACPolicy):
             'position_bias': 0.0 * factor,
             'action_noise': 0.22 * factor,
             'action_bias': 0.0 * factor,
-            'n_pert_per_joint': 1,
+            'n_pert_per_joint': 0,
             'min_t_dist': 1.0,
             'sigma_minmax': [0.05, 0.1],
             'amplitude_min_max': [0.1, 5.0],
-            'responsiveness': np.random.uniform(0.1, 2)
+            'responsiveness': np.random.uniform(1 - factor * 1.8, 1 + factor * 2)
         }
 
-        # TODO: add measurement delay
-        environment.change_dynamics(changing_values, cls.progress)
+        if factor > 0:
+            environment.change_dynamics(changing_values, cls.progress)
 
