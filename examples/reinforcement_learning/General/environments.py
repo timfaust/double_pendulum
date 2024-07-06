@@ -4,7 +4,7 @@ import json
 from sympy import lambdify
 
 from examples.reinforcement_learning.General.misc_helper import updown_reset, balanced_reset, no_termination, \
-    noisy_reset, low_reset, high_reset, random_reset, semi_random_reset, debug_reset, kill_switch
+    noisy_reset, low_reset, high_reset, random_reset, semi_random_reset, debug_reset, kill_switch, get_unscaled_action
 from examples.reinforcement_learning.General.override_sb3.utils import make_vec_env
 from examples.reinforcement_learning.General.reward_functions import get_state_values
 from examples.reinforcement_learning.General.visualizer import Visualizer
@@ -81,7 +81,7 @@ class GeneralEnv(CustomEnv):
         super().__init__(
             dynamics_function,
             self.reward_function,
-            lambda observation: kill_switch(observation, dynamics_function),
+            lambda observation, action: kill_switch(observation, action, dynamics_function),
             self.custom_reset,
             self.translator.obs_space,
             self.translator.act_space,
@@ -272,7 +272,7 @@ class GeneralEnv(CustomEnv):
                 self.observation_dict[key] = []
                 self.observation_dict[key].append(0.0)
             self.observation_dict[key].append(reward_list[i])
-        terminated = self.terminated_func(self.observation_dict['dynamics_func'].unscale_state(self.observation_dict['X_meas'][-1]))
+        terminated = self.terminated_func(self.observation_dict['dynamics_func'].unscale_state(self.observation_dict['X_meas'][-1]), get_unscaled_action(self.observation_dict, key='U_con'))
         truncated = self.check_episode_end()
 
         self.update_visualizer(reward_list, clean_action)

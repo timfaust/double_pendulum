@@ -1,7 +1,8 @@
 import numpy as np
 from double_pendulum.utils.wrap_angles import wrap_angles_diff
 
-from examples.reinforcement_learning.General.misc_helper import punish_limit, get_state_values, get_i_decay
+from examples.reinforcement_learning.General.misc_helper import punish_limit, get_state_values, get_i_decay, \
+    get_unscaled_action
 from examples.reinforcement_learning.General.score import calculate_score
 
 
@@ -23,6 +24,7 @@ def future_pos_reward(observation, action, env_type, dynamic_func, observation_d
         # reward += get_e_decay(abstract_distance, 10)
     reward = reward * punish_limit(state_values['unscaled_observation'], observation_dict['dynamics_func'])
     return [reward, score_reward(observation, action, env_type, dynamic_func, observation_dict)]
+    reward = reward * punish_limit(state_values['unscaled_observation'], get_unscaled_action(observation_dict, key='U_con'), observation_dict['dynamics_func'])
 
 
 def pos_reward(observation, action, env_type, dynamic_func, observation_dict):
