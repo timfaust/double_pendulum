@@ -34,7 +34,7 @@ class Visualizer:
         self.full_window_width = self.graph_window_width + self.metrics_width
         self.window = None
         self.clock = None
-        self.metadata_visualization = {"render_modes": ["human"], "render_fps": 30}
+        self.metadata_visualization = {"render_modes": ["human"], "render_fps": 144}
         self.env_type = env_type
         self.observation_dict = observation_dict
         self.model: CustomSAC = None
@@ -98,7 +98,7 @@ class Visualizer:
             calculate_score(
                 self.observation_dict,
                 needs_success=False
-            ) * 2 - 1
+            )
         )
 
         if self.model is not None:
@@ -116,6 +116,7 @@ class Visualizer:
         reward_shifted = reward - 1
         reward_shifted = reward_shifted.tolist()
         actual_Q_scaled, predicted_Q_scaled = scale_arrays_together(actual_Q, predicted_Q)
+        past_scores_scaled = [score * 2 - 1 for score in self.past_scores]
 
         graphs = [
             (clean_actions, (0, 0, 255, 100), 0),
@@ -127,7 +128,7 @@ class Visualizer:
             (predicted_Q_scaled, (0, 0, 100, 150), 2),
             (actual_Q_scaled, (0, 0, 255, 255), 2),
             (reward_shifted, (0, 200, 0, 255), 2),
-            (self.past_scores, (200, 0, 0, 255), 2)
+            (past_scores_scaled, (200, 0, 0, 255), 2)
         ]
 
         def draw_line(surface, color, start_pos, end_pos):
