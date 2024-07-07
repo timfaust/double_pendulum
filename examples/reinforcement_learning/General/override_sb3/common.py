@@ -150,12 +150,10 @@ class CustomPolicy(SACPolicy):
     def after_train(cls):
         pass
 
-    @classmethod
-    def after_actor_backward(cls):
+    def after_actor_backward(self):
         pass
 
-    @classmethod
-    def after_critic_backward(cls):
+    def after_critic_backward(self):
         pass
 
     @classmethod

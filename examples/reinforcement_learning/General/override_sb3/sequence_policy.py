@@ -38,33 +38,6 @@ class SequenceExtractor(BaseFeaturesExtractor):
         raise NotImplementedError("Subclasses must implement this method")
 
 
-class SmoothingFilter(nn.Module):
-    def __init__(self, num_features, kernel_size=5, padding='same'):
-        super(SmoothingFilter, self).__init__()
-        self.num_features = num_features
-        self.conv = nn.Conv1d(
-            in_channels=num_features,
-            out_channels=num_features,
-            kernel_size=kernel_size,
-            padding=padding,
-            groups=num_features,
-            bias=False
-        )
-        nn.init.constant_(self.conv.weight, 1.0 / kernel_size)
-        self.alpha = nn.Parameter(th.zeros(num_features))
-        self.activation = nn.Sigmoid()
-
-    def forward(self, x):
-        # x shape: (batch, timestep, feature)
-        x_t = x.transpose(1, 2)  # Now: (batch, feature, timestep)
-        smoothed = self.conv(x_t)
-        smoothed = smoothed.transpose(1, 2)  # Back to: (batch, timestep, feature)
-
-        # Apply feature-specific smoothing
-        alpha_sigmoid = self.activation(self.alpha.view(1, 1, -1))  # Reshape for broadcasting
-        return alpha_sigmoid * x + (1 - alpha_sigmoid) * smoothed
-
-
 class LSTMExtractor(SequenceExtractor):
     def __init__(self, observation_space: gym.spaces.Box, translator, hidden_size=64, num_layers=2):
         super().__init__(observation_space, translator)
@@ -84,37 +57,13 @@ class LSTMExtractor(SequenceExtractor):
         return self.activation(fc_output)
 
 
-class ConvExtractor(SequenceExtractor):
-    def __init__(self, observation_space: gym.spaces.Box, translator):
-        super().__init__(observation_space, translator)
-        self.conv_layers = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=5, stride=1, padding=2),
-            nn.Tanh(),
-            nn.Conv2d(16, 32, kernel_size=5, stride=1, padding=2),
-            nn.Tanh(),
-            nn.AdaptiveAvgPool2d((1, 1))
-        )
-        self.fc_layers = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(32, 16),
-            nn.Tanh(),
-            nn.Linear(16, self.output_dim),
-            nn.Tanh()
-        )
-
-    def _process_main_features(self, obs: th.Tensor) -> th.Tensor:
-        obs_reshaped = obs.view(-1, self.timesteps, self.input_features).unsqueeze(1)
-        conv_output = self.conv_layers(obs_reshaped)
-        return self.fc_layers(conv_output)
-
-
 class SequenceTranslator(DefaultTranslator):
     def __init__(self):
         self.reset()
         self.timesteps = 200
         self.feature_dim = 5
         self.output_dim = 12
-        self.additional_features = 8 #4 + 17
+        self.additional_features = 8
         self.net_arch = [128, 64, 32]
 
         super().__init__(self.timesteps * self.feature_dim + self.additional_features)
@@ -153,10 +102,12 @@ class SequenceSACPolicy(CustomPolicy):
         self.additional_actor_kwargs['net_arch'] = self.translator.net_arch
         self.additional_critic_kwargs['net_arch'] = self.translator.net_arch
 
-        kwargs.update(dict(
-            features_extractor_class=LSTMExtractor,
-            features_extractor_kwargs=dict(translator=self.translator),
-            share_features_extractor=False
-        ))
+        kwargs.update(
+            dict(
+                features_extractor_class=LSTMExtractor,
+                features_extractor_kwargs=dict(translator=self.translator),
+                share_features_extractor=False
+            )
+        )
 
         super().__init__(*args, **kwargs)

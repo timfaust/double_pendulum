@@ -9,7 +9,7 @@ from examples.reinforcement_learning.General.trainer import Trainer
 from stable_baselines3.common.noise import OrnsteinUhlenbeckActionNoise
 import argparse
 
-seed = 2024
+seed = 42
 
 if __name__ == '__main__':
 
@@ -28,7 +28,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     action_noise = OrnsteinUhlenbeckActionNoise(mean=np.array([0.0]), sigma=0.1 * np.ones(1), theta=0.15, dt=1e-2)
-    sac = Trainer(args.name, args.env_type, args.param, SequenceSACPolicy, 2, seed, action_noise)
+    sac = Trainer(args.name, args.env_type, args.param, SequenceSACPolicy, 1, seed, action_noise)
 
     if args.mode == "train":
         print("training new model")

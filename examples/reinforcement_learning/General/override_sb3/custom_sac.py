@@ -104,7 +104,7 @@ class CustomSAC(SAC):
         self.policies = []
         self.policy_number = policy_number
         self.replay_buffers = []
-        self.replay_buffer_classes = [ReplayBuffer, ScoreReplayBuffer]
+        self.replay_buffer_classes = [ReplayBuffer, ReplayBuffer]
         self.ent_coef_optimizers = []
         self.log_ent_coefs = []
 
@@ -190,6 +190,10 @@ class CustomSAC(SAC):
         :param log_interval: Log data every ``log_interval`` episodes
         :return:
         """
+        # select sample policy
+        r = np.minimum((self.num_timesteps - 500000) / 2000000, 0.5)
+        self.sample_policy = int(np.random.uniform(0, 1) < r)
+
         self.select_policy(self.sample_policy)
         # Switch to eval mode (this affects batch norm / dropout)
         self.policy.set_training_mode(False)
@@ -280,8 +284,7 @@ class CustomSAC(SAC):
     def train(self, gradient_steps: int, batch_size: int = 64) -> None:
         for i in range(len(self.policies)):
             self.select_policy(i)
-            # TODO: was wird alles zu oft gemacht?
-            if self.replay_buffer.full or self.replay_buffer.pos > 0:
+            if (self.replay_buffer.full or self.replay_buffer.pos > 0) and not (i == 1 and self.num_timesteps <= 350000):
                 self.train_policy(i, gradient_steps, batch_size)
 
     def train_policy(self, policy_id, gradient_steps: int, batch_size: int = 64, critic_loss_goal=-1.0) -> None:
