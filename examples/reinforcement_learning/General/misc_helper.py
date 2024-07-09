@@ -105,7 +105,7 @@ def get_e_decay(x, x_max, factor=5):
     return np.clip((np.exp(-x/x_max*factor) - c)/(1 - c), 0, 1)
 
 
-def get_i_decay(x, factor=4):
+def get_i_decay(x, factor=2):
     return 1/(factor * x + 1)
 
 
@@ -148,7 +148,7 @@ def get_state_values(observation_dict, key='X_meas'):
     goal = np.array([0, -(l[0] + l[1])])
 
     x3 = x2 + dt_goal * v2
-    distance = np.linalg.norm(x3 - goal)
+    distance = np.linalg.norm(x3 - goal)/(l[0] + l[1])
 
     u_p, u_pp = 0, 0
     if len(observation_dict['U_con']) > 1:

@@ -40,17 +40,18 @@
         "reset_function": "low_reset",
         "reward_function": "future_pos_reward",
         "same_environment": 1,
-        "n_envs": 100
+        "n_envs": 1
       },
       "normalization": "custom_dynamics_func_4PI",
       "dt": 0.01,
       "max_torque": 5,
 
-      "actor_schedule": 0.001,
-      "critic_schedule": 0.001,
+      "actor_schedule": "MultiStepLR(milestones=[400,1400], gamma=0.1, lr=0.001)",
+      "critic_schedule": "MultiStepLR(milestones=[400,1400], gamma=0.1, lr=0.001)",
       "entropy_schedule": 0.001,
       "gradient_steps": 3,
       "buffer_size": 200000,
+      "batch_size": 1024,
       "train_freq": 1,
       "target_update_interval": 1,
       "max_episode_steps": 1000,
@@ -64,7 +65,7 @@
       "verbose": 0,
       "show_progress_bar": 1,
       "save_freq": 1000000,
-      "gamma": 0.99
+      "gamma": 0.995
     },
     "random": {
       "train_env": {

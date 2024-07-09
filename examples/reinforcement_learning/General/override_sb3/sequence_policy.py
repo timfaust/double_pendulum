@@ -7,6 +7,7 @@ from examples.reinforcement_learning.General.override_sb3.common import DefaultT
 import gymnasium as gym
 
 from examples.reinforcement_learning.General.reward_functions import get_state_values
+import torch.nn.functional as F
 
 
 class SequenceExtractor(BaseFeaturesExtractor):
@@ -39,32 +40,32 @@ class SequenceExtractor(BaseFeaturesExtractor):
 
 
 class LSTMExtractor(SequenceExtractor):
-    def __init__(self, observation_space: gym.spaces.Box, translator, hidden_size=64, num_layers=2):
+    def __init__(self, observation_space: gym.spaces.Box, translator, hidden_size=16, num_layers=2, dropout=0.1):
         super().__init__(observation_space, translator)
-        # self.filter = SmoothingFilter(self.input_features, 5)
-        self.lstm = nn.LSTM(self.input_features, hidden_size, num_layers, batch_first=True)
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+
+        self.lstm = nn.LSTM(self.input_features, hidden_size, num_layers, batch_first=True, dropout=dropout)
         self.fc = nn.Linear(hidden_size, self.output_dim)
         self.activation = nn.Tanh()
-        # self.dropout = nn.Dropout(0.2)
 
     def _process_main_features(self, obs: th.Tensor) -> th.Tensor:
-        obs_reshaped = obs.view(-1, self.timesteps, self.input_features)
-        # smoothed_seq = self.filter(obs_reshaped)
-        _, (hidden, _) = self.lstm(obs_reshaped)
-        last_timestep = hidden[-1]
-        # dropped = self.dropout(last_timestep)
-        fc_output = self.fc(last_timestep)
+        batch_size = obs.size(0)
+        obs_reshaped = obs.view(batch_size, self.timesteps, self.input_features)
+        lstm_out, (h_n, c_n) = self.lstm(obs_reshaped)
+        last_hidden = h_n[-1]
+        fc_output = self.fc(last_hidden)
         return self.activation(fc_output)
 
 
 class SequenceTranslator(DefaultTranslator):
     def __init__(self):
         self.reset()
-        self.timesteps = 200
+        self.timesteps = 50
         self.feature_dim = 5
-        self.output_dim = 12
+        self.output_dim = 16
         self.additional_features = 8
-        self.net_arch = [128, 64, 32]
+        self.net_arch = [256, 256]
 
         super().__init__(self.timesteps * self.feature_dim + self.additional_features)
 
@@ -111,3 +112,6 @@ class SequenceSACPolicy(CustomPolicy):
         )
 
         super().__init__(*args, **kwargs)
+
+    def after_critic_backward(self):
+        th.nn.utils.clip_grad_norm_(self.critic.parameters(), 100)

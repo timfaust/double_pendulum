@@ -22,24 +22,42 @@ from torch.nn import functional as F
 
 
 def parse_args_kwargs(input_string):
-    arg_pattern = re.compile(r'(?P<arg>\[.*?\]|[^,]+)')
-    kwarg_pattern = re.compile(r'(?P<key>\w+)\s*=\s*(?P<value>.+)')
+    def parse_value(value):
+        try:
+            return ast.literal_eval(value)
+        except (ValueError, SyntaxError):
+            return value
 
-    params = []
+    args = []
     kwargs = {}
-    matches = arg_pattern.findall(input_string.replace(' ', ''))
+    stack = []
+    current = ""
+    in_brackets = 0
 
-    for match in matches:
-        kwarg_match = kwarg_pattern.match(match)
-        if kwarg_match:
-            key = kwarg_match.group('key').strip()
-            value = kwarg_match.group('value').strip()
-            kwargs[key] = ast.literal_eval(value)
+    for char in input_string:
+        if char == '[':
+            in_brackets += 1
+        elif char == ']':
+            in_brackets -= 1
+
+        if char == ',' and in_brackets == 0 and not stack:
+            if '=' in current:
+                key, value = current.split('=', 1)
+                kwargs[key.strip()] = parse_value(value.strip())
+            else:
+                args.append(parse_value(current.strip()))
+            current = ""
         else:
-            params.append(ast.literal_eval(match.strip()))
+            current += char
 
-    return params, kwargs
+    if current:
+        if '=' in current:
+            key, value = current.split('=', 1)
+            kwargs[key.strip()] = parse_value(value.strip())
+        else:
+            args.append(parse_value(current.strip()))
 
+    return args, kwargs
 
 def create_lr_schedule(optimizer, schedule_str):
     if schedule_str.replace(".", "", 1).isdigit():
@@ -85,10 +103,7 @@ def create_lr_schedule(optimizer, schedule_str):
             raise ValueError(f"Scheduler '{name}' is not supported.")
 
         scheduler_class = scheduler_dict[name]
-        if kwargs:
-            scheduler = scheduler_class(optimizer, *params, **kwargs)
-        else:
-            scheduler = scheduler_class(optimizer, *params)
+        scheduler = scheduler_class(optimizer, *params, **kwargs)
 
         return scheduler
 
