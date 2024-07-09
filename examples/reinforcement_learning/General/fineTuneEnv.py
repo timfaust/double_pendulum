@@ -96,7 +96,8 @@ class FineTuneEnv(CustomEnv):
         self.acc_reward = 0
         self.step_counter = 0
         self.action = np.array([0])
-        self.dynamics_func.simulator.set_state(0, [0, 0, 0, 0])
+        x = self.dynamics_func.unscale_state(observation[:4])
+        self.dynamics_func.simulator.set_state(0, x)
         self.dynamics_func.simulator.reset()
         if self.actions_in_state:
             observation = np.append(observation, np.zeros(2))

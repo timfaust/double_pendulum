@@ -42,22 +42,19 @@ class GeneralController(AbstractController):
                 False,
             )
 
-            self.environment.same_env = True
-            self.greedy_envs = self.environment.get_envs(log_dir, 100)
-            self.greedy_envs.reset()
-
             if (
                     self.model.action_noise is not None
                     and isinstance(self.model.action_noise, VectorizedActionNoise)
             ):
-                self.action_noise = VectorizedActionNoise(self.model.action_noise.base_noise, 100)
+                self.action_noise = VectorizedActionNoise(self.model.action_noise.base_noise, self.model.n_envs)
             else:
                 action_noise = OrnsteinUhlenbeckActionNoise(mean=np.array([0.0]), sigma=0.1 * np.ones(1), theta=0.15,
                                                             dt=1e-2)
-                self.action_noise = VectorizedActionNoise(action_noise, 100)
+                self.action_noise = VectorizedActionNoise(action_noise, self.model.n_envs)
 
             pygame.init()
             self.model.replay_buffer.reset()
+            self.model.learning_rate = 1e-5
 
             if not self.callbacks is None:
                 self.callbacks.on_training_start(locals(), globals())
@@ -72,9 +69,10 @@ class GeneralController(AbstractController):
         self.steps = 0
         self.rewards.clear()
         if self.fine_tune:
-            self.eval_env.reset()
-            self.greedy_envs.reset()
+            if self.eval_env is not None:
+                self.eval_env.reset()
             self.model.env.reset()
+        self.simulation.set_measurement_parameters(delay=0.05, delay_mode="posvel")
 
     def get_control_output_(self, x, t=None):
         if self.actions_in_state:
@@ -101,18 +99,18 @@ class GeneralController(AbstractController):
                                               replay_buffer=self.model.replay_buffer,
                                               log_interval=4)
 
-                    if self.steps % (self.train_every_n_step) == 0:
+                    if self.steps % self.train_every_n_step == 0:
                         self.model.train(self.model.gradient_steps, self.model.batch_size)
 
                 self.collect_rollout(env=self.model.env,
-                                     train_freq=self.model.train_freq,
                                      callback=self.callbacks)
 
-                action, _ = self.model.predict(obs, deterministic=False)
-                action = self.adjust_action(action, obs)
-                self.eval_action, _ = self.model.predict(eval_obs, deterministic=True)
+                action, _ = self.model.predict(observation=obs, deterministic=False)
+                #action = self.adjust_action(action, obs)
+                self.eval_action, _ = self.model.predict(observation=eval_obs, deterministic=True)
 
-                self.eval_env.render()
+                if self.eval_env is not None:
+                    self.eval_env.render()
                 self.model.env.render()
 
                 self.actions, self.buffer_actions = self._sample_action(action=action, n_envs=self.model.env.num_envs)
@@ -144,15 +142,9 @@ class GeneralController(AbstractController):
         return mean_reward
 
     def adjust_action(self, action, obs):
-
         if self.action_noise is not None:
-            actions = np.clip(action + self.action_noise(), -1, 1)
-            for env in self.greedy_envs.envs:
-                env.update_observation(obs)
-
-            new_obs, rewards, dones, infos = self.greedy_envs.step(actions)
-            action = actions[np.argmax(rewards)]
-
+            #action = np.clip(action + self.action_noise(), -1, 1)[0]
+            action += 0.01 * action
         return action
 
     def _sample_action(
@@ -166,18 +158,12 @@ class GeneralController(AbstractController):
 
     def collect_rollout(self,
                         env,
-                        callback,
-                        train_freq: TrainFreq):
+                        callback):
 
         # Switch to eval mode (this affects batch norm / dropout)
         self.model.policy.set_training_mode(False)
 
         assert isinstance(env, VecEnv), "You must pass a VecEnv"
-        assert train_freq.frequency > 0, "Should at least collect one step or episode."
-
-        if env.num_envs > 1:
-            assert train_freq.unit == TrainFrequencyUnit.STEP, "You must use only one env when doing episodic training."
-
         if self.model.use_sde:
             self.model.actor.reset_noise(env.num_envs)
 

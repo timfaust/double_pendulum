@@ -183,7 +183,7 @@ class Trainer:
             steps = training_steps
         else:
             self.get_callback_list()
-            env = self.environment
+            env = self.eval_environment
             eval_env = None
             model = SAC.load(model_path, print_system_info=True)
 
@@ -212,6 +212,7 @@ class Trainer:
                 if mean_reward > best_model_reward:
                     model.save(os.path.join(self.log_dir, "best_model", "best_fine_tuned_model"))
                     best_model_reward = mean_reward
+                print('best_reward: ', best_model_reward)
 
             traj_save_path = "sim_swingup_" + str(i + 1) + ".csv"
             save_trajectory(os.path.join(self.log_dir, traj_save_path), T=T, X_meas=X, U_con=U)

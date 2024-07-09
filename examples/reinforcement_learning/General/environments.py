@@ -92,6 +92,9 @@ class GeneralEnv(CustomEnv):
 
     def custom_reset(self):
         observation = self.reset_function()
+        x = self.dynamics_func.unscale_state(observation[:4])
+        self.dynamics_func.simulator.set_state(0, x)
+        self.dynamics_func.simulator.reset()
         if self.actions_in_state:
             observation = np.append(observation, np.zeros(2))
         return observation

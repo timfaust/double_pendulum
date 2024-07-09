@@ -29,6 +29,8 @@ if __name__ == '__main__':
     data = load_json_params(args.param_name)
     sac = Trainer(args.name, robot, data, seed, action_noise)
 
+
+
     if args.mode == "train":
         print("training new model")
         sac.train()
@@ -52,4 +54,4 @@ if __name__ == '__main__':
         sac.simulate(model_path=args.model_path, tf=10.0)
 
     if args.mode == "fine_tune":
-        sac.simulate(model_path=args.model_path, tf=5.0, fine_tune=True, train_freq=1000)
+        sac.simulate(model_path=args.model_path, tf=5.0, fine_tune=True, train_freq=10, training_steps=100)
