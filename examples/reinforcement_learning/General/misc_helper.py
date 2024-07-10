@@ -141,8 +141,8 @@ def get_state_values(observation_dict, key='X_meas', offset=0):
         l = observation_dict['dynamics_func'].simulator.plant.l
         action_key = 'U_real'
 
-    dt_goal = 0.05
-    threshold_distance = 0.01
+    dt_goal = 0.0
+    threshold_distance = (l[0] + l[1]) * 0.1
 
     unscaled_observation = observation_dict['dynamics_func'].unscale_state(observation_dict[key][offset-1])
     unscaled_action = get_unscaled_action(observation_dict, offset, action_key)

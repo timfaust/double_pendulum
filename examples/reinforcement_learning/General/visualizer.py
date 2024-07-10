@@ -89,7 +89,7 @@ class Visualizer:
 
         # Basis-Einstellungen für den Graphen
         graph_x, graph_y, graph_width, graph_height = self.graph_window_width, 0, (self.full_window_width - self.graph_window_width) // 2, self.graph_window_height // 2
-        max_value = 1.02
+        max_value = 1.001
         min_value = -max_value
 
         # Create a transparent surface for drawing
@@ -201,7 +201,7 @@ class Visualizer:
 
         return metrics
 
-    def draw_grid(self, canvas, line_color=(200, 200, 200), spacing=50):
+    def draw_grid(self, canvas, line_color=(200, 200, 200), spacing=75):
         for x in range(0, self.full_window_width, spacing):
             pygame.draw.line(canvas, line_color, (x, 0), (x, self.graph_window_height), 1)
         for y in range(0, self.graph_window_height, spacing):
