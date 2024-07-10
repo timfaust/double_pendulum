@@ -148,7 +148,7 @@ class GeneralEnv(CustomEnv):
             if key != 'dynamics_func' and key != 'max_episode_steps' and key != 'mpar':
                 self.observation_dict[key].clear()
         self.clean_action_history = np.array([0.0])
-        self.visualizer.reset()
+
         if self.sac:
             self.sac.after_environment_reset(self)
 

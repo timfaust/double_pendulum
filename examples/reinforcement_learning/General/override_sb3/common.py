@@ -14,10 +14,8 @@ from gymnasium import spaces
 class OneEnvReplayBuffer(ReplayBuffer):
 
     def __init__(self, *args, **kwargs):
-        args = list(args)
-        args[0] = args[0] * kwargs.get('n_envs', 1)
         kwargs['n_envs'] = 1
-        super().__init__(*tuple(args), **kwargs)
+        super().__init__(*args, **kwargs)
         self.next_observations = [None] * self.buffer_size
         self.next_state_policy = 0
         self.next_policies = np.zeros((self.buffer_size, self.n_envs), dtype=np.int32)

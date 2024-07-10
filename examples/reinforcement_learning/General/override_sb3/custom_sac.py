@@ -64,6 +64,7 @@ def parse_args_kwargs(input_string):
     return args, kwargs
 
 def create_lr_schedule(optimizer, schedule_str):
+    schedule_str = str(schedule_str)
     if schedule_str.replace(".", "", 1).isdigit():
         lr = float(schedule_str)
         for param_group in optimizer.param_groups:
@@ -137,7 +138,7 @@ class CustomSAC(SAC):
 
         for key in list(kwargs.keys()):
             if key in schedule_params:
-                schedule_params[key] = str(kwargs.pop(key))
+                schedule_params[key] = kwargs.pop(key)
 
         kwargs['policy'] = self.policy_classes[0]
         super().__init__(*args, **kwargs)
@@ -147,11 +148,11 @@ class CustomSAC(SAC):
         for i in range(len(self.policies)):
             self.select_policy(i)
             if schedule_params['actor_schedule']:
-                self.schedulers.append(create_lr_schedule(self.actor.optimizer, schedule_params['actor_schedule']))
+                self.schedulers.append(create_lr_schedule(self.actor.optimizer, schedule_params['actor_schedule'][i]))
             if schedule_params['critic_schedule']:
-                self.schedulers.append(create_lr_schedule(self.critic.optimizer, schedule_params['critic_schedule']))
+                self.schedulers.append(create_lr_schedule(self.critic.optimizer, schedule_params['critic_schedule'][i]))
             if schedule_params['entropy_schedule']:
-                self.schedulers.append(create_lr_schedule(self.ent_coef_optimizer, schedule_params['entropy_schedule']))
+                self.schedulers.append(create_lr_schedule(self.ent_coef_optimizer, schedule_params['entropy_schedule'][i]))
 
     def connect_visualization(self, env=None):
         if env is None:
@@ -230,12 +231,12 @@ class CustomSAC(SAC):
                     break
 
     def get_last_state(self, env):
-        obs = env.observation_dict['X_meas'][:-1]
+        obs = [env.observation_dict['X_meas'][-1]]
         selected_policy = self.decide_policy(obs)
         for policy_index in range(len(selected_policy)):
             if selected_policy[policy_index][0] == 1:
-                return self.policies[policy_index].translator.build_state(obs[0], env)
-        return None
+                return self.policies[policy_index].translator.build_state(obs[0], env), policy_index
+        return None, None
 
     def _store_transition(
         self,

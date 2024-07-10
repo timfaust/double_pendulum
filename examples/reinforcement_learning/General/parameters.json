@@ -44,20 +44,20 @@
       },
       "normalization": "custom_dynamics_func_4PI",
       "dt": 0.01,
-      "max_torque": 5,
+      "max_torque": 6,
 
-      "actor_schedule": "MultiStepLR(milestones=[400,1400], gamma=0.1, lr=0.001)",
-      "critic_schedule": "MultiStepLR(milestones=[400,1400], gamma=0.1, lr=0.001)",
-      "entropy_schedule": 0.001,
+      "actor_schedule": [0.001, 0.0005],
+      "critic_schedule": [0.001, 0.0005],
+      "entropy_schedule": [0.001, 0.0005],
       "gradient_steps": 3,
       "buffer_size": 200000,
-      "batch_size": 1024,
+      "batch_size": 512,
       "train_freq": 1,
       "target_update_interval": 1,
       "max_episode_steps": 1000,
       "training_steps": 10000000,
       "use_action_noise": 1,
-      "eval_freq": 200000,
+      "eval_freq": 50000,
       "n_eval_episodes": 1,
       "render_eval": 1,
       "render_every_steps": 1,
@@ -65,7 +65,7 @@
       "verbose": 0,
       "show_progress_bar": 1,
       "save_freq": 1000000,
-      "gamma": 0.995
+      "gamma": 0.99
     },
     "random": {
       "train_env": {

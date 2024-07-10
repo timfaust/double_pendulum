@@ -24,6 +24,9 @@ def scale_arrays_together(arr1, arr2, new_min=-1, new_max=1):
 
 class Visualizer:
     def __init__(self, env):
+        self.acc_reward = 0
+        self.reward = 0
+        self.policy = 0
         self.pendulum_length_visualization = 700
         self.graph_window_width = 1500
         self.graph_window_height = 1500
@@ -66,12 +69,23 @@ class Visualizer:
     def draw_graph(self, canvas):
         reward_name = 'reward_0'
         gamma = 0.99
+
         if self.model is not None:
-            gamma = self.model.gamma
-            reward_index = self.model.active_policy
-            if reward_index >= len(self.env.observation_dict) - 9:
-                reward_index = len(self.env.observation_dict) - 10
-            reward_name = 'reward_' + str(reward_index)
+            with th.no_grad():
+                device = self.model.critic.device
+                actions = th.tensor(np.array([self.env.observation_dict['U_con'][-1]]), dtype=th.float32, device=device).unsqueeze(1)
+                state, self.policy = self.model.get_last_state(self.env)
+                critic = self.model.policies[self.policy].critic
+                state = th.tensor(np.array([state]), dtype=th.float32, device=device)
+                q_values, _ = th.min(th.cat(critic(state, actions), dim=1), dim=1, keepdim=True)
+                self.predicted_Q.append(q_values.squeeze(1).cpu().numpy()[0])
+                extracted_features = critic.extract_features(state, critic.features_extractor)[-1,:].cpu().numpy().tolist()
+
+                gamma = self.model.gamma
+                reward_index = self.policy
+                if reward_index >= len(self.env.observation_dict) - 9:
+                    reward_index = len(self.env.observation_dict) - 10
+                reward_name = 'reward_' + str(reward_index)
 
         # Basis-Einstellungen für den Graphen
         graph_x, graph_y, graph_width, graph_height = self.graph_window_width, 0, (self.full_window_width - self.graph_window_width) // 2, self.graph_window_height // 2
@@ -88,9 +102,7 @@ class Visualizer:
         clean_x = [x[1] for x in self.env.observation_dict['X_real'][1:]]
         dirty_v = [x[3] for x in self.env.observation_dict['X_meas'][1:]]
         clean_v = [x[3] for x in self.env.observation_dict['X_real'][1:]]
-        reward = np.array(self.env.observation_dict[reward_name][1:])
-        actual_Q = calculate_q_values(reward, gamma)
-        extracted_features = None
+        reward_history = np.array(self.env.observation_dict[reward_name][1:])
 
         if len(clean_actions) == 1:
             self.past_scores = []
@@ -103,17 +115,15 @@ class Visualizer:
             )
         )
 
-        if self.model is not None:
-            with th.no_grad():
-                device = self.model.critic.device
-                actions = th.tensor(np.array([self.env.observation_dict['U_con'][-1]]), dtype=th.float32, device=device).unsqueeze(1)
-                state_np = np.array([self.model.get_last_state(self.env)])
-                state = th.tensor(state_np, dtype=th.float32, device=device)
-                q_values, _ = th.min(th.cat(self.model.critic(state, actions), dim=1), dim=1, keepdim=True)
-                self.predicted_Q.append(q_values.squeeze(1).cpu().numpy()[0])
-                extracted_features = self.model.critic.extract_features(state, self.model.critic.features_extractor)[-1,:].cpu().numpy().tolist()
+        if len(reward_history) == 0:
+            print(dirty_actions)
+            return
 
-        reward_shifted = reward * 3 - 1
+        self.reward = reward_history[-1]
+        self.acc_reward = np.sum(reward_history)
+        actual_Q = calculate_q_values(reward_history, gamma)
+
+        reward_shifted = reward_history * 3 - 1
         reward_shifted = reward_shifted.tolist()
         actual_Q_scaled, predicted_Q_scaled = scale_arrays_together(actual_Q, self.predicted_Q)
         past_scores_scaled = [score * 2 - 1 for score in self.past_scores]
@@ -204,6 +214,8 @@ class Visualizer:
         y = state_values['unscaled_observation']
 
         metrics = {
+            'acc_reward': np.round(self.acc_reward, 5),
+            'reward': np.round(self.reward, 5),
             'step_counter': len(self.env.observation_dict['T']) - 1,
             'x_1': round(y[0]/(2 * np.pi), 4),
             'x_2': round(y[1]/(2 * np.pi), 4),
@@ -213,7 +225,7 @@ class Visualizer:
             'v_2': round(y[3]/20, 4),
             'action': round(state_values['unscaled_action']/5, 4),
             'time': self.env.observation_dict["T"][-1],
-            'policy': self.model.active_policy
+            'policy': self.policy
         }
 
         return state_values['x1'], state_values['x2'], state_values['x3'], state_values['goal'], state_values['threshold_distance'], metrics
@@ -221,12 +233,14 @@ class Visualizer:
     def draw_pendulum(self, canvas, x1, x2, alpha=255):
         transparent_surface = pygame.Surface(canvas.get_size(), pygame.SRCALPHA)
         black = (0, 0, 0, alpha)
-        blue = (60, 60, 230, alpha)
+        joint_color = (60, 60, 230, alpha)
+        if self.policy == 1:
+            joint_color = (230, 193, 60, alpha)
         pygame.draw.line(transparent_surface, black, self.getXY(np.array([0, 0])), self.getXY(x1), 10)
         pygame.draw.line(transparent_surface, black, self.getXY(x1), self.getXY(x2), 10)
-        pygame.draw.circle(transparent_surface, blue, self.getXY(np.array([0, 0])), 20)
-        pygame.draw.circle(transparent_surface, blue, self.getXY(x1), 20)
-        pygame.draw.circle(transparent_surface, blue, self.getXY(x2), 10)
+        pygame.draw.circle(transparent_surface, joint_color, self.getXY(np.array([0, 0])), 20)
+        pygame.draw.circle(transparent_surface, joint_color, self.getXY(x1), 20)
+        pygame.draw.circle(transparent_surface, joint_color, self.getXY(x2), 10)
         canvas.blit(transparent_surface, (0, 0))
 
     def draw_goals(self, canvas, goal, threshold, x3):
