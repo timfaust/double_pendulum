@@ -2,7 +2,8 @@ import ast
 import re
 import sys
 import time
-from typing import List, Optional
+from copy import deepcopy
+from typing import List, Optional, Union, Dict, Any, Tuple
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -10,15 +11,18 @@ from stable_baselines3 import SAC
 from stable_baselines3.common.buffers import ReplayBuffer
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.noise import ActionNoise
-from stable_baselines3.common.type_aliases import RolloutReturn, TrainFreq, TrainFrequencyUnit
+from stable_baselines3.common.type_aliases import RolloutReturn, TrainFreq, TrainFrequencyUnit, GymEnv
 from stable_baselines3.common.utils import polyak_update, should_collect_more_steps, safe_mean
 from stable_baselines3.common.vec_env import VecEnv
 from torch.optim import lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
+from gymnasium import spaces
 
-from examples.reinforcement_learning.General.override_sb3.common import CustomPolicy, ScoreReplayBuffer
+from examples.reinforcement_learning.General.override_sb3.common import OneEnvReplayBuffer
 import torch as th
 from torch.nn import functional as F
+
+from examples.reinforcement_learning.General.override_sb3.sequence_policy import SequenceSACPolicy
 
 
 def parse_args_kwargs(input_string):
@@ -112,16 +116,18 @@ def create_lr_schedule(optimizer, schedule_str):
 
 
 class CustomSAC(SAC):
-    def __init__(self, policy_number, *args, **kwargs):
+    def __init__(self, policy_classes, decider, *args, **kwargs):
+        self.replay_buffer_classes = [OneEnvReplayBuffer, OneEnvReplayBuffer]
         self.schedulers = []
         self.active_policy = 0
         self.sample_policy = 0
         self.policies = []
-        self.policy_number = policy_number
+        self.policy_classes = policy_classes
+        self.policy_number = len(self.policy_classes)
         self.replay_buffers = []
-        self.replay_buffer_classes = [ReplayBuffer, ReplayBuffer]
         self.ent_coef_optimizers = []
         self.log_ent_coefs = []
+        self.decider = decider
 
         schedule_params = {
             'actor_schedule': "",
@@ -133,6 +139,7 @@ class CustomSAC(SAC):
             if key in schedule_params:
                 schedule_params[key] = str(kwargs.pop(key))
 
+        kwargs['policy'] = self.policy_classes[0]
         super().__init__(*args, **kwargs)
 
         self.connect_visualization()
@@ -155,6 +162,7 @@ class CustomSAC(SAC):
     def select_policy(self, policy_id):
         if len(self.policies) > policy_id >= 0:
             self.active_policy = policy_id
+            self.policy_class = self.policy_classes[self.active_policy]
             self.policy = self.policies[self.active_policy]
             self.actor = self.policy.actor
             self.critic = self.policy.critic
@@ -169,120 +177,189 @@ class CustomSAC(SAC):
                 self.replay_buffer_class = self.replay_buffer_classes[i]
             else:
                 self.replay_buffer_class = ReplayBuffer
+            self.policy_class = self.policy_classes[i]
             self.replay_buffer = None
+            translator = self.policy_class.get_translator()
+            self.observation_space = translator.obs_space
+            self.action_space = translator.act_space
             super()._setup_model()
             self.log_ent_coefs.append(self.log_ent_coef)
             self.ent_coef_optimizers.append(self.ent_coef_optimizer)
             self.replay_buffers.append(self.replay_buffer)
             self.policies.append(self.policy)
 
-    def collect_rollouts(
+    def decide_policy(self, new_obs):
+        assignments = []
+        for func in self.decider:
+            assignments.append([func(obs) for obs in new_obs])
+        return np.array(assignments)
+
+    def predict(
             self,
-            env: VecEnv,
-            callback: BaseCallback,
-            train_freq: TrainFreq,
-            replay_buffer: ReplayBuffer,
-            action_noise: Optional[ActionNoise] = None,
-            learning_starts: int = 0,
-            log_interval: Optional[int] = None,
-    ) -> RolloutReturn:
+            observation: Union[np.ndarray, Dict[str, np.ndarray]],
+            state: Optional[Tuple[np.ndarray, ...]] = None,
+            episode_start: Optional[np.ndarray] = None,
+            deterministic: bool = False,
+    ) -> Tuple[np.ndarray, Optional[Tuple[np.ndarray, ...]]]:
+
+        return self.get_actions(observation, deterministic), None
+
+    def add_to_buffer(self, next_obs, buffer_action, reward, dones, infos):
+        selected_policies = self.decide_policy(self._last_original_obs)
+        selected_policies_next = self.decide_policy(next_obs)
+        envs = [m.env for m in self.env.envs]
+        for env_index in range(len(envs)):
+            for policy_index in range(self.policy_number):
+
+                reward_index = policy_index
+                if policy_index >= len(reward):
+                    reward_index = len(reward) - 1
+
+                if selected_policies[policy_index][env_index] == 1:
+                    last_state = self.policies[policy_index].translator.build_state(self._last_original_obs[env_index], envs[env_index])
+
+                    next_state_policy = 0
+                    for i in range(len(selected_policies_next)):
+                        if selected_policies_next[i][env_index] == 1:
+                            next_state_policy = i
+                            break
+
+                    next_state = self.policies[next_state_policy].translator.build_state(next_obs[env_index], envs[env_index])
+                    self.replay_buffers[policy_index].next_state_policy = next_state_policy
+                    self.replay_buffers[policy_index].add(last_state, next_state, buffer_action[env_index], np.array([reward[reward_index][env_index]]), np.array([dones[env_index]]), [infos[env_index]])
+                    break
+
+    def get_last_state(self, env):
+        obs = env.observation_dict['X_meas'][:-1]
+        selected_policy = self.decide_policy(obs)
+        for policy_index in range(len(selected_policy)):
+            if selected_policy[policy_index][0] == 1:
+                return self.policies[policy_index].translator.build_state(obs[0], env)
+        return None
+
+    def _store_transition(
+        self,
+        replay_buffer: ReplayBuffer,
+        buffer_action: np.ndarray,
+        new_obs: Union[np.ndarray, Dict[str, np.ndarray]],
+        reward: np.ndarray,
+        dones: np.ndarray,
+        infos: List[Dict[str, Any]],
+    ) -> None:
         """
-        Collect experiences and store them into a ``ReplayBuffer``.
+        Store transition in the replay buffer.
+        We store the normalized action and the unnormalized observation.
+        It also handles terminal observations (because VecEnv resets automatically).
 
-        :param env: The training environment
-        :param callback: Callback that will be called at each step
-            (and at the beginning and end of the rollout)
-        :param train_freq: How much experience to collect
-            by doing rollouts of current policy.
-            Either ``TrainFreq(<n>, TrainFrequencyUnit.STEP)``
-            or ``TrainFreq(<n>, TrainFrequencyUnit.EPISODE)``
-            with ``<n>`` being an integer greater than 0.
-        :param action_noise: Action noise that will be used for exploration
-            Required for deterministic policy (e.g. TD3). This can also be used
-            in addition to the stochastic policy for SAC.
-        :param learning_starts: Number of steps before learning for the warm-up phase.
-        :param replay_buffer:
-        :param log_interval: Log data every ``log_interval`` episodes
-        :return:
+        :param replay_buffer: Replay buffer object where to store the transition.
+        :param buffer_action: normalized action
+        :param new_obs: next observation in the current episode
+            or first observation of the episode (when dones is True)
+        :param reward: reward for the current transition
+        :param dones: Termination signal
+        :param infos: List of additional information about the transition.
+            It may contain the terminal observations and information about timeout.
         """
-        # select sample policy
-        r = np.minimum((self.num_timesteps - 500000) / 2000000, 0.5)
-        self.sample_policy = int(np.random.uniform(0, 1) < r)
+        # Store only the unnormalized version
+        if self._vec_normalize_env is not None:
+            new_obs_ = self._vec_normalize_env.get_original_obs()
+            reward_ = self._vec_normalize_env.get_original_reward()
+        else:
+            # Avoid changing the original ones
+            self._last_original_obs, new_obs_, reward_ = self._last_obs, new_obs, reward
 
-        self.select_policy(self.sample_policy)
-        # Switch to eval mode (this affects batch norm / dropout)
-        self.policy.set_training_mode(False)
+        # Avoid modification by reference
+        next_obs = deepcopy(new_obs_)
+        # As the VecEnv resets automatically, new_obs is already the
+        # first observation of the next episode
+        for i, done in enumerate(dones):
+            if done and infos[i].get("terminal_observation") is not None:
+                if isinstance(next_obs, dict):
+                    next_obs_ = infos[i]["terminal_observation"]
+                    # VecNormalize normalizes the terminal observation
+                    if self._vec_normalize_env is not None:
+                        next_obs_ = self._vec_normalize_env.unnormalize_obs(next_obs_)
+                    # Replace next obs for the correct envs
+                    for key in next_obs.keys():
+                        next_obs[key][i] = next_obs_[key]
+                else:
+                    next_obs[i] = infos[i]["terminal_observation"]
+                    # VecNormalize normalizes the terminal observation
+                    if self._vec_normalize_env is not None:
+                        next_obs[i] = self._vec_normalize_env.unnormalize_obs(next_obs[i, :])
 
-        num_collected_steps, num_collected_episodes = 0, 0
+        self.add_to_buffer(next_obs, buffer_action, reward, dones, infos)
 
-        assert isinstance(env, VecEnv), "You must pass a VecEnv"
-        assert train_freq.frequency > 0, "Should at least collect one step or episode."
+        self._last_obs = new_obs
+        # Save the unnormalized observation
+        if self._vec_normalize_env is not None:
+            self._last_original_obs = new_obs_
 
-        if env.num_envs > 1:
-            assert train_freq.unit == TrainFrequencyUnit.STEP, "You must use only one env when doing episodic training."
+    def get_actions(self, obs, deterministic):
+        selected_policies = self.decide_policy(obs)
+        envs = [m.env for m in self.env.envs]
+        states = [[] for _ in range(self.policy_number)]
+        actions = [[] for _ in range(len(envs))]
 
-        if self.use_sde:
-            self.actor.reset_noise(env.num_envs)
+        for env_index in range(len(envs)):
+            for policy_index in range(self.policy_number):
+                if selected_policies[policy_index, env_index] == 1:
+                    states[policy_index].append(self.policies[policy_index].translator.build_state(obs[env_index], envs[env_index]))
+                    break
 
-        callback.on_rollout_start()
-        continue_training = True
-        while should_collect_more_steps(train_freq, num_collected_steps, num_collected_episodes):
-            if self.use_sde and self.sde_sample_freq > 0 and num_collected_steps % self.sde_sample_freq == 0:
-                # Sample a new noise matrix
-                self.actor.reset_noise(env.num_envs)
+        policy_actions = [None] * self.policy_number
+        for policy_index in range(self.policy_number):
+            if len(states[policy_index]) > 0:
+                policy_actions[policy_index], _ = self.policies[policy_index].predict(np.array(states[policy_index]), deterministic=deterministic)
 
-            # Select action randomly or according to policy
-            actions, buffer_actions = self._sample_action(learning_starts, action_noise, env.num_envs)
+        action_index = [0] * self.policy_number
+        for env_index in range(len(envs)):
+            for policy_index in range(self.policy_number):
+                if selected_policies[policy_index, env_index] == 1:
+                    actions[env_index] = policy_actions[policy_index][action_index[policy_index]]
+                    action_index[policy_index] += 1
+                    break
 
-            # Rescale and perform action
-            new_obs, reward_list, dones, infos = env.step(actions)
+        actions = np.array(actions)
+        return actions
 
-            self.num_timesteps += env.num_envs
-            num_collected_steps += 1
+    def get_critic_target(self, next_observations, next_policies, device):
+        next_observations = [
+            [next_observations[i] for i in range(len(next_policies)) if next_policies[i] == j]
+            for j in range(self.policy_number)
+        ]
 
-            # Give access to local variables
-            callback.update_locals(locals())
-            # Only stop training if return value is False, not when it is None.
-            if not callback.on_step():
-                return RolloutReturn(num_collected_steps * env.num_envs, num_collected_episodes,
-                                     continue_training=False)
+        reordered_next_q_values = [None] * len(next_policies)
+        reordered_next_log_prob = [None] * len(next_policies)
+        policy_outputs = []
+        for i in range(self.policy_number):
+            if len(next_observations[i]) > 0:
+                obs = th.tensor(np.array(next_observations[i]), device=device)
+                next_actions, next_log_prob = self.actor.action_log_prob(obs)
+                next_q_values = th.cat(self.critic_target(obs, next_actions), dim=1)
+                policy_outputs.append((next_q_values, next_log_prob))
+            else:
+                policy_outputs.append(None)
 
-            # Retrieve reward and episode length if using Monitor wrapper
-            self._update_info_buffer(infos, dones)
+        index = [0] * self.policy_number
+        for i, policy in enumerate(next_policies):
+            policy = policy[0]
+            if policy_outputs[policy] is not None:
+                reordered_next_q_values[i] = policy_outputs[policy][0][index[policy]]
+                reordered_next_log_prob[i] = policy_outputs[policy][1][index[policy]]
+                index[policy] += 1
 
-            for i in range(self.policy_number):
-                # Store data in replay buffer (normalized action and unnormalized observation)
-                self._store_transition(self.replay_buffers[i], buffer_actions, new_obs, reward_list[i], dones, infos)  # type: ignore[arg-type]
+        next_q_values = th.stack(reordered_next_q_values)
+        next_log_prob = th.stack(reordered_next_log_prob)
 
-            self._update_current_progress_remaining(self.num_timesteps, self._total_timesteps)
+        return next_q_values, next_log_prob
 
-            # For DQN, check if the target network should be updated
-            # and update the exploration schedule
-            # For SAC/TD3, the update is dones as the same time as the gradient update
-            # see https://github.com/hill-a/stable-baselines/issues/900
-            self._on_step()
+    def collect_rollouts(self, *args, **kwargs) -> RolloutReturn:
+        result = super().collect_rollouts(*args, **kwargs)
 
-            for idx, done in enumerate(dones):
-                if done:
-                    # Update stats
-                    num_collected_episodes += 1
-                    self._episode_num += 1
-
-                    if action_noise is not None:
-                        kwargs = dict(indices=[idx]) if env.num_envs > 1 else {}
-                        action_noise.reset(**kwargs)
-
-                    # Log training infos
-                    if log_interval is not None and self._episode_num % log_interval == 0:
-                        self._dump_logs()
-        callback.on_rollout_end()
-
-        result = RolloutReturn(num_collected_steps * env.num_envs, num_collected_episodes, continue_training)
-
-        envs = [monitor.env for monitor in env.envs]
-        progress = self.num_timesteps / envs[0].training_steps
-        self.policy_class.progress = progress
-        self.policy.after_rollout(envs)
+        envs = [monitor.env for monitor in args[0].envs]
+        # TODO: does not work anymore
+        # self.policy.after_rollout(envs)
 
         total_training_steps = envs[0].training_steps
         schedule_interval = total_training_steps / 100
@@ -296,10 +373,35 @@ class CustomSAC(SAC):
             if s is not None:
                 s.step()
 
+    def prepare_print_gradients(self, gradient_step, replay_data):
+        if self.num_timesteps % 100000 == 0 and gradient_step == 0:
+            replay_data.observations.requires_grad = True
+
+    def print_gradients(self, gradient_step, replay_data, logging_name):
+        if self.num_timesteps % 100000 == 0 and gradient_step == 0:
+            state_gradients = th.mean(th.abs(replay_data.observations.grad), axis=0)
+            with SummaryWriter(self.logger.dir) as writer:
+                plt.figure(figsize=(8, 6))
+
+                colors = plt.get_cmap("viridis")(np.linspace(0, 1, len(state_gradients)))
+
+                plt.bar(np.arange(len(state_gradients)), state_gradients.detach().cpu().numpy(), color=colors)
+                plt.xlabel('Feature Index')
+                plt.ylabel('Gradient')
+                plt.title('Mean Gradients of Input Features in Batch')
+                plt.tight_layout()
+
+                print("print gradients")
+                plt.savefig(self.logger.dir + '/gradients.png')
+                plt.close()
+
+                writer.add_image('gradient_chart/' + logging_name, plt.imread(self.logger.dir + '/gradients.png'),
+                                 self.num_timesteps, dataformats='HWC')
+
     def train(self, gradient_steps: int, batch_size: int = 64) -> None:
         for i in range(len(self.policies)):
             self.select_policy(i)
-            if (self.replay_buffer.full or self.replay_buffer.pos > 0) and not (i == 1 and self.num_timesteps <= 350000):
+            if self.replay_buffer.full or self.replay_buffer.pos > 0:
                 self.train_policy(i, gradient_steps, batch_size)
 
     def train_policy(self, policy_id, gradient_steps: int, batch_size: int = 64, critic_loss_goal=-1.0) -> None:
@@ -312,7 +414,6 @@ class CustomSAC(SAC):
             optimizers += [self.ent_coef_optimizer]
 
         # Update learning rate according to lr schedule
-        # self._update_learning_rate(optimizers)
 
         ent_coef_losses, ent_coefs = [], []
         actor_losses, critic_losses = [], []
@@ -321,15 +422,14 @@ class CustomSAC(SAC):
         keep_training = True
         while keep_training:
             # Sample replay buffer
-            replay_data = self.replay_buffer.sample(batch_size, env=self._vec_normalize_env)  # type: ignore[union-attr]
+            replay_data, next_observations, next_policies = self.replay_buffer.sample(batch_size, env=self._vec_normalize_env)  # type: ignore[union-attr]
 
             # We need to sample because `log_std` may have changed between two gradient steps
             if self.use_sde:
                 self.actor.reset_noise()
 
             # Action by the current actor for the sampled state
-            if self.num_timesteps % 100000 == 0 and gradient_step == 0:
-                replay_data.observations.requires_grad = True
+            self.prepare_print_gradients(gradient_step, replay_data)
             actions_pi, log_prob = self.actor.action_log_prob(replay_data.observations)
             log_prob = log_prob.reshape(-1, 1)
 
@@ -354,10 +454,7 @@ class CustomSAC(SAC):
                 self.ent_coef_optimizer.step()
 
             with th.no_grad():
-                # Select action according to policy
-                next_actions, next_log_prob = self.actor.action_log_prob(replay_data.next_observations)
-                # Compute the next Q values: min over all critics targets
-                next_q_values = th.cat(self.critic_target(replay_data.next_observations, next_actions), dim=1)
+                next_q_values, next_log_prob = self.get_critic_target(next_observations, next_policies, replay_data.observations.device)
                 next_q_values, _ = th.min(next_q_values, dim=1, keepdim=True)
                 # add entropy term
                 next_q_values = next_q_values - ent_coef * next_log_prob.reshape(-1, 1)
@@ -392,25 +489,7 @@ class CustomSAC(SAC):
             self.actor.optimizer.zero_grad()
             actor_loss.backward()
 
-            if self.num_timesteps % 100000 == 0 and gradient_step == 0:
-                state_gradients = th.mean(th.abs(replay_data.observations.grad), axis=0)
-                with SummaryWriter(self.logger.dir) as writer:
-                    plt.figure(figsize=(8, 6))
-
-                    colors = plt.get_cmap("viridis")(np.linspace(0, 1, len(state_gradients)))
-
-                    plt.bar(np.arange(len(state_gradients)), state_gradients.detach().cpu().numpy(), color=colors)
-                    plt.xlabel('Feature Index')
-                    plt.ylabel('Gradient')
-                    plt.title('Mean Gradients of Input Features in Batch')
-                    plt.tight_layout()
-
-                    print("print gradients")
-                    plt.savefig(self.logger.dir + '/gradients.png')
-                    plt.close()
-
-                    writer.add_image('gradient_chart/' + logging_name, plt.imread(self.logger.dir + '/gradients.png'),
-                                     self.num_timesteps, dataformats='HWC')
+            self.print_gradients(gradient_step, replay_data, logging_name)
 
             self.policy.after_actor_backward()
             self.actor.optimizer.step()
@@ -480,4 +559,77 @@ class CustomSAC(SAC):
             self.logger.record("rollout/success_rate", safe_mean(self.ep_success_buffer))
         # Pass the number of timesteps for tensorboard
         self.logger.dump(step=self.num_timesteps)
+
+    def set_env(self, env: GymEnv, force_reset: bool = True, last_obs=None, last_original_obs=None):
+        if last_obs is not None:
+            self._last_obs = last_obs
+            self._last_original_obs = last_original_obs
+
+        last_obs = self._last_obs
+        last_original_obs = self._last_original_obs
+        self.n_envs = env.num_envs
+        self.env = env
+
+        if force_reset:
+            self._last_obs = None
+
+        return last_obs, last_original_obs
+
+    def after_environment_reset(self, environment):
+        progress = self.num_timesteps / self.env.envs[0].env.training_steps
+        factor = (progress - 0.25) / 0.1
+        factor = np.clip(factor, 0, 1) * 0.5
+        # factor = 0.0
+        #
+        # changing_values = {
+        #     'l': 0.0 * factor,
+        #     'm': 0.25 * factor,
+        #     'b': 0.1 * factor,
+        #     'coulomb_fric': 0.2 * factor,
+        #     'com': 0.25 * factor,
+        #     'I': 0.25 * factor,
+        #     'Ir': 0.0001 * factor,
+        #     'start_delay': 0.0 * factor,
+        #     'delay': 0.04 * factor,
+        #     'velocity_noise': 0.025 * factor,
+        #     'velocity_bias': 0.0 * factor,
+        #     'position_noise': 0.0 * factor,
+        #     'position_bias': 0.0 * factor,
+        #     'action_noise': 0.22 * factor,
+        #     'action_bias': 0.0 * factor,
+        #     'n_pert_per_joint': 0,
+        #     'min_t_dist': 1.0,
+        #     'sigma_minmax': [0.05, 0.1],
+        #     'amplitude_min_max': [0.1, 5.0],
+        #     'responsiveness': np.random.uniform(1 - factor * 1.8, 1 + factor * 2)
+        # }
+        #
+
+        changing_values = {
+            'l': 0.05 * factor,
+            'm': 0.05 * factor,
+            'b': 0.05 * factor,
+            'coulomb_fric': 0.05 * factor,
+            'com': 0.05 * factor,
+            'I': 0.05 * factor,
+            'Ir': 0.0001 * factor,
+            'start_delay': 0.0,
+            'delay': 0.02 * factor,
+            'velocity_noise': 0.005 * factor,
+            'velocity_bias': 0.0,
+            'position_noise': 0.005 * factor,
+            'position_bias': 0.0,
+            'action_noise': 0.005 * factor,
+            'action_bias': 0.0,
+            'n_pert_per_joint': 0,
+            'min_t_dist': 1.0,
+            'sigma_minmax': [0.05, 0.1],
+            'amplitude_min_max': [0.1, 5.0],
+            'responsiveness': np.random.uniform(1 - 0.1 * factor, 1 + 0.1 * factor)
+        }
+
+        if factor > 0:
+            environment.change_dynamics(changing_values, progress)
+
+
 

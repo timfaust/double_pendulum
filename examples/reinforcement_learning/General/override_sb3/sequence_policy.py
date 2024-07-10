@@ -2,12 +2,11 @@ import numpy as np
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from torch import nn
 import torch as th
-from examples.reinforcement_learning.General.environments import GeneralEnv
+from examples.reinforcement_learning.General.misc_helper import find_observation_index, find_index_and_dict
 from examples.reinforcement_learning.General.override_sb3.common import DefaultTranslator, CustomPolicy
 import gymnasium as gym
 
 from examples.reinforcement_learning.General.reward_functions import get_state_values
-import torch.nn.functional as F
 
 
 class SequenceExtractor(BaseFeaturesExtractor):
@@ -69,12 +68,19 @@ class SequenceTranslator(DefaultTranslator):
 
         super().__init__(self.timesteps * self.feature_dim + self.additional_features)
 
-    def build_state(self, env: GeneralEnv, dirty_observation: np.ndarray, clean_action: float, **kwargs) -> np.ndarray:
-        if len(kwargs) > 0:
-            conv_memory = [np.append(x[0:self.feature_dim - 1], u) for x, u in zip(kwargs['X_meas'][-self.timesteps:], kwargs['U_con'][-self.timesteps:])]
+    def build_state(self, observation, env) -> np.ndarray:
+        index, observation_dict = find_index_and_dict(observation, env)
+        clean_action = observation_dict['U_con'][index]
+        dirty_observation = observation
+        sequence_start = max(0, index + 1 - self.timesteps)
+        if len(observation_dict) > 0:
+            conv_memory = [np.append(x[0:self.feature_dim - 1], u) for x, u in zip(observation_dict['X_meas'][sequence_start:index + 1], observation_dict['U_con'][sequence_start:index + 1])]
             conv_memory = np.array(conv_memory)
         else:
             conv_memory = np.array([np.append(dirty_observation.copy()[0:self.feature_dim - 1], clean_action)])
+
+        if index < 0:
+            print("This should not happen :(")
 
         output = conv_memory
         if output.shape[0] < self.timesteps:
@@ -84,7 +90,7 @@ class SequenceTranslator(DefaultTranslator):
         output = np.concatenate(output)
 
         output = np.append(dirty_observation.copy(), output)
-        state_values = get_state_values(env.observation_dict)
+        state_values = get_state_values(observation_dict, offset=index + 1 - len(observation_dict['T']))
         l_ges = env.mpar.l[0] + env.mpar.l[1]
         additional = np.array([state_values['x3'][1]/l_ges, state_values['v2'][0]/env.dynamics_func.max_velocity, state_values['c1'], state_values['c2']])
         output = np.append(additional, output)

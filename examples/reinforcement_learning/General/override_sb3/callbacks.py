@@ -55,6 +55,8 @@ class CustomEvalCallback(EvalCallback):
             # Reset success rate buffer
             self._is_success_buffer = []
 
+            backup_env = self.model.env
+            last_obs, last_original_obs = self.model.set_env(self.eval_env)
             episode_rewards, episode_scores, episode_lengths = evaluate_policy(
                 self.model,
                 self.eval_env,
@@ -65,6 +67,7 @@ class CustomEvalCallback(EvalCallback):
                 warn=self.warn,
                 callback=self._log_success_callback,
             )
+            self.model.set_env(backup_env, force_reset=False, last_obs=last_obs, last_original_obs=last_original_obs)
 
             if self.log_path is not None:
                 assert isinstance(episode_rewards, list)
@@ -87,25 +90,7 @@ class CustomEvalCallback(EvalCallback):
                     **kwargs,
                 )
 
-            mean_reward, std_reward = np.mean(episode_rewards, axis=0), np.std(episode_rewards, axis=0)
-            success_scores = np.array(episode_scores)[np.array(episode_scores) != 0.0]
-            mean_score, std_score = 0, 0
-            if len(success_scores) > 0:
-                mean_score, std_score = np.mean(success_scores), np.std(success_scores)
-            mean_ep_length, std_ep_length = np.mean(episode_lengths), np.std(episode_lengths)
-
-            # Add to current Logger
-            for i in range(len(mean_reward)):
-                self.logger.record("eval/mean_reward_" + str(i), float(mean_reward[i]))
-                self.logger.record("eval/std_reward_" + str(i), float(std_reward[i]))
-                with SummaryWriter(self.logger.dir) as writer:
-                    writer.add_histogram("eval/hist_reward_" + str(i), np.array(episode_rewards)[:, i], self.num_timesteps)
-            with SummaryWriter(self.logger.dir) as writer:
-                writer.add_histogram("eval/hist_score", np.array(episode_scores), self.num_timesteps)
-
-            self.logger.record("eval/failed_attempts", episode_scores.count(0.0))
-            self.logger.record("eval/mean_score", float(mean_score))
-            self.logger.record("eval/std_score", float(std_score))
+            mean_reward, mean_ep_length = self.evaluate_additional(episode_rewards, episode_scores, episode_lengths)
             self.logger.record("eval/mean_ep_length", mean_ep_length)
 
             if len(self._is_success_buffer) > 0:
@@ -118,8 +103,8 @@ class CustomEvalCallback(EvalCallback):
             self.logger.record("time/total_timesteps", self.num_timesteps, exclude="tensorboard")
             self.logger.dump(self.num_timesteps)
 
-            # TODO: werden neue best models gespeichert?
-            if np.any(mean_reward > self.best_mean_reward):
+            # TODO: werden neue best models gespeichert? Aktuell extra nicht
+            if np.any(mean_reward > self.best_mean_reward) and False:
                 if self.verbose >= 1:
                     print("New best mean reward!")
                 if self.best_model_save_path is not None:
@@ -134,6 +119,29 @@ class CustomEvalCallback(EvalCallback):
                 continue_training = continue_training and self._on_event()
 
         return continue_training
+
+    def evaluate_additional(self, episode_rewards, episode_scores, episode_lengths):
+        mean_reward, std_reward = np.mean(episode_rewards, axis=0), np.std(episode_rewards, axis=0)
+        success_scores = np.array(episode_scores)[np.array(episode_scores) != 0.0]
+        mean_score, std_score = 0, 0
+        if len(success_scores) > 0:
+            mean_score, std_score = np.mean(success_scores), np.std(success_scores)
+        mean_ep_length, std_ep_length = np.mean(episode_lengths), np.std(episode_lengths)
+
+        # Add to current Logger
+        for i in range(len(mean_reward)):
+            self.logger.record("eval/mean_reward_" + str(i), float(mean_reward[i]))
+            self.logger.record("eval/std_reward_" + str(i), float(std_reward[i]))
+            with SummaryWriter(self.logger.dir) as writer:
+                writer.add_histogram("eval/hist_reward_" + str(i), np.array(episode_rewards)[:, i], self.num_timesteps)
+        with SummaryWriter(self.logger.dir) as writer:
+            writer.add_histogram("eval/hist_score", np.array(episode_scores), self.num_timesteps)
+
+        self.logger.record("eval/failed_attempts", episode_scores.count(0.0))
+        self.logger.record("eval/mean_score", float(mean_score))
+        self.logger.record("eval/std_score", float(std_score))
+
+        return mean_reward, mean_ep_length
 
 
 def evaluate_policy(
@@ -237,7 +245,8 @@ def evaluate_policy(
                     callback(locals(), globals())
 
                 if dones[i]:
-                    if is_monitor_wrapped:
+                    # Irgendwie Monitor wrapped plötzlich
+                    if is_monitor_wrapped and False:
                         # Atari wrapper can send a "done" signal when
                         # the agent loses a life, but it does not correspond
                         # to the true end of episode

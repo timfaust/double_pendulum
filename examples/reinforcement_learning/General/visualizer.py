@@ -23,11 +23,8 @@ def scale_arrays_together(arr1, arr2, new_min=-1, new_max=1):
 
 
 class Visualizer:
-    def __init__(self, env_type, observation_dict):
+    def __init__(self, env):
         self.pendulum_length_visualization = 700
-        self.reward_visualization = 0
-        self.action_visualization = None
-        self.acc_reward_visualization = 0
         self.graph_window_width = 1500
         self.graph_window_height = 1500
         self.metrics_width = 3000
@@ -35,10 +32,11 @@ class Visualizer:
         self.window = None
         self.clock = None
         self.metadata_visualization = {"render_modes": ["human"], "render_fps": 144}
-        self.env_type = env_type
-        self.observation_dict = observation_dict
+        self.env_type = env.env_type
+        self.env = env
         self.model: CustomSAC = None
         self.past_scores = []
+        self.predicted_Q = []
 
     def init_pygame(self):
         pygame.init()
@@ -70,7 +68,10 @@ class Visualizer:
         gamma = 0.99
         if self.model is not None:
             gamma = self.model.gamma
-            reward_name = 'reward_' + str(self.model.active_policy)
+            reward_index = self.model.active_policy
+            if reward_index >= len(self.env.observation_dict) - 9:
+                reward_index = len(self.env.observation_dict) - 10
+            reward_name = 'reward_' + str(reward_index)
 
         # Basis-Einstellungen für den Graphen
         graph_x, graph_y, graph_width, graph_height = self.graph_window_width, 0, (self.full_window_width - self.graph_window_width) // 2, self.graph_window_height // 2
@@ -81,22 +82,23 @@ class Visualizer:
         graph_surface = pygame.Surface((self.full_window_width, self.graph_window_height), pygame.SRCALPHA)
         graph_surface.fill((0, 0, 0, 0))  # Fill with transparent color
 
-        dirty_actions = self.observation_dict['U_real'][1:]
-        clean_actions = self.observation_dict['U_con'][1:]
-        dirty_x = [x[1] for x in self.observation_dict['X_meas'][1:]]
-        clean_x = [x[1] for x in self.observation_dict['X_real'][1:]]
-        dirty_v = [x[3] for x in self.observation_dict['X_meas'][1:]]
-        clean_v = [x[3] for x in self.observation_dict['X_real'][1:]]
-        reward = np.array(self.observation_dict[reward_name][1:])
+        dirty_actions = self.env.observation_dict['U_real'][1:]
+        clean_actions = self.env.observation_dict['U_con'][1:]
+        dirty_x = [x[1] for x in self.env.observation_dict['X_meas'][1:]]
+        clean_x = [x[1] for x in self.env.observation_dict['X_real'][1:]]
+        dirty_v = [x[3] for x in self.env.observation_dict['X_meas'][1:]]
+        clean_v = [x[3] for x in self.env.observation_dict['X_real'][1:]]
+        reward = np.array(self.env.observation_dict[reward_name][1:])
         actual_Q = calculate_q_values(reward, gamma)
         extracted_features = None
 
         if len(clean_actions) == 1:
             self.past_scores = []
+            self.predicted_Q = []
 
         self.past_scores.append(
             calculate_score(
-                self.observation_dict,
+                self.env.observation_dict,
                 needs_success=False
             )
         )
@@ -104,18 +106,16 @@ class Visualizer:
         if self.model is not None:
             with th.no_grad():
                 device = self.model.critic.device
-                actions = th.tensor(self.observation_dict['U_con'][1:], dtype=th.float32, device=device).unsqueeze(1)
-                states_np = np.array(self.observation_dict['state'][:-1])
-                states = th.tensor(states_np, dtype=th.float32, device=device)
-                q_values, _ = th.min(th.cat(self.model.critic(states, actions), dim=1), dim=1, keepdim=True)
-                predicted_Q = q_values.squeeze(1).cpu().numpy()
-                extracted_features = self.model.critic.extract_features(states, self.model.critic.features_extractor)[-1,:].cpu().numpy().tolist()
-        else:
-            predicted_Q = np.array([])
+                actions = th.tensor(np.array([self.env.observation_dict['U_con'][-1]]), dtype=th.float32, device=device).unsqueeze(1)
+                state_np = np.array([self.model.get_last_state(self.env)])
+                state = th.tensor(state_np, dtype=th.float32, device=device)
+                q_values, _ = th.min(th.cat(self.model.critic(state, actions), dim=1), dim=1, keepdim=True)
+                self.predicted_Q.append(q_values.squeeze(1).cpu().numpy()[0])
+                extracted_features = self.model.critic.extract_features(state, self.model.critic.features_extractor)[-1,:].cpu().numpy().tolist()
 
-        reward_shifted = reward - 1
+        reward_shifted = reward * 3 - 1
         reward_shifted = reward_shifted.tolist()
-        actual_Q_scaled, predicted_Q_scaled = scale_arrays_together(actual_Q, predicted_Q)
+        actual_Q_scaled, predicted_Q_scaled = scale_arrays_together(actual_Q, self.predicted_Q)
         past_scores_scaled = [score * 2 - 1 for score in self.past_scores]
 
         graphs = [
@@ -198,15 +198,13 @@ class Visualizer:
             pygame.draw.line(canvas, line_color, (0, y), (self.full_window_width, y), 1)
 
     def calculate_positions(self, key):
-        state_values = get_state_values(self.observation_dict, key)
+        state_values = get_state_values(self.env.observation_dict, key)
 
         distance_next = (state_values['x3'] - state_values['goal'])[1]
         y = state_values['unscaled_observation']
 
         metrics = {
-            'acc_reward': np.round(self.acc_reward_visualization, 5),
-            'reward': np.round(self.reward_visualization, 5),
-            'step_counter': len(self.observation_dict['T']) - 1,
+            'step_counter': len(self.env.observation_dict['T']) - 1,
             'x_1': round(y[0]/(2 * np.pi), 4),
             'x_2': round(y[1]/(2 * np.pi), 4),
             # 'distance': round(distance, 4),
@@ -214,7 +212,7 @@ class Visualizer:
             'v_1': round(y[2]/20, 4),
             'v_2': round(y[3]/20, 4),
             'action': round(state_values['unscaled_action']/5, 4),
-            'time': self.observation_dict["T"][-1],
+            'time': self.env.observation_dict["T"][-1],
             'policy': self.model.active_policy
         }
 
@@ -259,8 +257,3 @@ class Visualizer:
             self.graph_window_width // 2 + int(point[0] * self.pendulum_length_visualization * 2),
             self.graph_window_width // 2 + int(point[1] * self.pendulum_length_visualization * 2)
         )
-
-    def reset(self):
-        self.reward_visualization = 0
-        self.acc_reward_visualization = 0
-        self.action_visualization = np.array([0, 0])

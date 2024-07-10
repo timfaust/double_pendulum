@@ -20,7 +20,7 @@ if __name__ == '__main__':
 
     # arguments for trainer
     parser = argparse.ArgumentParser()
-    parser.add_argument('--name', default="test")
+    parser.add_argument('--name', default="test_5")
     parser.add_argument('--mode', default="train", choices=["train", "retrain", "evaluate", "simulate"])
     parser.add_argument('--model_path', default="/best_model/best_model")
     parser.add_argument('--env_type', default="pendubot", choices=["pendubot", "acrobot"])
@@ -28,7 +28,24 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     action_noise = OrnsteinUhlenbeckActionNoise(mean=np.array([0.0]), sigma=0.1 * np.ones(1), theta=0.15, dt=1e-2)
-    sac = Trainer(args.name, args.env_type, args.param, SequenceSACPolicy, 1, seed, action_noise)
+
+    def swing_up(obs):
+        phi_1 = obs[0] * 2 * np.pi + np.pi
+        phi_2 = obs[1] * 2 * np.pi
+        s1 = np.sin(phi_1)
+        s2 = np.sin(phi_1 + phi_2)
+        c1 = np.cos(phi_1)
+        c2 = np.cos(phi_1 + phi_2)
+        x1 = np.array([s1, c1]) * 0.2
+        x2 = x1 + np.array([s2, c2]) * 0.3
+        if x2[1] + 0.5 < 0.5 * 0.1:
+            return 0
+        return 1
+
+    def stabilize(obs):
+        return 1
+
+    sac = Trainer(args.name, args.env_type, args.param, [SequenceSACPolicy, SequenceSACPolicy], [swing_up, stabilize], seed, action_noise)
 
     if args.mode == "train":
         print("training new model")

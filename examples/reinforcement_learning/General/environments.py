@@ -5,7 +5,7 @@ from sympy import lambdify
 
 from examples.reinforcement_learning.General.misc_helper import updown_reset, balanced_reset, no_termination, \
     noisy_reset, low_reset, high_reset, random_reset, semi_random_reset, debug_reset, kill_switch, get_unscaled_action
-from examples.reinforcement_learning.General.override_sb3.utils import make_vec_env
+from examples.reinforcement_learning.General.override_sb3.utils import CustomDummyVecEnv, make_vec_env
 from examples.reinforcement_learning.General.reward_functions import get_state_values
 from examples.reinforcement_learning.General.visualizer import Visualizer
 from src.python.double_pendulum.simulation.gym_env import CustomEnv
@@ -19,13 +19,13 @@ from double_pendulum.simulation.simulation import Simulator
 from src.python.double_pendulum.simulation.perturbations import get_random_gauss_perturbation_array
 
 
+# overwritten
 class GeneralEnv(CustomEnv):
 
     def __init__(
         self,
         env_type,
         param_name,
-        policy_class,
         seed,
         path="parameters.json",
         is_evaluation_environment=False,
@@ -33,8 +33,7 @@ class GeneralEnv(CustomEnv):
         existing_plant=None
     ):
 
-        self.policy_class = policy_class
-        self.translator = policy_class.get_translator()
+        self.sac = None
         self.seed = seed
         self.is_evaluation_environment = is_evaluation_environment
         self.param_name = param_name
@@ -71,10 +70,10 @@ class GeneralEnv(CustomEnv):
         self.initialize_disturbances()
 
         self.mpar = load_param(self.param_data["max_torque"])
-        self.observation_dict = {"T": [], 'X_meas': [], 'X_real': [], 'state': [], 'U_con': [], 'U_real': [], "push": [], "max_episode_steps": self.max_episode_steps, "mpar": self.mpar}
+        self.observation_dict = {"T": [], 'X_meas': [], 'X_real': [], 'U_con': [], 'U_real': [], "push": [], "max_episode_steps": self.max_episode_steps, "mpar": self.mpar}
         self.observation_dict_old = None
         self.render_mode = "None"
-        self.visualizer = Visualizer(self.env_type, self.observation_dict)
+        self.visualizer = Visualizer(self)
 
         self.episode_id = 0
 
@@ -83,10 +82,7 @@ class GeneralEnv(CustomEnv):
             self.reward_function,
             lambda observation, action: kill_switch(observation, action, dynamics_function),
             self.custom_reset,
-            self.translator.obs_space,
-            self.translator.act_space,
-            self.max_episode_steps,
-            True
+            max_episode_steps=self.max_episode_steps
         )
 
         self.dynamics_func.simulator.plant.observation_dict = self.observation_dict
@@ -153,17 +149,15 @@ class GeneralEnv(CustomEnv):
                 self.observation_dict[key].clear()
         self.clean_action_history = np.array([0.0])
         self.visualizer.reset()
-        self.policy_class.after_environment_reset(self)
-        self.translator.reset()
+        if self.sac:
+            self.sac.after_environment_reset(self)
 
         clean_observation = np.array(self.reset_function())
         dirty_observation = self.apply_observation_disturbances(clean_observation)
         self.append_observation_dict(clean_observation, dirty_observation, 0.0, 0.0)
-        state = self.translator.build_state(self, dirty_observation, 0.0)
-        self.observation_dict['state'].append(state)
         self.episode_id += 1
 
-        return state
+        return dirty_observation
 
     def get_envs(self, log_dir):
         existing_dynamics_function = None
@@ -181,11 +175,11 @@ class GeneralEnv(CustomEnv):
                 "existing_dynamics_function": existing_dynamics_function,
                 "is_evaluation_environment": self.is_evaluation_environment,
                 "existing_plant": existing_plant,
-                "seed": self.seed,
-                "policy_class": self.policy_class,
+                "seed": self.seed
             },
             monitor_dir=log_dir,
-            seed=self.seed
+            seed=self.seed,
+            vec_env_cls=CustomDummyVecEnv
         )
         return envs
 
@@ -254,6 +248,7 @@ class GeneralEnv(CustomEnv):
         self.dynamics_func.dt = dt
         return new_observation
 
+    # overwritten
     def step(self, clean_action):
         clean_action = clean_action[0].astype(np.float64)
         dirty_action = self.get_dirty_action(clean_action)
@@ -261,9 +256,6 @@ class GeneralEnv(CustomEnv):
         clean_observation = self.get_new_observation(dirty_action)
         dirty_observation = self.apply_observation_disturbances(clean_observation)
         self.append_observation_dict(clean_observation, dirty_observation, clean_action, dirty_action)
-        new_state = self.translator.build_state(self, dirty_observation, clean_action, **self.observation_dict)
-        self.observation_dict['state'].append(new_state)
-        self.observation = new_state
 
         reward_list = self.get_reward(clean_observation, clean_action)
         for i in range(len(reward_list)):
@@ -275,10 +267,8 @@ class GeneralEnv(CustomEnv):
         terminated = self.terminated_func(self.observation_dict['dynamics_func'].unscale_state(self.observation_dict['X_meas'][-1]), get_unscaled_action(self.observation_dict, key='U_con'))
         truncated = self.check_episode_end()
 
-        self.update_visualizer(reward_list, clean_action)
-
         info = {'episode_id': self.episode_id}
-        return self.observation, reward_list, terminated, truncated, info
+        return dirty_observation, reward_list, terminated, truncated, info
 
     def check_episode_end(self):
         truncated = False
@@ -373,10 +363,3 @@ class GeneralEnv(CustomEnv):
     def render(self, mode="human"):
         if self.render_mode == "human" and self.step_counter % self.render_every_steps == 0 and len(self.observation_dict['X_meas']) > 1:
             self.visualizer.render()
-
-    def update_visualizer(self, reward_list, action):
-        reward = reward_list[self.visualizer.model.active_policy]
-        if self.render_mode == "human":
-            self.visualizer.reward_visualization = reward
-            self.visualizer.acc_reward_visualization += reward
-            self.visualizer.action_visualization = action

@@ -116,7 +116,25 @@ def get_unscaled_action(observation_dict, t_minus=0, key='U_real'):
     return max_action_value
 
 
-def get_state_values(observation_dict, key='X_meas'):
+def find_index_and_dict(observation, env):
+    observation_dict = env.observation_dict
+    index = find_observation_index(observation, observation_dict)
+    if index < 0:
+        observation_dict = env.observation_dict_old
+        index = find_observation_index(observation, observation_dict)
+
+    return index, observation_dict
+
+
+def find_observation_index(observation, observation_dict):
+    X_meas = observation_dict['X_meas']
+    for idx, array in reversed(list(enumerate(X_meas))):
+        if np.array_equal(observation, array.astype(np.float32)) or np.array_equal(observation, array):
+            return idx
+    return -1
+
+
+def get_state_values(observation_dict, key='X_meas', offset=0):
     l = observation_dict['mpar'].l
     action_key = 'U_con'
     if key == 'X_real':
@@ -126,8 +144,8 @@ def get_state_values(observation_dict, key='X_meas'):
     dt_goal = 0.05
     threshold_distance = 0.01
 
-    unscaled_observation = observation_dict['dynamics_func'].unscale_state(observation_dict[key][-1])
-    unscaled_action = get_unscaled_action(observation_dict, 0, action_key)
+    unscaled_observation = observation_dict['dynamics_func'].unscale_state(observation_dict[key][offset-1])
+    unscaled_action = get_unscaled_action(observation_dict, offset, action_key)
 
     y = wrap_angles_diff(unscaled_observation) #now both angles from -pi to pi
 
@@ -151,11 +169,11 @@ def get_state_values(observation_dict, key='X_meas'):
     distance = np.linalg.norm(x3 - goal)/(l[0] + l[1])
 
     u_p, u_pp = 0, 0
-    if len(observation_dict['U_con']) > 1:
-        dt = observation_dict['T'][-1] - observation_dict['T'][-2]
-        u_p = (unscaled_action - get_unscaled_action(observation_dict, -1, action_key)) / dt
-        if len(observation_dict['U_con']) > 2:
-            u_pp = (unscaled_action - 2 * get_unscaled_action(observation_dict, -1, action_key) + get_unscaled_action(observation_dict, -2, action_key))/(dt * dt)
+    if len(observation_dict['U_con']) + offset > 1:
+        dt = observation_dict['T'][offset-1] - observation_dict['T'][offset-2]
+        u_p = (unscaled_action - get_unscaled_action(observation_dict, offset-1, action_key)) / dt
+        if len(observation_dict['U_con']) + offset > 2:
+            u_pp = (unscaled_action - 2 * get_unscaled_action(observation_dict, offset-1, action_key) + get_unscaled_action(observation_dict, offset-2, action_key))/(dt * dt)
 
     state_values = {
         "unscaled_observation": unscaled_observation,
