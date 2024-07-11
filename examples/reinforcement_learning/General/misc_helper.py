@@ -3,6 +3,32 @@ from double_pendulum.utils.wrap_angles import wrap_angles_diff
 import numpy as np
 
 
+def is_up(obs):
+    phi_1 = obs[0] * 2 * np.pi + np.pi
+    phi_2 = obs[1] * 2 * np.pi
+    s1 = np.sin(phi_1)
+    s2 = np.sin(phi_1 + phi_2)
+    c1 = np.cos(phi_1)
+    c2 = np.cos(phi_1 + phi_2)
+    x1 = np.array([s1, c1]) * 0.2
+    x2 = x1 + np.array([s2, c2]) * 0.3
+    if x2[1] + 0.5 < 0.5 * 0.1:
+        return 1
+    return 0
+
+
+def swing_up(obs, progress):
+    return 1 - is_up(obs)
+
+
+def stabilize(obs, progress):
+    return is_up(obs)
+
+
+def default_decider(obs, progress):
+    return 1
+
+
 def general_reset(x_values, dx_values):
     rand = np.random.rand(4)
     observation = [x - dx + 2 * dx * r for x, dx, r in zip(x_values, dx_values, rand)]

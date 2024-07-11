@@ -1,4 +1,4 @@
-from typing import Optional, List, Tuple, Dict, Any
+from typing import Optional, List, Tuple, Dict, Any, Union
 import gymnasium as gym
 import numpy as np
 from stable_baselines3.common.buffers import ReplayBuffer
@@ -10,8 +10,84 @@ from stable_baselines3.sac.policies import SACPolicy, Actor, LOG_STD_MIN, LOG_ST
 import torch as th
 from gymnasium import spaces
 
+from examples.reinforcement_learning.General.misc_helper import softmax_and_select, stabilize, swing_up
 
-class OneEnvReplayBuffer(ReplayBuffer):
+
+class SplitReplayBuffer(ReplayBuffer):
+    def __init__(
+        self,
+        buffer_size: int,
+        observation_space: spaces.Space,
+        action_space: spaces.Space,
+        device: Union[th.device, str] = "auto",
+        n_envs: int = 1,
+        optimize_memory_usage: bool = False,
+        handle_timeout_termination: bool = True,
+    ):
+        self.decider = [swing_up, stabilize]
+        single_buffer_size = buffer_size // len(self.decider)
+        super().__init__(single_buffer_size * len(self.decider), observation_space, action_space, device, 1, optimize_memory_usage, handle_timeout_termination)
+        self.buffers = [MultiplePoliciesReplayBuffer(buffer_size=single_buffer_size, observation_space=observation_space, action_space=action_space, device=device, n_envs=1, optimize_memory_usage=optimize_memory_usage, handle_timeout_termination=handle_timeout_termination) for _ in self.decider]
+        self.progress = 0
+        self.original_obs = None
+        self.next_state_policy = 0
+
+    def decide_buffer(self):
+        assignments = np.array([
+            [func(obs, self.progress) for obs in self.original_obs.reshape(1, -1)]
+            for func in self.decider
+        ])
+        return softmax_and_select(assignments)
+
+    def add(
+        self,
+        obs: np.ndarray,
+        next_obs: np.ndarray,
+        action: np.ndarray,
+        reward: np.ndarray,
+        done: np.ndarray,
+        infos: List[Dict[str, Any]],
+    ) -> None:
+        selected_buffer = self.decide_buffer()
+        buffer_index = np.argmax(selected_buffer, axis=0)[0]
+        self.buffers[buffer_index].next_state_policy = self.next_state_policy
+        self.buffers[buffer_index].add(obs, next_obs, action, reward, done, infos)
+        self.pos += 1
+        if self.pos == self.buffer_size:
+            self.full = True
+            self.pos = 0
+
+    def distribute_evenly(self, batch_size):
+        non_empty = [i for i, b in enumerate(self.buffers) if b.size() > 0]
+        if not non_empty:
+            return [0] * len(self.buffers)
+
+        per_buffer, remainder = divmod(batch_size, len(non_empty))
+        return [per_buffer + (i < remainder) if i in non_empty else 0
+                for i in range(len(self.buffers))]
+
+    def combine_replay_buffer_samples(self, samples_list):
+        if not samples_list:
+            raise ValueError("The input list is empty")
+
+        combined_samples = {}
+        for field in ReplayBufferSamples._fields:
+            tensors = [getattr(sample[0], field) for sample in samples_list]
+            combined_samples[field] = th.cat(tensors, dim=0)
+        combined_next_observations = [obs for sample in samples_list for obs in sample[1]]
+        combined_next_policies = np.concatenate([sample[2] for sample in samples_list])
+
+        return ReplayBufferSamples(**combined_samples), combined_next_observations, np.array(combined_next_policies)
+
+    def sample(self, batch_size: int, env: Optional[VecNormalize] = None):
+        distribution = self.distribute_evenly(batch_size)
+        samples = []
+        for i, mini_batch in enumerate(distribution):
+            samples.append(self.buffers[i].sample(mini_batch, env=env))
+        return self.combine_replay_buffer_samples(samples)
+
+
+class MultiplePoliciesReplayBuffer(ReplayBuffer):
 
     def __init__(self, *args, **kwargs):
         kwargs['n_envs'] = 1

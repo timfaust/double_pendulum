@@ -18,8 +18,8 @@ from torch.optim import lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
 from gymnasium import spaces
 
-from examples.reinforcement_learning.General.misc_helper import softmax_and_select
-from examples.reinforcement_learning.General.override_sb3.common import OneEnvReplayBuffer
+from examples.reinforcement_learning.General.misc_helper import softmax_and_select, default_decider
+from examples.reinforcement_learning.General.override_sb3.common import MultiplePoliciesReplayBuffer, SplitReplayBuffer
 import torch as th
 from torch.nn import functional as F
 
@@ -119,8 +119,9 @@ def create_lr_schedule(optimizer, schedule_str):
 
 
 class CustomSAC(SAC):
-    def __init__(self, policy_classes, decider, *args, **kwargs):
-        self.replay_buffer_classes = [OneEnvReplayBuffer, OneEnvReplayBuffer]
+    def __init__(self, policy_classes, decider=[default_decider], *args, **kwargs):
+        #TODO: what can be combined? buffer, decider, policies...
+        self.replay_buffer_classes = [SplitReplayBuffer]
         self.schedulers = []
         self.active_policy = 0
         self.sample_policy = 0
@@ -224,15 +225,18 @@ class CustomSAC(SAC):
         rewards = reward[reward_indices, np.arange(n_envs)]
 
         for policy_index in range(self.policy_number):
+            self.replay_buffers[policy_index].progress = self.progress
             policy_mask = (current_policy_indices == policy_index)
             if np.any(policy_mask):
                 env_indices = np.where(policy_mask)[0]
 
                 for i in env_indices:
+                    next_policy_index = next_policy_indices[i]
                     last_state = self.policies[policy_index].translator.build_state(self._last_original_obs[i], envs[i])
-                    next_state = self.policies[next_policy_indices[i]].translator.build_state(next_obs[i], envs[i])
+                    next_state = self.policies[next_policy_index].translator.build_state(next_obs[i], envs[i])
 
-                    self.replay_buffers[policy_index].next_state_policy = next_policy_indices[i]
+                    self.replay_buffers[policy_index].next_state_policy = next_policy_index
+                    self.replay_buffers[policy_index].original_obs = self._last_original_obs[i].copy()
 
                     self.replay_buffers[policy_index].add(
                         last_state,
