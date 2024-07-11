@@ -38,6 +38,7 @@ class GeneralEnv(CustomEnv):
         self.is_evaluation_environment = is_evaluation_environment
         self.param_name = param_name
         self.env_type = env_type
+        self.killed_because = 0
         self.param_data = json.load(open(path))[param_name]
 
         self.type = None
@@ -156,6 +157,7 @@ class GeneralEnv(CustomEnv):
         dirty_observation = self.apply_observation_disturbances(clean_observation)
         self.append_observation_dict(clean_observation, dirty_observation, 0.0, 0.0)
         self.episode_id += 1
+        self.killed_because = 0
 
         return dirty_observation
 
@@ -265,10 +267,11 @@ class GeneralEnv(CustomEnv):
                 self.observation_dict[key].append(0.0)
             self.observation_dict[key].append(reward_list[i])
         terminated = self.terminated_func(self.observation_dict['dynamics_func'].unscale_state(self.observation_dict['X_meas'][-1]), get_unscaled_action(self.observation_dict, key='U_con'))
+        self.killed_because = np.argmax(terminated) if np.any(terminated) else 0
         truncated = self.check_episode_end()
 
         info = {'episode_id': self.episode_id}
-        return dirty_observation, reward_list, terminated, truncated, info
+        return dirty_observation, reward_list, self.killed_because != 0, truncated, info
 
     def check_episode_end(self):
         truncated = False

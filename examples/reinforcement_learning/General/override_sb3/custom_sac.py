@@ -394,7 +394,6 @@ class CustomSAC(SAC):
                 plt.title('Mean Gradients of Input Features in Batch')
                 plt.tight_layout()
 
-                print("print gradients")
                 plt.savefig(self.logger.dir + '/gradients.png')
                 plt.close()
 

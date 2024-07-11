@@ -116,7 +116,6 @@ class Visualizer:
         )
 
         if len(reward_history) == 0:
-            print(dirty_actions)
             return
 
         self.reward = reward_history[-1]
@@ -227,7 +226,8 @@ class Visualizer:
             'v_2': round(y[3]/dynamics_func.max_velocity, 4),
             'action': round(state_values['unscaled_action']/dynamics_func.torque_limit[0], 4),
             'time': self.env.observation_dict['T'][-1],
-            'policy': self.policy
+            'policy': self.policy,
+            'killed': self.env.killed_because
         }
 
         return state_values['x1'], state_values['x2'], state_values['x3'], state_values['goal'], state_values['threshold_distance'], metrics

@@ -62,31 +62,25 @@ def no_termination(observation):
     return False
 
 
-def punish_limit(observation, action, dynamics_function, k=100):
-    angle_threshold = dynamics_function.max_angle * 0.95
-    velocity_threshold = dynamics_function.max_velocity
-    torque_threshold = dynamics_function.torque_limit[0] * 0.95
+def punish_limit(observation, action, dynamics_function, k=50):
+    thresholds = np.array([
+        dynamics_function.max_angle * 0.95,
+        dynamics_function.max_angle * 0.95,
+        dynamics_function.max_velocity,
+        dynamics_function.max_velocity,
+        dynamics_function.torque_limit[0]
+    ])
 
-    angle_max = np.max(np.abs(observation[:2]))/angle_threshold
-    if angle_max > 1:
-        return 0
-    velocity_max = np.max(np.abs(observation[2:4]))/velocity_threshold
-    if velocity_max > 1:
-        return 0
-    torque_max = np.abs(action)/torque_threshold
-    if torque_max > 1:
-        return 0
+    values = np.concatenate([np.abs(observation), np.abs(action)])
+    ratios = values / thresholds
 
-    angle_factor = 1 - np.exp(-k * np.abs(angle_max - 1))
-    velocity_factor = 1 - np.exp(-k * np.abs(velocity_max - 1))
-    torque_factor = 1 - np.exp(-k * np.abs(torque_max - 1))
-    return min(angle_factor, velocity_factor, torque_factor)
+    factors = np.where(ratios <= 1, 1 - np.exp(-k * np.abs(ratios - 1)), 0)
+
+    return factors[:2].max(), factors[2:4].max(), factors[4]
 
 
 def kill_switch(observation, action, dynamics_func):
-    if punish_limit(observation, action, dynamics_func) > 0:
-        return False
-    return True
+    return np.array(punish_limit(observation, action, dynamics_func)) == 0
 
 
 def calculate_q_values(reward, gamma):
