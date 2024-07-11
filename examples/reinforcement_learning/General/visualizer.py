@@ -111,7 +111,7 @@ class Visualizer:
         self.past_scores.append(
             calculate_score(
                 self.env.observation_dict,
-                needs_success=False
+                needs_success=True
             )
         )
 

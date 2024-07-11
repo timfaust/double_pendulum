@@ -20,7 +20,7 @@ class PastActionsTranslator(DefaultTranslator):
         actions_to_copy = min(index, len(u_con), self.past_action_number)
 
         if actions_to_copy > 0:
-            action_memory[-actions_to_copy:] = u_con[:actions_to_copy]
+            action_memory[-actions_to_copy:] = u_con[-actions_to_copy:]
 
         state = np.append(dirty_observation.copy(), action_memory)
         return state
