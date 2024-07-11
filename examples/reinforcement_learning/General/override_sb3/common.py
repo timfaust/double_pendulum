@@ -77,7 +77,7 @@ class OneEnvReplayBuffer(ReplayBuffer):
             (self.dones[batch_inds, env_indices] * (1 - self.timeouts[batch_inds, env_indices])).reshape(-1, 1),
             self._normalize_reward(self.rewards[batch_inds, env_indices].reshape(-1, 1), env),
         )
-        return ReplayBufferSamples(*tuple(map(self.to_torch, data))), next_obs, self.next_policies[batch_inds, env_indices].reshape(-1, 1)
+        return ReplayBufferSamples(*tuple(map(self.to_torch, data))), next_obs, self.next_policies[batch_inds, env_indices]
 
 
 def get_all_knowing(env):
@@ -106,12 +106,11 @@ class CustomPolicy(SACPolicy):
 
     def __init__(self, *args, **kwargs):
         self.translator = self.get_translator()
-        self.progress = 0
         super().__init__(*args, **kwargs)
 
     @classmethod
     def get_translator(cls) -> DefaultTranslator:
-        return DefaultTranslator()
+        return DefaultTranslator(4)
 
     def make_actor(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> Actor:
         actor_kwargs = self._update_features_extractor(self.actor_kwargs, features_extractor)

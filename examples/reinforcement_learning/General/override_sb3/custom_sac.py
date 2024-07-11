@@ -18,6 +18,7 @@ from torch.optim import lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
 from gymnasium import spaces
 
+from examples.reinforcement_learning.General.misc_helper import softmax_and_select
 from examples.reinforcement_learning.General.override_sb3.common import OneEnvReplayBuffer
 import torch as th
 from torch.nn import functional as F
@@ -62,6 +63,7 @@ def parse_args_kwargs(input_string):
             args.append(parse_value(current.strip()))
 
     return args, kwargs
+
 
 def create_lr_schedule(optimizer, schedule_str):
     schedule_str = str(schedule_str)
@@ -130,6 +132,8 @@ class CustomSAC(SAC):
         self.log_ent_coefs = []
         self.decider = decider
 
+        self.progress = 0
+
         schedule_params = {
             'actor_schedule': "",
             'critic_schedule': "",
@@ -190,10 +194,11 @@ class CustomSAC(SAC):
             self.policies.append(self.policy)
 
     def decide_policy(self, new_obs):
-        assignments = []
-        for func in self.decider:
-            assignments.append([func(obs) for obs in new_obs])
-        return np.array(assignments)
+        assignments = np.array([
+            [func(obs, self.progress) for obs in new_obs]
+            for func in self.decider
+        ])
+        return softmax_and_select(assignments)
 
     def predict(
             self,
@@ -206,29 +211,37 @@ class CustomSAC(SAC):
         return self.get_actions(observation, deterministic), None
 
     def add_to_buffer(self, next_obs, buffer_action, reward, dones, infos):
+        n_envs = len(buffer_action)
+        envs = [m.env for m in self.env.envs]
+
         selected_policies = self.decide_policy(self._last_original_obs)
         selected_policies_next = self.decide_policy(next_obs)
-        envs = [m.env for m in self.env.envs]
-        for env_index in range(len(envs)):
-            for policy_index in range(self.policy_number):
 
-                reward_index = policy_index
-                if policy_index >= len(reward):
-                    reward_index = len(reward) - 1
+        current_policy_indices = np.argmax(selected_policies, axis=0)
+        next_policy_indices = np.argmax(selected_policies_next, axis=0)
 
-                if selected_policies[policy_index][env_index] == 1:
-                    last_state = self.policies[policy_index].translator.build_state(self._last_original_obs[env_index], envs[env_index])
+        reward_indices = np.minimum(current_policy_indices, len(reward) - 1)
+        rewards = reward[reward_indices, np.arange(n_envs)]
 
-                    next_state_policy = 0
-                    for i in range(len(selected_policies_next)):
-                        if selected_policies_next[i][env_index] == 1:
-                            next_state_policy = i
-                            break
+        for policy_index in range(self.policy_number):
+            policy_mask = (current_policy_indices == policy_index)
+            if np.any(policy_mask):
+                env_indices = np.where(policy_mask)[0]
 
-                    next_state = self.policies[next_state_policy].translator.build_state(next_obs[env_index], envs[env_index])
-                    self.replay_buffers[policy_index].next_state_policy = next_state_policy
-                    self.replay_buffers[policy_index].add(last_state, next_state, buffer_action[env_index], np.array([reward[reward_index][env_index]]), np.array([dones[env_index]]), [infos[env_index]])
-                    break
+                for i in env_indices:
+                    last_state = self.policies[policy_index].translator.build_state(self._last_original_obs[i], envs[i])
+                    next_state = self.policies[next_policy_indices[i]].translator.build_state(next_obs[i], envs[i])
+
+                    self.replay_buffers[policy_index].next_state_policy = next_policy_indices[i]
+
+                    self.replay_buffers[policy_index].add(
+                        last_state,
+                        next_state,
+                        buffer_action[i],
+                        np.array([rewards[i]]),
+                        np.array([dones[i]]),
+                        [infos[i]]
+                    )
 
     def get_last_state(self, env):
         obs = [env.observation_dict['X_meas'][-1]]
@@ -299,59 +312,47 @@ class CustomSAC(SAC):
     def get_actions(self, obs, deterministic):
         selected_policies = self.decide_policy(obs)
         envs = [m.env for m in self.env.envs]
+        n_envs = len(envs)
+
+        policy_indices = np.argmax(selected_policies, axis=0)
         states = [[] for _ in range(self.policy_number)]
-        actions = [[] for _ in range(len(envs))]
 
-        for env_index in range(len(envs)):
-            for policy_index in range(self.policy_number):
-                if selected_policies[policy_index, env_index] == 1:
-                    states[policy_index].append(self.policies[policy_index].translator.build_state(obs[env_index], envs[env_index]))
-                    break
+        for policy_index, env_index in enumerate(policy_indices):
+            states[env_index].append(self.policies[env_index].translator.build_state(obs[policy_index], envs[policy_index]))
 
-        policy_actions = [None] * self.policy_number
+        actions = np.empty((n_envs,) + self.policies[0].action_space.shape, dtype=self.policies[0].action_space.dtype)
+
         for policy_index in range(self.policy_number):
-            if len(states[policy_index]) > 0:
-                policy_actions[policy_index], _ = self.policies[policy_index].predict(np.array(states[policy_index]), deterministic=deterministic)
+            if states[policy_index]:
+                policy_actions, _ = self.policies[policy_index].predict(np.array(states[policy_index]), deterministic=deterministic)
+                mask = (policy_indices == policy_index)
+                actions[mask] = policy_actions
 
-        action_index = [0] * self.policy_number
-        for env_index in range(len(envs)):
-            for policy_index in range(self.policy_number):
-                if selected_policies[policy_index, env_index] == 1:
-                    actions[env_index] = policy_actions[policy_index][action_index[policy_index]]
-                    action_index[policy_index] += 1
-                    break
-
-        actions = np.array(actions)
         return actions
 
     def get_critic_target(self, next_observations, next_policies, device):
-        next_observations = [
-            [next_observations[i] for i in range(len(next_policies)) if next_policies[i] == j]
-            for j in range(self.policy_number)
-        ]
+        policy_indices = [[] for _ in range(self.policy_number)]
 
-        reordered_next_q_values = [None] * len(next_policies)
-        reordered_next_log_prob = [None] * len(next_policies)
-        policy_outputs = []
-        for i in range(self.policy_number):
-            if len(next_observations[i]) > 0:
-                obs = th.tensor(np.array(next_observations[i]), device=device)
-                next_actions, next_log_prob = self.actor.action_log_prob(obs)
-                next_q_values = th.cat(self.critic_target(obs, next_actions), dim=1)
-                policy_outputs.append((next_q_values, next_log_prob))
-            else:
-                policy_outputs.append(None)
-
-        index = [0] * self.policy_number
+        # Group observation indices by policy
         for i, policy in enumerate(next_policies):
-            policy = policy[0]
-            if policy_outputs[policy] is not None:
-                reordered_next_q_values[i] = policy_outputs[policy][0][index[policy]]
-                reordered_next_log_prob[i] = policy_outputs[policy][1][index[policy]]
-                index[policy] += 1
+            policy_indices[policy].append(i)
 
-        next_q_values = th.stack(reordered_next_q_values)
-        next_log_prob = th.stack(reordered_next_log_prob)
+        next_q_values = th.zeros((len(next_observations), self.policies[0].critic.n_critics), device=device)
+        next_log_prob = th.zeros(len(next_observations), device=device)
+
+        for policy_id, indices in enumerate(policy_indices):
+            if indices:
+                obs = np.array([next_observations[i] for i in indices])
+
+                if not all(o.shape == obs[0].shape for o in obs):
+                    print("This should not happen :(")
+
+                obs_tensor = th.tensor(obs, device=device)
+                next_actions, policy_next_log_prob = self.policies[policy_id].actor.action_log_prob(obs_tensor)
+                policy_next_q_values = th.cat(self.policies[policy_id].critic_target(obs_tensor, next_actions), dim=1)
+
+                next_q_values[indices] = policy_next_q_values
+                next_log_prob[indices] = policy_next_log_prob
 
         return next_q_values, next_log_prob
 
@@ -363,6 +364,7 @@ class CustomSAC(SAC):
         # self.policy.after_rollout(envs)
 
         total_training_steps = envs[0].training_steps
+        self.progress = self.num_timesteps
         schedule_interval = total_training_steps / 100
         if self.num_timesteps % schedule_interval < len(envs):
             self.step_schedules()
@@ -514,6 +516,7 @@ class CustomSAC(SAC):
         self.logger.record("train/" + logging_name + "/ent_coef", np.mean(ent_coefs))
         self.logger.record("train/" + logging_name + "/actor_loss", np.mean(actor_losses))
         self.logger.record("train/" + logging_name + "/critic_loss", np.mean(critic_losses))
+        self.logger.record("train/" + logging_name + "/buffer_pos", self.replay_buffer.pos)
         if len(ent_coef_losses) > 0:
             self.logger.record("train/" + logging_name + "/ent_coef_loss", np.mean(ent_coef_losses))
 
@@ -577,8 +580,7 @@ class CustomSAC(SAC):
         return last_obs, last_original_obs
 
     def after_environment_reset(self, environment):
-        progress = self.num_timesteps / self.env.envs[0].env.training_steps
-        factor = (progress - 0.25) / 0.1
+        factor = (self.progress - 0.25) / 0.1
         factor = np.clip(factor, 0, 1) * 0.5
         # factor = 0.0
         #
@@ -630,7 +632,7 @@ class CustomSAC(SAC):
         }
 
         if factor > 0:
-            environment.change_dynamics(changing_values, progress)
+            environment.change_dynamics(changing_values, self.progress)
 
 
 

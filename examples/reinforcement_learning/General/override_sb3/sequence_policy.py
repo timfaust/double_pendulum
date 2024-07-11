@@ -120,4 +120,4 @@ class SequenceSACPolicy(CustomPolicy):
         super().__init__(*args, **kwargs)
 
     def after_critic_backward(self):
-        th.nn.utils.clip_grad_norm_(self.critic.parameters(), 100)
+        th.nn.utils.clip_grad_norm_(self.critic.parameters(), 25)

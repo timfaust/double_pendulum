@@ -173,8 +173,9 @@ class Visualizer:
                 x + graph_x + graph_width + (bar_width * (1 - width_factor)) // 2, y, bar_width * width_factor,
                 height))  # 0.8 to add small gaps between bars
 
-        # Draw the zero line
-        pygame.draw.line(graph_surface, (0, 0, 0), (graph_x + graph_width, graph_height * 1.5), (2 * graph_width + graph_x, graph_height * 1.5), 1)
+        # Draw the zero lines
+        pygame.draw.line(graph_surface, (0, 0, 0), (graph_x , graph_height * 0.5), (2 * graph_width + graph_x, graph_height * 0.5), 1)
+        pygame.draw.line(graph_surface, (0, 0, 0), (graph_x, graph_height * 1.5), (2 * graph_width + graph_x, graph_height * 1.5), 1)
 
         # Draw the transparent surface onto the main canvas
         canvas.blit(graph_surface, (0, 0))
@@ -212,6 +213,7 @@ class Visualizer:
 
         distance_next = (state_values['x3'] - state_values['goal'])[1]
         y = state_values['unscaled_observation']
+        dynamics_func = self.env.observation_dict['dynamics_func']
 
         metrics = {
             'acc_reward': np.round(self.acc_reward, 5),
@@ -221,10 +223,10 @@ class Visualizer:
             'x_2': round(y[1]/(2 * np.pi), 4),
             # 'distance': round(distance, 4),
             'distance_next': round(distance_next, 4),
-            'v_1': round(y[2]/20, 4),
-            'v_2': round(y[3]/20, 4),
-            'action': round(state_values['unscaled_action']/5, 4),
-            'time': self.env.observation_dict["T"][-1],
+            'v_1': round(y[2]/dynamics_func.max_velocity, 4),
+            'v_2': round(y[3]/dynamics_func.max_velocity, 4),
+            'action': round(state_values['unscaled_action']/dynamics_func.torque_limit[0], 4),
+            'time': self.env.observation_dict['T'][-1],
             'policy': self.policy
         }
 
@@ -250,7 +252,7 @@ class Visualizer:
     def blit_texts(self, canvas, metrics):
         myFont = pygame.font.SysFont("Arial", 28)
         base_x = 10  # Beginne rechts von der Hauptvisualisierung
-        base_y = 100
+        base_y = 150
         positions = [(base_x, i * 40 + base_y) for i, _ in enumerate(metrics.items())]
         for (label, value), position in zip(metrics.items(), positions):
             if isinstance(value, float):

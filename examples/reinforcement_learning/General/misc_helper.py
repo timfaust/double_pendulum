@@ -116,6 +116,19 @@ def get_unscaled_action(observation_dict, t_minus=0, key='U_real'):
     return max_action_value
 
 
+def softmax(x):
+    exp_x = np.exp(x - np.max(x, axis=0, keepdims=True))
+    return exp_x / np.sum(exp_x, axis=0, keepdims=True)
+
+
+def softmax_and_select(arr):
+    softmax_probs = softmax(arr)
+    result = np.zeros_like(arr)
+    selected_rows = [np.argmax(np.random.multinomial(1, softmax_probs[:, i])) for i in range(arr.shape[1])]
+    result[selected_rows, np.arange(arr.shape[1])] = 1
+    return result
+
+
 def find_index_and_dict(observation, env):
     observation_dict = env.observation_dict
     index = find_observation_index(observation, observation_dict)

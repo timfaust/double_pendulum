@@ -238,7 +238,7 @@ class GeneralEnv(CustomEnv):
             torque = np.array([0, dirty_action])
 
         if self.use_perturbations:
-            timestep = len(self.observation_dict["T"]) - 1
+            timestep = len(self.observation_dict['T']) - 1
             torque[0] += self.perturbations[0][timestep]/self.dynamics_func.torque_limit[0]
             torque[1] += self.perturbations[1][timestep]/self.dynamics_func.torque_limit[1]
 
@@ -290,9 +290,9 @@ class GeneralEnv(CustomEnv):
 
     def append_observation_dict(self, clean_observation, dirty_observation, clean_action: float, dirty_action: float):
         time = 0
-        if len(self.observation_dict["T"]) > 0:
-            time = self.dynamics_func.dt + self.observation_dict["T"][-1]
-        self.observation_dict["T"].append(np.around(time, decimals=5))
+        if len(self.observation_dict['T']) > 0:
+            time = self.dynamics_func.dt + self.observation_dict['T'][-1]
+        self.observation_dict['T'].append(np.around(time, decimals=5))
         self.observation_dict['U_con'].append(clean_action)
         self.observation_dict['U_real'].append(dirty_action)
         self.observation_dict['X_meas'].append(dirty_observation)

@@ -136,7 +136,7 @@ def calculate_score(
     velocity_costs = []
     successes = []
 
-    T = np.array(observation_dict["T"])
+    T = np.array(observation_dict['T'])
     X = np.array([observation_dict['dynamics_func'].unscale_state(x) for x in observation_dict['X_real']])
     U = np.array([observation_dict['dynamics_func'].unscale_action([u]) for u in observation_dict['U_real']])
 

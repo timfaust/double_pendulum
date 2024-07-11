@@ -7,22 +7,23 @@ from examples.reinforcement_learning.General.override_sb3.common import DefaultT
 
 class PastActionsTranslator(DefaultTranslator):
     def __init__(self):
-        self.clean_action_memory = None
-        self.past_action_number = 200
+        self.past_action_number = 10
         self.reset()
         super().__init__(4 + self.past_action_number)
 
-    # TODO: clean_action_memory needs to get env as input because it can change
     def build_state(self, observation, env: GeneralEnv) -> np.ndarray:
         index, observation_dict = find_index_and_dict(observation, env)
-        clean_action = observation_dict['U_con'][index]
         dirty_observation = observation_dict['X_meas'][index]
-        self.clean_action_memory = np.append(self.clean_action_memory, clean_action)
-        state = np.append(dirty_observation.copy(), self.clean_action_memory[-self.past_action_number:])
-        return state
 
-    def reset(self):
-        self.clean_action_memory = np.zeros(self.past_action_number)
+        u_con = observation_dict['U_con']
+        action_memory = np.zeros(self.past_action_number)
+        actions_to_copy = min(index, len(u_con), self.past_action_number)
+
+        if actions_to_copy > 0:
+            action_memory[-actions_to_copy:] = u_con[:actions_to_copy]
+
+        state = np.append(dirty_observation.copy(), action_memory)
+        return state
 
 
 class PastActionsSACPolicy(CustomPolicy):
