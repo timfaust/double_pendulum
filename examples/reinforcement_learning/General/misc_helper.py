@@ -71,12 +71,12 @@ def punish_limit(observation, action, dynamics_function, k=50):
         dynamics_function.torque_limit[0]
     ])
 
-    values = np.concatenate([np.abs(observation), np.abs(action)])
+    values = np.concatenate([np.abs(observation), np.array([np.abs(action)])])
     ratios = values / thresholds
 
     factors = np.where(ratios <= 1, 1 - np.exp(-k * np.abs(ratios - 1)), 0)
 
-    return factors[:2].max(), factors[2:4].max(), factors[4]
+    return factors[:2].min(), factors[2:4].min(), factors[4]
 
 
 def kill_switch(observation, action, dynamics_func):
