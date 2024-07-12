@@ -73,29 +73,38 @@ class SequenceTranslator(DefaultTranslator):
         clean_action = observation_dict['U_con'][index]
         dirty_observation = observation
         sequence_start = max(0, index + 1 - self.timesteps)
-        if len(observation_dict) > 0:
-            conv_memory = [np.append(x[0:self.feature_dim - 1], u) for x, u in zip(observation_dict['X_meas'][sequence_start:index + 1], observation_dict['U_con'][sequence_start:index + 1])]
-            conv_memory = np.array(conv_memory)
+
+        if observation_dict:
+            X_meas = np.array(observation_dict['X_meas'])
+            U_con = np.array(observation_dict['U_con'])
+            conv_memory = np.hstack((
+                X_meas[sequence_start:index + 1, :self.feature_dim - 1],
+                U_con[sequence_start:index + 1, np.newaxis]
+            ))
         else:
-            conv_memory = np.array([np.append(dirty_observation.copy()[0:self.feature_dim - 1], clean_action)])
+            conv_memory = np.append(dirty_observation[:self.feature_dim - 1], clean_action).reshape(1, -1)
 
         if index < 0:
             print("This should not happen :(")
 
         output = conv_memory
         if output.shape[0] < self.timesteps:
-            repeat_count = self.timesteps - output.shape[0]
-            output = np.vstack((np.tile(np.zeros(output.shape[1]), (repeat_count, 1)), output))
+            padding = np.zeros((self.timesteps - output.shape[0], output.shape[1]))
+            output = np.vstack((padding, output))
 
-        output = np.concatenate(output)
+        output = output.flatten()
+        output = np.append(dirty_observation, output)
 
-        output = np.append(dirty_observation.copy(), output)
         state_values = get_state_values(observation_dict, offset=index + 1 - len(observation_dict['T']))
         l_ges = env.mpar.l[0] + env.mpar.l[1]
-        additional = np.array([state_values['x3'][1]/l_ges, state_values['v2'][0]/env.dynamics_func.max_velocity, state_values['c1'], state_values['c2']])
-        output = np.append(additional, output)
+        additional = np.array([
+            state_values['x3'][1] / l_ges,
+            state_values['v2'][0] / env.dynamics_func.max_velocity,
+            state_values['c1'],
+            state_values['c2']
+        ])
 
-        return output
+        return np.append(additional, output)
 
 
 class SequenceSACPolicy(CustomPolicy):
