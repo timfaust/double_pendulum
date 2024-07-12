@@ -274,7 +274,8 @@ class GeneralEnv(CustomEnv):
                 reward_list[i] = -1
             self.observation_dict[key].append(reward_list[i])
 
-        done = get_stabilized(self.observation_dict) > 0.5
+        if not done:
+            done = get_stabilized(self.observation_dict) > 0.5
 
         truncated = self.check_episode_end()
 
