@@ -7,7 +7,7 @@ def smooth_transition(value, threshold, sharpness=100):
     return 0.5 * (1 + np.tanh(sharpness * (value - threshold)))
 
 
-def is_up(obs):
+def is_up(obs, progress):
     phi_1 = obs[0] * 2 * np.pi + np.pi
     phi_2 = obs[1] * 2 * np.pi
     s1 = np.sin(phi_1)
@@ -23,11 +23,11 @@ def is_up(obs):
 
 
 def swing_up(obs, progress):
-    return is_up(obs)
+    return is_up(obs, progress)
 
 
 def stabilize(obs, progress):
-    return 1 - is_up(obs)
+    return 1 - is_up(obs, progress)
 
 
 def default_decider(obs, progress):
@@ -125,13 +125,8 @@ def calculate_q_values(reward, gamma):
     return np.array(actual_Q)
 
 
-def get_e_decay(x, x_max, factor=5):
-    c = np.exp(-factor)
-    return np.clip((np.exp(-x/x_max*factor) - c)/(1 - c), 0, 1)
-
-
 def get_i_decay(x, factor=2):
-    return 1/(factor * x + 1)
+    return np.where(x <= 0.1, 1, 1 / (factor * (x - 0.1) + 1))
 
 
 def get_unscaled_action(observation_dict, t_minus=0, key='U_real'):
