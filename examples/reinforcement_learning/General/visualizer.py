@@ -40,6 +40,7 @@ class Visualizer:
         self.model: CustomSAC = None
         self.past_scores = []
         self.predicted_Q = []
+        self.used_policies = []
 
     def init_pygame(self):
         pygame.init()
@@ -79,6 +80,7 @@ class Visualizer:
                 state = th.tensor(np.array([state]), dtype=th.float32, device=device)
                 q_values, _ = th.min(th.cat(critic(state, actions), dim=1), dim=1, keepdim=True)
                 self.predicted_Q.append(q_values.squeeze(1).cpu().numpy()[0])
+                self.used_policies.append(self.policy)
                 extracted_features = critic.extract_features(state, critic.features_extractor)[-1,:].cpu().numpy().tolist()
 
                 gamma = self.model.gamma
@@ -107,6 +109,7 @@ class Visualizer:
         if len(clean_actions) == 1:
             self.past_scores = []
             self.predicted_Q = []
+            self.used_policies = []
 
         self.past_scores.append(
             calculate_score(
@@ -134,7 +137,7 @@ class Visualizer:
             (clean_x, (255, 0, 0, 255), 1),
             (dirty_v, (0, 100, 0, 150), 1),
             (clean_v, (0, 255, 0, 255), 1),
-            (predicted_Q_scaled, (0, 0, 100, 150), 2),
+            (predicted_Q_scaled, (60, 60, 230, 150), 2),
             (actual_Q_scaled, (0, 0, 255, 255), 2),
             (reward_shifted, (0, 200, 0, 255), 2),
             (past_scores_scaled, (200, 0, 0, 255), 2)
@@ -152,7 +155,10 @@ class Visualizer:
                     points.append((x, y))
 
                 for i in range(len(points) - 1):
-                    draw_line(graph_surface, color, points[i], points[i + 1])
+                    used_color = color
+                    if color == (60, 60, 230, 150) and self.used_policies[i] == 1:
+                        used_color = (230, 193, 60, 150)
+                    draw_line(graph_surface, used_color, points[i], points[i + 1])
 
         if extracted_features is not None:
             bar_width = graph_width / len(extracted_features)
