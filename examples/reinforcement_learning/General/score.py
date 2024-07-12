@@ -138,21 +138,8 @@ def calculate_score(
 
     dynamics_func = observation_dict['dynamics_func']
     T = np.array(observation_dict['T'])
-
-    X_real = np.array(observation_dict['X_real'])
-    X = np.empty_like(X_real)
-    X[:, 0] = X_real[:, 0] * dynamics_func.max_angle
-    X[:, 1] = X_real[:, 1] * dynamics_func.max_angle
-    X[:, 2] = X_real[:, 2] * dynamics_func.max_velocity
-    X[:, 3] = X_real[:, 3] * dynamics_func.max_velocity
-
-    U_real = np.array(observation_dict['U_real'])
-    U = U_real * dynamics_func.torque_limit[0]
-    U = U.reshape(-1, 1)
-    if dynamics_func.robot == "pendubot":
-        U = np.hstack((U, np.zeros_like(U)))
-    else:
-        U = np.hstack((np.zeros_like(U), U))
+    X = dynamics_func.unscale_state(np.array(observation_dict['X_real']))
+    U = dynamics_func.unscale_action(np.array(observation_dict['U_real']).reshape(-1, 1))
 
     # plant = dynamics_func.simulator.plant
     swingup_times.append(

@@ -20,7 +20,7 @@ def is_up(obs, progress):
     threshold = -0.45
     value = x2[1]
     out = 0.5
-    if progress > 0.025:
+    if progress > 0.04:
         out = smooth_transition(value, threshold)
 
     return out
@@ -128,7 +128,7 @@ def get_i_decay(x, factor=2):
 
 
 def get_unscaled_action(observation_dict, t_minus=0, key='U_real'):
-    unscaled_action = observation_dict['dynamics_func'].unscale_action(np.array([observation_dict[key][t_minus-1]]))
+    unscaled_action = observation_dict['dynamics_func'].unscale_action(np.array([observation_dict[key][t_minus-1]]).reshape(-1, 1))
     max_value_index = np.argmax(np.abs(unscaled_action))
     max_action_value = unscaled_action[max_value_index]
     return max_action_value
@@ -172,22 +172,36 @@ def find_observation_index(observation, observation_dict):
     return -1
 
 
-def get_stabilized(observation_dict, threshold=0.01):
-    X_meas = observation_dict['X_real']
-    if abs(X_meas[-1][0]) < 0.375 or abs(X_meas[-1][1]) > 0.125:
-        return 0.0
+def get_stabilized(observation_dict, threshold=0.001):
+    X_meas = np.array(observation_dict['X_real'])
     T = observation_dict['T']
+
+    # Check if the last measurement is within the specified range
+    if abs(abs(X_meas[-1, 0] + X_meas[-1, 1]) - 0.5) > 0.03:
+        return 0.0
+
     n = len(X_meas)
-    start_time = T[-1]
-    end_time = T[-1]
-    for i in range(n - 1, -1, -1):
-        std_dev = np.std(X_meas[i][:4])
-        if std_dev > threshold:
-            if i < n - 1:
-                end_time = T[i + 1]
+    window_size = 1
+    end_index = n - 1
+
+    # Use cumulative sum for efficient standard deviation calculation
+    cumsum = np.cumsum(X_meas[::-1], axis=0)
+    cumsum_sq = np.cumsum(X_meas[::-1]**2, axis=0)
+
+    while end_index >= 0:
+        if window_size == 1:
+            stds = np.zeros(2)
+        else:
+            means = cumsum[window_size-1] / window_size
+            stds = np.sqrt((cumsum_sq[window_size-1] / window_size) - means**2)
+
+        if np.all(stds < threshold):
+            window_size += 1
+            end_index -= 1
+        else:
             break
 
-    return start_time - end_time
+    return T[-1] - T[end_index + 1] if end_index < n - 1 else 0.0
 
 
 def get_state_values(observation_dict, key='X_meas', offset=0):

@@ -13,7 +13,7 @@ from src.python.double_pendulum.simulation.gym_env import CustomEnv
 import pygame
 import numpy as np
 import gymnasium as gym
-from examples.reinforcement_learning.General.dynamics_functions import default_dynamics, load_param, custom_dynamics_func_PI, custom_dynamics_func_4PI
+from examples.reinforcement_learning.General.dynamics_functions import default_dynamics, load_param, custom_dynamics_func_4PI
 from examples.reinforcement_learning.General.reward_functions import score_reward, pos_reward, quadratic_rew, saturated_distance_from_target
 from double_pendulum.simulation.simulation import Simulator
 
@@ -123,8 +123,6 @@ class GeneralEnv(CustomEnv):
 
         normalization_class_name = self.param_data["normalization"]
         low_pos = [0, 0, 0, 0]
-        if normalization_class_name == "custom_dynamics_func_PI":
-            low_pos = [-1.0, 0, 0, 0]
 
         if dynamics_function_class is not None and hasattr(dynamics_function_class, '__code__'):
             existing_dynamics_function, self.simulation, self.plant = dynamics_function_class(env_type, self.param_data["dt"], self.param_data["max_torque"], globals()[normalization_class_name])
@@ -261,7 +259,7 @@ class GeneralEnv(CustomEnv):
 
         terminated = self.terminated_func(dirty_observation, clean_action)
         self.killed_because = (np.argmax(terminated) + 1) if np.any(terminated) else 0
-        done = self.killed_because != 0 or get_stabilized(self.observation_dict) > 0.5
+        done = self.killed_because != 0 or get_stabilized(self.observation_dict) >= 1
 
         reward_list = self.get_reward(clean_observation, clean_action)
         for i in range(len(reward_list)):
