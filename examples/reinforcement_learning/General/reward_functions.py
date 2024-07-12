@@ -7,14 +7,6 @@ from examples.reinforcement_learning.General.score import calculate_score
 
 
 def score_reward(observation, action, env_type, dynamic_func, observation_dict):
-    step = len(observation_dict['T'])
-    max_episode_steps = observation_dict['max_episode_steps']
-    if step == max_episode_steps:
-        return calculate_score(observation_dict)
-    return 0.0
-
-
-def future_pos_reward(observation, action, env_type, dynamic_func, observation_dict):
     reward = pos_reward(observation, action, env_type, dynamic_func, observation_dict)
     score = calculate_score(observation_dict, needs_success=False)
     return reward * score

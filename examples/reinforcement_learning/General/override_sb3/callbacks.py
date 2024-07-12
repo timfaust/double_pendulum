@@ -67,6 +67,8 @@ class CustomEvalCallback(EvalCallback):
                 warn=self.warn,
                 callback=self._log_success_callback,
             )
+            if self.render:
+                self.eval_env.render()
             self.model.set_env(backup_env, force_reset=False, last_obs=last_obs, last_original_obs=last_original_obs)
 
             if self.log_path is not None:

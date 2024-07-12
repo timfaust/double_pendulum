@@ -13,7 +13,7 @@ import pygame
 import numpy as np
 import gymnasium as gym
 from examples.reinforcement_learning.General.dynamics_functions import default_dynamics, load_param, custom_dynamics_func_PI, custom_dynamics_func_4PI
-from examples.reinforcement_learning.General.reward_functions import future_pos_reward, pos_reward, quadratic_rew, saturated_distance_from_target
+from examples.reinforcement_learning.General.reward_functions import score_reward, pos_reward, quadratic_rew, saturated_distance_from_target
 from double_pendulum.simulation.simulation import Simulator
 
 from src.python.double_pendulum.simulation.perturbations import get_random_gauss_perturbation_array

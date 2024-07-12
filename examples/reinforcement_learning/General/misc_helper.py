@@ -3,6 +3,10 @@ from double_pendulum.utils.wrap_angles import wrap_angles_diff
 import numpy as np
 
 
+def smooth_transition(value, threshold, sharpness=100):
+    return 0.5 * (1 + np.tanh(sharpness * (value - threshold)))
+
+
 def is_up(obs):
     phi_1 = obs[0] * 2 * np.pi + np.pi
     phi_2 = obs[1] * 2 * np.pi
@@ -12,17 +16,18 @@ def is_up(obs):
     c2 = np.cos(phi_1 + phi_2)
     x1 = np.array([s1, c1]) * 0.2
     x2 = x1 + np.array([s2, c2]) * 0.3
-    if x2[1] + 0.5 < 0.5 * 0.1:
-        return 1
-    return 0
+
+    threshold = -0.45
+    value = x2[1]
+    return smooth_transition(value, threshold)
 
 
 def swing_up(obs, progress):
-    return 1 - is_up(obs)
+    return is_up(obs)
 
 
 def stabilize(obs, progress):
-    return is_up(obs)
+    return 1 - is_up(obs)
 
 
 def default_decider(obs, progress):
@@ -136,13 +141,20 @@ def get_unscaled_action(observation_dict, t_minus=0, key='U_real'):
     return max_action_value
 
 
+def column_softmax(x):
+    col_sums = x.sum(axis=0)
+    needs_softmax = ~np.isclose(col_sums, 1.0)
+    x[:, needs_softmax] = softmax(x[:, needs_softmax])
+    return x
+
+
 def softmax(x):
     exp_x = np.exp(x - np.max(x, axis=0, keepdims=True))
     return exp_x / np.sum(exp_x, axis=0, keepdims=True)
 
 
 def softmax_and_select(arr):
-    softmax_probs = softmax(arr)
+    softmax_probs = column_softmax(arr)
     result = np.zeros_like(arr)
     selected_rows = [np.argmax(np.random.multinomial(1, softmax_probs[:, i])) for i in range(arr.shape[1])]
     result[selected_rows, np.arange(arr.shape[1])] = 1

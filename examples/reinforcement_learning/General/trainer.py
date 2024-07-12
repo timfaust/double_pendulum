@@ -58,8 +58,9 @@ class ProgressBarCallback(BaseCallback):
 
 
 class Trainer:
-    def __init__(self, name, env_type, param_name, policy_classes, decider, seed, action_noise=None):
+    def __init__(self, name, env_type, param_name, policy_classes, replay_buffer_classes, decider, seed, action_noise=None):
         self.policy_classes = policy_classes
+        self.replay_buffer_classes = replay_buffer_classes
         self.decider = decider
         self.environment = GeneralEnv(env_type, param_name, seed=seed)
         self.eval_environment = GeneralEnv(env_type, param_name, is_evaluation_environment=True, seed=seed)
@@ -97,6 +98,7 @@ class Trainer:
 
         agent = CustomSAC(
             policy_classes=self.policy_classes,
+            replay_buffer_classes=self.replay_buffer_classes,
             env=envs,
             tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
             action_noise=self.action_noise,

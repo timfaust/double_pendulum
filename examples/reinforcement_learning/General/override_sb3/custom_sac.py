@@ -3,6 +3,7 @@ import re
 import sys
 import time
 from copy import deepcopy
+import random
 from typing import List, Optional, Union, Dict, Any, Tuple
 
 import numpy as np
@@ -119,9 +120,9 @@ def create_lr_schedule(optimizer, schedule_str):
 
 
 class CustomSAC(SAC):
-    def __init__(self, policy_classes, decider=[default_decider], *args, **kwargs):
-        #TODO: what can be combined? buffer, decider, policies...
-        self.replay_buffer_classes = [SplitReplayBuffer]
+    def __init__(self, policy_classes, replay_buffer_classes, decider=[default_decider], *args, **kwargs):
+        #TODO: what can be combined? buffer, decider, policies, rewards, translator...
+        self.replay_buffer_classes = replay_buffer_classes
         self.schedulers = []
         self.active_policy = 0
         self.sample_policy = 0
@@ -232,6 +233,9 @@ class CustomSAC(SAC):
 
                 for i in env_indices:
                     next_policy_index = next_policy_indices[i]
+                    if random.random() < 0.5:
+                        next_policy_index = policy_index
+
                     last_state = self.policies[policy_index].translator.build_state(self._last_original_obs[i], envs[i])
                     next_state = self.policies[next_policy_index].translator.build_state(next_obs[i], envs[i])
 
