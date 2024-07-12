@@ -372,7 +372,7 @@ class CustomSAC(SAC):
         # self.policy.after_rollout(envs)
 
         total_training_steps = envs[0].training_steps
-        self.progress = self.num_timesteps
+        self.progress = self.num_timesteps / total_training_steps
         schedule_interval = total_training_steps / 100
         if self.num_timesteps % schedule_interval < len(envs):
             self.step_schedules()
@@ -411,7 +411,7 @@ class CustomSAC(SAC):
     def train(self, gradient_steps: int, batch_size: int = 64) -> None:
         for i in range(len(self.policies)):
             self.select_policy(i)
-            if self.replay_buffer.full or self.replay_buffer.pos > 0:
+            if self.replay_buffer.full or self.replay_buffer.pos > batch_size * 4:
                 self.train_policy(i, gradient_steps, batch_size)
 
     def train_policy(self, policy_id, gradient_steps: int, batch_size: int = 64, critic_loss_goal=-1.0) -> None:
