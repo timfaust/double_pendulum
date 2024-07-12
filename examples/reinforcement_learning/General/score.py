@@ -136,14 +136,28 @@ def calculate_score(
     velocity_costs = []
     successes = []
 
+    dynamics_func = observation_dict['dynamics_func']
     T = np.array(observation_dict['T'])
-    X = np.array([observation_dict['dynamics_func'].unscale_state(x) for x in observation_dict['X_real']])
-    U = np.array([observation_dict['dynamics_func'].unscale_action([u]) for u in observation_dict['U_real']])
+
+    X_real = np.array(observation_dict['X_real'])
+    X = np.empty_like(X_real)
+    X[:, 0] = X_real[:, 0] * dynamics_func.max_angle + np.pi
+    X[:, 1] = X_real[:, 1] * dynamics_func.max_angle
+    X[:, 2] = X_real[:, 2] * dynamics_func.max_velocity
+    X[:, 3] = X_real[:, 3] * dynamics_func.max_velocity
+
+    U_real = np.array(observation_dict['U_real'])
+    U = U_real * dynamics_func.torque_limit[0]
+    U = U.reshape(-1, 1)
+    if dynamics_func.robot == "pendubot":
+        U = np.hstack((U, np.zeros_like(U)))
+    else:
+        U = np.hstack((np.zeros_like(U), U))
 
     # plant = dynamics_func.simulator.plant
     swingup_times.append(
         get_swingup_time(
-            T=T, X=X, plant=observation_dict['dynamics_func'].simulator.plant, has_to_stay=True, method="height", height=0.9
+            T=T, X=X, plant=dynamics_func.simulator.plant, has_to_stay=True, method="height", height=0.9
         )
     )
     max_taus.append(get_max_tau(U))

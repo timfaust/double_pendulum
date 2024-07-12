@@ -57,7 +57,6 @@ class GeneralEnv(CustomEnv):
         self.reset_function = None
         dynamics_function = self.initialize_functions(existing_dynamics_function, existing_plant, env_type)
 
-        self.clean_action_history = None
         self.velocity_noise = None
         self.velocity_bias = None
         self.position_noise = None
@@ -90,7 +89,6 @@ class GeneralEnv(CustomEnv):
         self.dynamics_func.simulator.plant.observation_dict = self.observation_dict
 
     def initialize_disturbances(self):
-        self.clean_action_history = np.array([0.0])
         self.velocity_noise = 0.0
         self.velocity_bias = 0.0
         self.position_noise = 0.0
@@ -149,16 +147,18 @@ class GeneralEnv(CustomEnv):
         for key in self.observation_dict:
             if key != 'dynamics_func' and key != 'max_episode_steps' and key != 'mpar':
                 self.observation_dict[key].clear()
-        self.clean_action_history = np.array([0.0])
 
         if self.sac:
             self.sac.after_environment_reset(self)
 
         clean_observation = np.array(self.reset_function())
         dirty_observation = self.apply_observation_disturbances(clean_observation)
-        self.append_observation_dict(clean_observation, dirty_observation, 0.0, 0.0)
+        self.append_observation_dict(clean_observation, dirty_observation, 0.0)
+        self.observation_dict['U_con'].append(0.0)
         self.episode_id += 1
         self.killed_because = 0
+
+        self.visualizer.reset()
 
         return dirty_observation
 
@@ -209,17 +209,17 @@ class GeneralEnv(CustomEnv):
             if value <= target:
                 index = i + 1
                 break
-        delayed_action = self.clean_action_history[index]
+        delayed_action = self.observation_dict['U_con'][index]
         last = delayed_action
         if index > 0:
-            last = self.clean_action_history[index - 1]
+            last = self.observation_dict['U_con'][index - 1]
         delayed_action = last + self.responsiveness * (delayed_action - last)
 
         return delayed_action
 
     # normalized noise
     def get_dirty_action(self, clean_action):
-        self.clean_action_history = np.append(self.clean_action_history, clean_action)
+        self.observation_dict['U_con'].append(clean_action)
         dirty_action = self.find_delay_action()
         dirty_action += np.random.normal(self.action_bias, self.action_noise)
         return dirty_action
@@ -258,7 +258,7 @@ class GeneralEnv(CustomEnv):
 
         clean_observation = self.get_new_observation(dirty_action)
         dirty_observation = self.apply_observation_disturbances(clean_observation)
-        self.append_observation_dict(clean_observation, dirty_observation, clean_action, dirty_action)
+        self.append_observation_dict(clean_observation, dirty_observation, dirty_action)
 
         terminated = self.terminated_func(self.observation_dict['dynamics_func'].unscale_state(self.observation_dict['X_meas'][-1]), get_unscaled_action(self.observation_dict, key='U_con'))
         self.killed_because = (np.argmax(terminated) + 1) if np.any(terminated) else 0
@@ -270,11 +270,11 @@ class GeneralEnv(CustomEnv):
             if key not in self.observation_dict:
                 self.observation_dict[key] = []
                 self.observation_dict[key].append(0.0)
-            if done:
-                if self.killed_because != 0:
-                    reward_list[i] -= 0.5
-                else:
-                    reward_list[i] += 0.5
+            # if done:
+            #     if self.killed_because != 0:
+            #         reward_list[i] -= 0.5
+            #     else:
+            #         reward_list[i] += 0.5
             self.observation_dict[key].append(reward_list[i])
 
         truncated = self.check_episode_end()
@@ -300,12 +300,11 @@ class GeneralEnv(CustomEnv):
             return reward
         return [reward]
 
-    def append_observation_dict(self, clean_observation, dirty_observation, clean_action: float, dirty_action: float):
+    def append_observation_dict(self, clean_observation, dirty_observation, dirty_action: float):
         time = 0
         if len(self.observation_dict['T']) > 0:
             time = self.dynamics_func.dt + self.observation_dict['T'][-1]
         self.observation_dict['T'].append(np.around(time, decimals=5))
-        self.observation_dict['U_con'].append(clean_action)
         self.observation_dict['U_real'].append(dirty_action)
         self.observation_dict['X_meas'].append(dirty_observation)
         self.observation_dict['X_real'].append(clean_observation)
