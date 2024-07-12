@@ -1,4 +1,4 @@
-from examples.reinforcement_learning.General.misc_helper import calculate_q_values
+from examples.reinforcement_learning.General.misc_helper import calculate_q_values, get_stabilized
 from examples.reinforcement_learning.General.override_sb3.custom_sac import CustomSAC
 from examples.reinforcement_learning.General.reward_functions import get_state_values
 import pygame
@@ -233,7 +233,8 @@ class Visualizer:
             'action': round(state_values['unscaled_action']/dynamics_func.torque_limit[0], 4),
             'time': self.env.observation_dict['T'][-1],
             'policy': self.policy,
-            'killed': self.env.killed_because
+            'killed': self.env.killed_because,
+            'stabilized': get_stabilized(self.env.observation_dict)
         }
 
         return state_values['x1'], state_values['x2'], state_values['x3'], state_values['goal'], state_values['threshold_distance'], metrics

@@ -4,7 +4,8 @@ import json
 from sympy import lambdify
 
 from examples.reinforcement_learning.General.misc_helper import updown_reset, balanced_reset, no_termination, \
-    noisy_reset, low_reset, high_reset, random_reset, semi_random_reset, debug_reset, kill_switch, get_unscaled_action
+    noisy_reset, low_reset, high_reset, random_reset, semi_random_reset, debug_reset, kill_switch, get_unscaled_action, \
+    get_stabilized
 from examples.reinforcement_learning.General.override_sb3.utils import CustomDummyVecEnv, make_vec_env
 from examples.reinforcement_learning.General.reward_functions import get_state_values
 from examples.reinforcement_learning.General.visualizer import Visualizer
@@ -259,6 +260,10 @@ class GeneralEnv(CustomEnv):
         dirty_observation = self.apply_observation_disturbances(clean_observation)
         self.append_observation_dict(clean_observation, dirty_observation, clean_action, dirty_action)
 
+        terminated = self.terminated_func(self.observation_dict['dynamics_func'].unscale_state(self.observation_dict['X_meas'][-1]), get_unscaled_action(self.observation_dict, key='U_con'))
+        self.killed_because = (np.argmax(terminated) + 1) if np.any(terminated) else 0
+        done = self.killed_because != 0
+
         reward_list = self.get_reward(clean_observation, clean_action)
         for i in range(len(reward_list)):
             key = 'reward_' + str(i)
@@ -266,12 +271,13 @@ class GeneralEnv(CustomEnv):
                 self.observation_dict[key] = []
                 self.observation_dict[key].append(0.0)
             self.observation_dict[key].append(reward_list[i])
-        terminated = self.terminated_func(self.observation_dict['dynamics_func'].unscale_state(self.observation_dict['X_meas'][-1]), get_unscaled_action(self.observation_dict, key='U_con'))
-        self.killed_because = (np.argmax(terminated) + 1) if np.any(terminated) else 0
+
+        done = get_stabilized(self.observation_dict) > 0.5
+
         truncated = self.check_episode_end()
 
         info = {'episode_id': self.episode_id}
-        return dirty_observation, reward_list, self.killed_because != 0, truncated, info
+        return dirty_observation, reward_list, done, truncated, info
 
     def check_episode_end(self):
         truncated = False

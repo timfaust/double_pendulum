@@ -179,6 +179,22 @@ def find_observation_index(observation, observation_dict):
     return -1
 
 
+def get_stabilized(observation_dict, threshold=0.01):
+    X_meas = observation_dict['X_real']
+    T = observation_dict['T']
+    n = len(X_meas)
+    start_time = T[-1]
+    end_time = T[-1]
+    for i in range(n - 1, -1, -1):
+        std_dev = np.std(X_meas[i][:4])
+        if std_dev > threshold:
+            if i < n - 1:
+                end_time = T[i + 1]
+            break
+
+    return start_time - end_time
+
+
 def get_state_values(observation_dict, key='X_meas', offset=0):
     l = observation_dict['mpar'].l
     action_key = 'U_con'
