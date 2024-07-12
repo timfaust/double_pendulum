@@ -270,6 +270,8 @@ class GeneralEnv(CustomEnv):
             if key not in self.observation_dict:
                 self.observation_dict[key] = []
                 self.observation_dict[key].append(0.0)
+            if done:
+                reward_list[i] = -1
             self.observation_dict[key].append(reward_list[i])
 
         done = get_stabilized(self.observation_dict) > 0.5
