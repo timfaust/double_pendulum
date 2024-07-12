@@ -10,7 +10,7 @@ from src.python.double_pendulum.utils.wrap_angles import wrap_angles_diff
 
 def load_param(torque_limit, simplify=True):
     design = "design_C.1"
-    model = "model_1.0"
+    model = "model_1.1"
     torque_array = [torque_limit, torque_limit]
 
     model_par_path = (
@@ -77,7 +77,7 @@ class custom_dynamics_func_4PI(double_pendulum_dynamics_func):
         if self.state_representation == 2:
             x = np.array(
                 [
-                    observation[0] * self.max_angle + np.pi,
+                    observation[0] * self.max_angle,
                     observation[1] * self.max_angle,
                     observation[2] * self.max_velocity,
                     observation[3] * self.max_velocity,
@@ -91,12 +91,10 @@ class custom_dynamics_func_4PI(double_pendulum_dynamics_func):
         if self.state_representation == 2:
             observation = np.array(
                 [
-                    ((state[0] + np.pi) % (2 * self.max_angle) - self.max_angle) / self.max_angle,
+                    ((state[0] + self.max_angle) % (2 * self.max_angle) - self.max_angle) / self.max_angle,
                     ((state[1] + self.max_angle) % (2 * self.max_angle) - self.max_angle) / self.max_angle,
-                    np.clip(state[2], -self.max_velocity, self.max_velocity)
-                    / self.max_velocity,
-                    np.clip(state[3], -self.max_velocity, self.max_velocity)
-                    / self.max_velocity,
+                    np.clip(state[2], -self.max_velocity, self.max_velocity) / self.max_velocity,
+                    np.clip(state[3], -self.max_velocity, self.max_velocity) / self.max_velocity,
                 ]
             )
         elif self.state_representation == 3:

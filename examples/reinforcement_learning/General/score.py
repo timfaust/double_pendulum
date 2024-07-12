@@ -141,7 +141,7 @@ def calculate_score(
 
     X_real = np.array(observation_dict['X_real'])
     X = np.empty_like(X_real)
-    X[:, 0] = X_real[:, 0] * dynamics_func.max_angle + np.pi
+    X[:, 0] = X_real[:, 0] * dynamics_func.max_angle
     X[:, 1] = X_real[:, 1] * dynamics_func.max_angle
     X[:, 2] = X_real[:, 2] * dynamics_func.max_velocity
     X[:, 3] = X_real[:, 3] * dynamics_func.max_velocity

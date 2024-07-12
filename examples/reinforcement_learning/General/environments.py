@@ -122,7 +122,7 @@ class GeneralEnv(CustomEnv):
             self.simulation = Simulator(plant=existing_plant)
 
         normalization_class_name = self.param_data["normalization"]
-        low_pos = [-0.5, 0, 0, 0]
+        low_pos = [0, 0, 0, 0]
         if normalization_class_name == "custom_dynamics_func_PI":
             low_pos = [-1.0, 0, 0, 0]
 
@@ -259,7 +259,7 @@ class GeneralEnv(CustomEnv):
         dirty_observation = self.apply_observation_disturbances(clean_observation)
         self.append_observation_dict(clean_observation, dirty_observation, dirty_action)
 
-        terminated = self.terminated_func(self.observation_dict['dynamics_func'].unscale_state(self.observation_dict['X_meas'][-1]), get_unscaled_action(self.observation_dict, key='U_con'))
+        terminated = self.terminated_func(dirty_observation, clean_action)
         self.killed_because = (np.argmax(terminated) + 1) if np.any(terminated) else 0
         done = self.killed_because != 0 or get_stabilized(self.observation_dict) > 0.5
 

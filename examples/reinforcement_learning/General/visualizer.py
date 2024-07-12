@@ -163,8 +163,7 @@ class Visualizer:
 
         if metrics['distance_next'] < threshold:
             self.canvas.fill((184, 255, 191))
-        pygame.draw.rect(self.canvas, (240, 240, 240),
-                         (self.graph_window_width, 0, self.full_window_width, self.graph_window_height))
+        pygame.draw.rect(self.canvas, (240, 240, 240), (self.graph_window_width, 0, self.full_window_width, self.graph_window_height))
 
         self.draw_grid()
         self.draw_goals(goal, threshold, x3)

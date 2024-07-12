@@ -8,7 +8,7 @@ def smooth_transition(value, threshold, sharpness=100):
 
 
 def is_up(obs, progress):
-    phi_1 = obs[0] * 2 * np.pi + np.pi
+    phi_1 = obs[0] * 2 * np.pi
     phi_2 = obs[1] * 2 * np.pi
     s1 = np.sin(phi_1)
     s2 = np.sin(phi_1 + phi_2)
@@ -19,7 +19,11 @@ def is_up(obs, progress):
 
     threshold = -0.45
     value = x2[1]
-    return smooth_transition(value, threshold)
+    out = 0.5
+    if progress > 0.025:
+        out = smooth_transition(value, threshold)
+
+    return out
 
 
 def swing_up(obs, progress):
@@ -40,11 +44,11 @@ def general_reset(x_values, dx_values):
     return observation
 
 
-def low_reset(low_pos=[-0.5, 0, 0, 0]):
+def low_reset(low_pos=[0, 0, 0, 0]):
     return general_reset(low_pos, [0.01, 0.01, 0.01, 0.01])
 
 
-def debug_reset(low_pos=[-0.5, 0, 0, 0]):
+def debug_reset(low_pos=[0, 0, 0, 0]):
     return general_reset(low_pos, [0.0, 0.0, 0.0, 0.0])
 
 
@@ -60,7 +64,7 @@ def semi_random_reset():
     return general_reset([0, 0, 0, 0], [0.5, 0.1, 0.5, 0.2])
 
 
-def balanced_reset(low_pos=[-0.5, 0, 0, 0]):
+def balanced_reset(low_pos=[0, 0, 0, 0]):
     r = np.random.random()
     if r < 0.25:
         return high_reset()
@@ -72,7 +76,7 @@ def balanced_reset(low_pos=[-0.5, 0, 0, 0]):
         return random_reset()
 
 
-def updown_reset(low_pos=[-0.5, 0, 0, 0]):
+def updown_reset(low_pos=[0, 0, 0, 0]):
     r = np.random.random()
     if r < 0.25:
         return high_reset()
@@ -82,7 +86,7 @@ def updown_reset(low_pos=[-0.5, 0, 0, 0]):
         return low_reset(low_pos)
 
 
-def noisy_reset(low_pos=[-0.5, 0, 0, 0]):
+def noisy_reset(low_pos=[0, 0, 0, 0]):
     rand = np.random.rand(4) * 0.005
     rand[2:] = rand[2:] - 0.025
     observation = low_pos + rand
@@ -94,13 +98,7 @@ def no_termination(observation):
 
 
 def punish_limit(observation, action, dynamics_function, k=50):
-    thresholds = np.array([
-        dynamics_function.max_angle * 0.95,
-        dynamics_function.max_angle * 0.95,
-        dynamics_function.max_velocity,
-        dynamics_function.max_velocity,
-        dynamics_function.torque_limit[0]
-    ])
+    thresholds = np.array([0.95, 0.95, 1, 1, 1])
 
     values = np.concatenate([np.abs(observation), np.array([np.abs(action)])])
     ratios = values / thresholds
@@ -176,6 +174,8 @@ def find_observation_index(observation, observation_dict):
 
 def get_stabilized(observation_dict, threshold=0.01):
     X_meas = observation_dict['X_real']
+    if abs(X_meas[-1][0]) < 0.375 or abs(X_meas[-1][1]) > 0.125:
+        return 0.0
     T = observation_dict['T']
     n = len(X_meas)
     start_time = T[-1]
