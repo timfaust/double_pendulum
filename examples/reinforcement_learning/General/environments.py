@@ -262,7 +262,7 @@ class GeneralEnv(CustomEnv):
 
         terminated = self.terminated_func(self.observation_dict['dynamics_func'].unscale_state(self.observation_dict['X_meas'][-1]), get_unscaled_action(self.observation_dict, key='U_con'))
         self.killed_because = (np.argmax(terminated) + 1) if np.any(terminated) else 0
-        done = self.killed_because != 0
+        done = self.killed_because != 0 or get_stabilized(self.observation_dict) > 0.5
 
         reward_list = self.get_reward(clean_observation, clean_action)
         for i in range(len(reward_list)):
@@ -271,11 +271,11 @@ class GeneralEnv(CustomEnv):
                 self.observation_dict[key] = []
                 self.observation_dict[key].append(0.0)
             if done:
-                reward_list[i] = -1
+                if self.killed_because != 0:
+                    reward_list[i] -= 0.5
+                else:
+                    reward_list[i] += 0.5
             self.observation_dict[key].append(reward_list[i])
-
-        if not done:
-            done = get_stabilized(self.observation_dict) > 0.5
 
         truncated = self.check_episode_end()
 

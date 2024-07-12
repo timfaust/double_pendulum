@@ -1,3 +1,7 @@
+import cProfile
+import pstats
+import io
+from pstats import SortKey
 import random
 import torch
 
@@ -30,7 +34,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     action_noise = OrnsteinUhlenbeckActionNoise(mean=np.array([0.0]), sigma=0.1 * np.ones(1), theta=0.15, dt=1e-2)
-    sac = Trainer(args.name, args.env_type, args.param, [SequenceSACPolicy], [SplitReplayBuffer], [default_decider], seed, action_noise)
+    sac = Trainer(args.name, args.env_type, args.param, [SequenceSACPolicy], [MultiplePoliciesReplayBuffer], [default_decider], seed, action_noise)
+
+    profiler = cProfile.Profile()
+    profiler.enable()
 
     if args.mode == "train":
         print("training new model")
@@ -53,3 +60,9 @@ if __name__ == '__main__':
 
     if args.mode == "simulate":
         sac.simulate(model_path=args.model_path, tf=3.0)
+
+    profiler.disable()
+    s = io.StringIO()
+    sortby = SortKey.CUMULATIVE
+    ps = pstats.Stats(profiler, stream=s).sort_stats(sortby)
+    ps.dump_stats("sac_training_profile.prof")
