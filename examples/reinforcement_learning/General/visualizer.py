@@ -39,6 +39,8 @@ class Visualizer:
         self.font = pygame.font.SysFont("Arial", 28)
 
     def reset(self):
+        if len(self.past_scores) > 0:
+            self.render()
         self.past_scores = []
         self.predicted_Q = []
         self.used_policies = []

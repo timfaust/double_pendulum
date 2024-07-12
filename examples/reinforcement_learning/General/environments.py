@@ -139,6 +139,7 @@ class GeneralEnv(CustomEnv):
         return existing_dynamics_function
 
     def custom_reset(self):
+        self.visualizer.reset()
         if self.simulation is not None:
             self.simulation.reset()
         self.observation_dict_old = copy.deepcopy(self.observation_dict)
@@ -157,8 +158,6 @@ class GeneralEnv(CustomEnv):
         self.observation_dict['U_con'].append(0.0)
         self.episode_id += 1
         self.killed_because = 0
-
-        self.visualizer.reset()
 
         return dirty_observation
 
