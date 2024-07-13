@@ -128,7 +128,7 @@ def get_i_decay(x, factor=2):
 
 
 def get_unscaled_action(observation_dict, t_minus=0, key='U_real'):
-    unscaled_action = observation_dict['dynamics_func'].unscale_action(np.array([observation_dict[key][t_minus-1]]).reshape(-1, 1))
+    unscaled_action = observation_dict['dynamics_func'].unscale_action(observation_dict[key][t_minus-1])
     max_value_index = np.argmax(np.abs(unscaled_action))
     max_action_value = unscaled_action[max_value_index]
     return max_action_value

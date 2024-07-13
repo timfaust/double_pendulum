@@ -233,14 +233,12 @@ class GeneralEnv(CustomEnv):
 
         new_observation = self.get_last_clean_observation()
 
-        torque = np.array([dirty_action, 0])
-        if self.env_type == "acrobot":
-            torque = np.array([0, dirty_action])
+        torque = self.dynamics_func.unscale_action(dirty_action)
 
         if self.use_perturbations:
             timestep = len(self.observation_dict['T']) - 1
-            torque[0] += self.perturbations[0][timestep]/self.dynamics_func.torque_limit[0]
-            torque[1] += self.perturbations[1][timestep]/self.dynamics_func.torque_limit[1]
+            torque[0] += self.perturbations[0][timestep]
+            torque[1] += self.perturbations[1][timestep]
 
         for i in range(0, np.round(dt/internal_dt).astype(int)):
             new_observation = self.dynamics_func(new_observation, torque, scaling=self.scaling)

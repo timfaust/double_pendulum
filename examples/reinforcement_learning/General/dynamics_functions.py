@@ -58,13 +58,17 @@ class custom_dynamics_func_4PI(double_pendulum_dynamics_func):
         self.max_angle = 2 * np.pi
 
     def unscale_action(self, action):
-        action = np.asarray(action)
-        a = np.zeros((action.shape[0], 2) if action.ndim == 2 else 2)
+        if isinstance(action, (float, list)):
+            action = np.array(action).reshape(-1, 1)
+        elif isinstance(action, np.ndarray) and action.shape == (2,):
+            return action
+
+        a = np.zeros((2,) if action.ndim == 1 else (action.shape[0], 2))
 
         if self.robot == "pendubot":
             a[..., 0] = self.torque_limit[0] * action[..., 0]
         elif self.robot == "acrobot":
-            a[..., 1] = self.torque_limit[1] * (action[..., -1] if action.shape[-1] > 1 else action[..., 0])
+            a[..., 1] = self.torque_limit[1] * action[..., -1]
         else:
             a = np.multiply(self.torque_limit, action[..., :2])
 

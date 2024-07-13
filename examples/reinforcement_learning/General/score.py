@@ -139,7 +139,7 @@ def calculate_score(
     dynamics_func = observation_dict['dynamics_func']
     T = np.array(observation_dict['T'])
     X = dynamics_func.unscale_state(np.array(observation_dict['X_real']))
-    U = dynamics_func.unscale_action(np.array(observation_dict['U_real']).reshape(-1, 1))
+    U = dynamics_func.unscale_action(observation_dict['U_con'])
 
     # plant = dynamics_func.simulator.plant
     swingup_times.append(
