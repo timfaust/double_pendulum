@@ -98,7 +98,7 @@ def no_termination(observation):
 
 
 def punish_limit(observation, action, dynamics_function, k=50):
-    thresholds = np.array([0.95, 0.95, 1, 1, 1])
+    thresholds = np.array([0.95] * 5)
 
     values = np.concatenate([np.abs(observation), np.array([np.abs(action)])])
     ratios = values / thresholds

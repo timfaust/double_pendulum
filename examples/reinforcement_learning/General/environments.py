@@ -40,6 +40,7 @@ class GeneralEnv(CustomEnv):
         self.param_name = param_name
         self.env_type = env_type
         self.killed_because = 0
+        self.stabilized = False
         self.param_data = json.load(open(path))[param_name]
 
         self.type = None
@@ -147,7 +148,7 @@ class GeneralEnv(CustomEnv):
             if key != 'dynamics_func' and key != 'max_episode_steps' and key != 'mpar':
                 self.observation_dict[key].clear()
 
-        if self.sac:
+        if self.sac and self.killed_because == 0:
             self.sac.after_environment_reset(self)
 
         clean_observation = np.array(self.reset_function())
@@ -156,6 +157,7 @@ class GeneralEnv(CustomEnv):
         self.observation_dict['U_con'].append(0.0)
         self.episode_id += 1
         self.killed_because = 0
+        self.stabilized = False
 
         return dirty_observation
 
@@ -257,7 +259,10 @@ class GeneralEnv(CustomEnv):
 
         terminated = self.terminated_func(dirty_observation, clean_action)
         self.killed_because = (np.argmax(terminated) + 1) if np.any(terminated) else 0
-        done = self.killed_because != 0 or get_stabilized(self.observation_dict) >= 1
+        done = self.killed_because != 0
+        if not done:
+            self.stabilized = get_stabilized(self.observation_dict) >= 1
+            done = self.stabilized
 
         reward_list = self.get_reward(clean_observation, clean_action)
         for i in range(len(reward_list)):
@@ -265,11 +270,8 @@ class GeneralEnv(CustomEnv):
             if key not in self.observation_dict:
                 self.observation_dict[key] = []
                 self.observation_dict[key].append(0.0)
-            # if done:
-            #     if self.killed_because != 0:
-            #         reward_list[i] -= 0.5
-            #     else:
-            #         reward_list[i] += 0.5
+            if self.stabilized:
+                reward_list[i] += 0.5
             self.observation_dict[key].append(reward_list[i])
 
         truncated = self.check_episode_end()
