@@ -233,7 +233,7 @@ class CustomSAC(SAC):
 
                 for i in env_indices:
                     next_policy_index = next_policy_indices[i]
-                    if random.random() < 0.5:
+                    if np.random.random() < 0.5:
                         next_policy_index = policy_index
 
                     last_state = self.policies[policy_index].translator.build_state(self._last_original_obs[i], envs[i])
@@ -584,12 +584,20 @@ class CustomSAC(SAC):
         if force_reset:
             self._last_obs = None
 
+        for monitor in self.env.envs:
+            monitor.env.sac = self
+
         return last_obs, last_original_obs
 
     def after_environment_reset(self, environment):
-        factor = (self.progress - 0.25) / 0.1
-        factor = np.clip(factor, 0, 1) * 0.5
-        # factor = 0.0
+        base = 0.1
+        start = 0.2
+        rise = 0.2
+        end = 0.5
+
+        factor = ((self.progress - start) / rise)
+        factor = np.clip(factor, 0, 1) * (end - base) + base
+
         #
         # changing_values = {
         #     'l': 0.0 * factor,
@@ -616,26 +624,26 @@ class CustomSAC(SAC):
         #
 
         changing_values = {
-            'l': 0.05 * factor,
-            'm': 0.05 * factor,
-            'b': 0.05 * factor,
-            'coulomb_fric': 0.05 * factor,
-            'com': 0.05 * factor,
-            'I': 0.05 * factor,
+            'l': 0.25 * factor,
+            'm': 0.25 * factor,
+            'b': 0.25 * factor,
+            'coulomb_fric': 0.1 * factor,
+            'com': 0.25 * factor,
+            'I': 0.25 * factor,
             'Ir': 0.0001 * factor,
-            'start_delay': 0.0,
-            'delay': 0.02 * factor,
-            'velocity_noise': 0.005 * factor,
+            'start_delay': 0.1 * factor,
+            'delay': 0.05 * factor,
+            'velocity_noise': 0.025 * factor,
             'velocity_bias': 0.0,
-            'position_noise': 0.005 * factor,
+            'position_noise': 0.025 * factor,
             'position_bias': 0.0,
-            'action_noise': 0.005 * factor,
+            'action_noise': 0.025 * factor,
             'action_bias': 0.0,
             'n_pert_per_joint': 0,
             'min_t_dist': 1.0,
             'sigma_minmax': [0.05, 0.1],
             'amplitude_min_max': [0.1, 5.0],
-            'responsiveness': np.random.uniform(1 - 0.1 * factor, 1 + 0.1 * factor)
+            'responsiveness': np.random.uniform(1 - 0.5 * factor, 1 + 0.5 * factor)
         }
 
         if factor > 0:
