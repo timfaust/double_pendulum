@@ -60,7 +60,7 @@ class LSTMExtractor(SequenceExtractor):
 class SequenceTranslator(DefaultTranslator):
     def __init__(self):
         self.reset()
-        self.timesteps = 50
+        self.timesteps = 100
         self.feature_dim = 5
         self.output_dim = 16
         self.additional_features = 8
@@ -122,11 +122,13 @@ class SequenceSACPolicy(CustomPolicy):
             dict(
                 features_extractor_class=LSTMExtractor,
                 features_extractor_kwargs=dict(translator=self.translator),
-                share_features_extractor=False
+                share_features_extractor=False,
+                optimizer_kwargs={'weight_decay': 0.0001}
             )
         )
 
         super().__init__(*args, **kwargs)
 
     def after_critic_backward(self):
-        th.nn.utils.clip_grad_norm_(self.critic.parameters(), 25)
+        pass
+        # th.nn.utils.clip_grad_norm_(self.critic.parameters(), 25)
