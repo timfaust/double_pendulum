@@ -33,6 +33,7 @@ class Visualizer:
         # Create surfaces once
         self.canvas = pygame.Surface((self.full_window_width, self.graph_window_height))
         self.graph_surface = pygame.Surface((self.full_window_width, self.graph_window_height), pygame.SRCALPHA)
+        self.pendulum_surface = pygame.Surface((self.graph_window_width, self.graph_window_height), pygame.SRCALPHA)
 
         # Preload fonts
         pygame.font.init()
@@ -204,14 +205,20 @@ class Visualizer:
             'threshold_distance'], metrics
 
     def draw_pendulum(self, x1, x2, alpha=255):
+        # Clear the pendulum surface
+        self.pendulum_surface.fill((0, 0, 0, 0))
+
         black = (0, 0, 0, alpha)
         joint_color = (60, 60, 230, alpha) if self.policy != 1 else (230, 193, 60, alpha)
 
-        pygame.draw.line(self.canvas, black, self.getXY(np.array([0, 0])), self.getXY(x1), 10)
-        pygame.draw.line(self.canvas, black, self.getXY(x1), self.getXY(x2), 10)
-        pygame.draw.circle(self.canvas, joint_color, self.getXY(np.array([0, 0])), 20)
-        pygame.draw.circle(self.canvas, joint_color, self.getXY(x1), 20)
-        pygame.draw.circle(self.canvas, joint_color, self.getXY(x2), 10)
+        pygame.draw.line(self.pendulum_surface, black, self.getXY(np.array([0, 0])), self.getXY(x1), 10)
+        pygame.draw.line(self.pendulum_surface, black, self.getXY(x1), self.getXY(x2), 10)
+        pygame.draw.circle(self.pendulum_surface, joint_color, self.getXY(np.array([0, 0])), 20)
+        pygame.draw.circle(self.pendulum_surface, joint_color, self.getXY(x1), 20)
+        pygame.draw.circle(self.pendulum_surface, joint_color, self.getXY(x2), 10)
+
+        # Blit the pendulum surface onto the main canvas
+        self.canvas.blit(self.pendulum_surface, (0, 0))
 
     def draw_goals(self, goal, threshold, x3):
         pygame.draw.line(self.canvas, (255, 50, 50),
