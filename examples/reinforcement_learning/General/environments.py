@@ -194,27 +194,25 @@ class GeneralEnv(CustomEnv):
         return dirty_observation
 
     def find_delay_action(self):
-        list = self.observation_dict['T']
-        timestep = list[-1]
-        delay = self.delay
-        if timestep < self.start_delay:
-            delay = self.start_delay
-        target = np.around(timestep - delay, decimals=5)
-        index = 0
-        # if target >= 0:
-        #     index = np.round(target / self.dynamics_func.dt, decimals=0).astype(int) + 1
-        for i in reversed(range(len(list))):
-            value = list[i]
-            if value <= target:
-                index = i + 1
-                break
-        delayed_action = self.observation_dict['U_con'][index]
-        last = delayed_action
-        if index > 0:
-            last = self.observation_dict['U_con'][index - 1]
-        delayed_action = last + self.responsiveness * (delayed_action - last)
+        T = self.observation_dict['T']
+        U_con = self.observation_dict['U_con']
 
-        return delayed_action
+        current_time = T[-1]
+
+        if current_time < self.start_delay:
+            return 0.0
+
+        delay_time = current_time - self.delay
+
+        if self.delay == 0.0:
+            index = len(U_con) - 1
+        else:
+            index = np.searchsorted(T, delay_time) - 1
+
+        delayed_action = U_con[max(0, index)]
+        last_action = U_con[max(0, index - 1)]
+
+        return last_action + self.responsiveness * (delayed_action - last_action)
 
     # normalized noise
     def get_dirty_action(self, clean_action):
@@ -270,8 +268,8 @@ class GeneralEnv(CustomEnv):
             if key not in self.observation_dict:
                 self.observation_dict[key] = []
                 self.observation_dict[key].append(0.0)
-            if self.stabilized:
-                reward_list[i] += 0.5
+            # if self.stabilized:
+            #     reward_list[i] += 0.5
             self.observation_dict[key].append(reward_list[i])
 
         truncated = self.check_episode_end()
