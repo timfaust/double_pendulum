@@ -39,7 +39,7 @@ class SequenceExtractor(BaseFeaturesExtractor):
 
 
 class LSTMExtractor(SequenceExtractor):
-    def __init__(self, observation_space: gym.spaces.Box, translator, hidden_size=16, num_layers=2, dropout=0.1):
+    def __init__(self, observation_space: gym.spaces.Box, translator, hidden_size=32, num_layers=2, dropout=0.05):
         super().__init__(observation_space, translator)
         self.hidden_size = hidden_size
         self.num_layers = num_layers
@@ -64,7 +64,7 @@ class SequenceTranslator(DefaultTranslator):
         self.feature_dim = 5
         self.output_dim = 16
         self.additional_features = 8
-        self.net_arch = [256, 256]
+        self.net_arch = [128, 64, 32]
 
         super().__init__(self.timesteps * self.feature_dim + self.additional_features)
 
@@ -123,7 +123,7 @@ class SequenceSACPolicy(CustomPolicy):
                 features_extractor_class=LSTMExtractor,
                 features_extractor_kwargs=dict(translator=self.translator),
                 share_features_extractor=False,
-                optimizer_kwargs={'weight_decay': 0.0001}
+                optimizer_kwargs={'weight_decay': 0.000001}
             )
         )
 

@@ -123,8 +123,8 @@ def calculate_q_values(reward, gamma):
     return np.array(actual_Q)
 
 
-def get_i_decay(x, factor=2):
-    return np.where(x <= 0.1, 1, 1 / (factor * (x - 0.1) + 1))
+def get_i_decay(x, factor=2, offset=0.1):
+    return np.where(x <= offset, 1, 1 / (factor * (x - offset) + 1))
 
 
 def get_unscaled_action(observation_dict, t_minus=0, key='U_real'):
@@ -173,6 +173,7 @@ def find_observation_index(observation, observation_dict):
 
 
 def get_stabilized(observation_dict, threshold=0.001):
+    #TODO: add lowpass filter
     X_meas = np.array(observation_dict['X_real'])
     T = observation_dict['T']
 

@@ -333,13 +333,13 @@ class GeneralEnv(CustomEnv):
             if key in changing_values:
                 sigma = changing_values[key]
                 if key == 'l' or key == 'I' or key == 'm' or key == 'com':
-                    new_value = np.array(value) + np.random.normal([0.0, 0.0], [value[0] * sigma, value[1] * sigma], 2)
+                    new_value = np.array(value) + np.random.uniform(-value[0] * sigma, value[0] * sigma, 2)
                     new_value = new_value.tolist()
                 elif key == 'coulomb_fric' or key == 'b':
-                    new_value = np.array(value) + np.random.normal(0.0, sigma, 2)
+                    new_value = np.array(value) + np.random.uniform(-sigma, sigma, 2)
                     new_value = new_value.tolist()
                 elif key == 'Ir':
-                    new_value = (np.array(value) + np.random.normal(0.0, sigma, 1))[0]
+                    new_value = (np.array(value) + np.random.uniform(0, sigma, 1))[0]
 
                 setattr(plant, key, new_value)
 
@@ -350,7 +350,7 @@ class GeneralEnv(CustomEnv):
 
         for param in environment_parameters:
             if param in changing_values:
-                value = np.random.normal(0.0, changing_values[param])
+                value = np.random.uniform(-changing_values[param], changing_values[param])
                 if 'bias' not in param:
                     value = np.abs(value)
                 setattr(self, param, value)

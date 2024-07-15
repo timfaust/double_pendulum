@@ -590,13 +590,15 @@ class CustomSAC(SAC):
         return last_obs, last_original_obs
 
     def after_environment_reset(self, environment):
-        base = 0.1
-        start = 0.2
+        base = 0.0
+        start = 0.05
         rise = 0.2
-        end = 0.5
+        end = 0.25
 
         factor = ((self.progress - start) / rise)
         factor = np.clip(factor, 0, 1) * (end - base) + base
+
+        factor = 0.2
 
         #
         # changing_values = {
@@ -624,30 +626,27 @@ class CustomSAC(SAC):
         #
 
         changing_values = {
-            'l': 0.25 * factor,
+            'l': 0.25 * factor * 0,
             'm': 0.25 * factor,
-            'b': 0.25 * factor,
-            'coulomb_fric': 0.1 * factor,
+            'b': 0.1 * factor,
+            'coulomb_fric': 0.2 * factor,
             'com': 0.25 * factor,
             'I': 0.25 * factor,
             'Ir': 0.0001 * factor,
             'start_delay': 0.1 * factor,
-            'delay': 0.05 * factor,
+            'delay': 0.04 * factor,
             'velocity_noise': 0.025 * factor,
             'velocity_bias': 0.0,
-            'position_noise': 0.025 * factor,
+            'position_noise': 0.025 * factor * 0,
             'position_bias': 0.0,
-            'action_noise': 0.025 * factor,
+            'action_noise': 0.025 * factor * 0,
             'action_bias': 0.0,
             'n_pert_per_joint': 0,
             'min_t_dist': 1.0,
             'sigma_minmax': [0.05, 0.1],
-            'amplitude_min_max': [0.1, 5.0],
-            'responsiveness': np.random.uniform(1 - 0.5 * factor, 1 + 0.5 * factor)
+            'amplitude_min_max': [0.5, 5.0],
+            'responsiveness': np.random.uniform(1 - 0.9 * factor * 2 * 0, 1 + 1 * factor * 2 * 0)
         }
 
         if factor > 0:
             environment.change_dynamics(changing_values, self.progress)
-
-
-
