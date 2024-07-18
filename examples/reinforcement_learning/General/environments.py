@@ -199,12 +199,14 @@ class GeneralEnv(CustomEnv):
 
         current_time = T[-1]
 
-        if current_time < self.start_delay:
+        offset = np.round(self.dynamics_func.dt / 2, decimals=5)
+        if current_time < self.start_delay - offset:
             return 0.0
 
-        delay_time = current_time - self.delay
+        adjusted_delay = max(0, self.delay - offset)
+        delay_time = current_time - adjusted_delay
 
-        if self.delay == 0.0:
+        if adjusted_delay <= 0.0:
             index = len(U_con) - 1
         else:
             index = np.searchsorted(T, delay_time) - 1
@@ -299,7 +301,7 @@ class GeneralEnv(CustomEnv):
         time = 0
         if len(self.observation_dict['T']) > 0:
             time = self.dynamics_func.dt + self.observation_dict['T'][-1]
-        self.observation_dict['T'].append(np.around(time, decimals=5))
+        self.observation_dict['T'].append(np.round(time, decimals=5))
         self.observation_dict['U_real'].append(dirty_action)
         self.observation_dict['X_meas'].append(dirty_observation)
         self.observation_dict['X_real'].append(clean_observation)

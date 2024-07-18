@@ -15,6 +15,15 @@ def score_reward(observation, action, env_type, dynamic_func, observation_dict):
 def pos_reward(observation, action, env_type, dynamic_func, observation_dict):
     state_values = get_state_values(observation_dict, 'X_real')
     reward = get_i_decay(state_values['distance']) - get_i_decay(2)
+    reward = reward * state_values['s2']
+    return reward * np.min(punish_limit(observation_dict['X_meas'][-1], action, observation_dict['dynamics_func']))
+
+def future_pos_reward(observation, action, env_type, dynamic_func, observation_dict):
+    state_values = get_state_values(observation_dict, 'X_real')
+    reward = get_i_decay(state_values['distance']) - get_i_decay(2)
+    if (state_values['x3'] - state_values['goal'])[1] < state_values['threshold_distance']:
+        abstract_distance = np.linalg.norm(state_values['v1']) + np.linalg.norm(state_values['v2']) #+ np.linalg.norm(action)/100# + np.linalg.norm(u_p)/10
+        reward += get_i_decay(abstract_distance, 4)
     return reward * np.min(punish_limit(observation_dict['X_meas'][-1], action, observation_dict['dynamics_func']))
 
 

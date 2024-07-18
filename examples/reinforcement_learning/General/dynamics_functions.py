@@ -55,7 +55,7 @@ def general_dynamics(robot, plant, dt, max_torque, class_obj):
 class custom_dynamics_func_4PI(double_pendulum_dynamics_func):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.max_angle = 2 * np.pi
+        self.max_angle = 3 * np.pi
 
     def unscale_action(self, action):
         if isinstance(action, (float, list)):

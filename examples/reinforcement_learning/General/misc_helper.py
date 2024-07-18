@@ -3,13 +3,13 @@ from double_pendulum.utils.wrap_angles import wrap_angles_diff
 import numpy as np
 
 
-def smooth_transition(value, threshold, sharpness=100):
+def smooth_transition(value, threshold, sharpness=80):
     return 0.5 * (1 + np.tanh(sharpness * (value - threshold)))
 
 
 def is_up(obs, progress):
-    phi_1 = obs[0] * 2 * np.pi
-    phi_2 = obs[1] * 2 * np.pi
+    phi_1 = obs[0] * 3 * np.pi
+    phi_2 = obs[1] * 3 * np.pi
     s1 = np.sin(phi_1)
     s2 = np.sin(phi_1 + phi_2)
     c1 = np.cos(phi_1)
@@ -17,10 +17,10 @@ def is_up(obs, progress):
     x1 = np.array([s1, c1]) * 0.2
     x2 = x1 + np.array([s2, c2]) * 0.3
 
-    threshold = -0.45
+    threshold = -0.425
     value = x2[1]
     out = 0.5
-    if progress > 0.04:
+    if progress > 0.4:
         out = smooth_transition(value, threshold)
 
     return out
@@ -105,7 +105,7 @@ def punish_limit(observation, action, dynamics_function, k=50):
 
     factors = np.where(ratios <= 1, 1 - np.exp(-k * np.abs(ratios - 1)), 0)
 
-    return factors[:2].min(), factors[2:4].min(), factors[4]
+    return factors[:2].min(), factors[2:4].min(), 1# factors[4]
 
 
 def kill_switch(observation, action, dynamics_func):
@@ -212,7 +212,7 @@ def get_state_values(observation_dict, key='X_meas', offset=0):
         l = observation_dict['dynamics_func'].simulator.plant.l
         action_key = 'U_real'
 
-    dt_goal = 0.0
+    dt_goal = 0.05
     threshold_distance = (l[0] + l[1]) * 0.1
 
     unscaled_observation = observation_dict['dynamics_func'].unscale_state(observation_dict[key][offset-1])
