@@ -593,14 +593,15 @@ class CustomSAC(SAC):
 
     def after_environment_reset(self, environment):
         base = 0.1
-        start = 0.025
-        rise = 0.075
+        start = 0.0
+        rise = 0.8
         end = 1
 
         factor = ((self.progress - start) / rise)
         factor = np.clip(factor, 0, 1) * (end - base) + base
 
-        factor = 0.0
+        p_factor = 0.0
+        n_factor = 1.0
 
         #
         # changing_values = {
@@ -628,26 +629,26 @@ class CustomSAC(SAC):
         #
 
         changing_values = {
-            'l': 0.25 * factor * 0,
-            'm': 0.25 * factor,
-            'b': 0.1 * factor,
-            'coulomb_fric': 0.2 * factor,
-            'com': 0.25 * factor,
-            'I': 0.25 * factor,
-            'Ir': 0.0001 * factor,
-            'start_delay': 0.1 * factor * 0,
-            'delay': 0.04 * factor,
-            'velocity_noise': 0.025 * factor,
+            'l': 0.0,
+            'm': 0.25 * p_factor,
+            'b': 0.1 * p_factor,
+            'coulomb_fric': 0.2 * p_factor,
+            'com': 0.25 * p_factor,
+            'I': 0.25 * p_factor,
+            'Ir': 0.0001 * p_factor,
+            'start_delay': 0.0,
+            'delay': 0.04 * n_factor,
+            'velocity_noise': 0.025 * n_factor,
             'velocity_bias': 0.0,
-            'position_noise': 0.025 * factor * 0,
+            'position_noise': 0.0,
             'position_bias': 0.0,
-            'action_noise': 0.1 * factor * 0,
+            'action_noise': 0.1 * n_factor,
             'action_bias': 0.0,
             'n_pert_per_joint': 0,
             'min_t_dist': 1.0,
             'sigma_minmax': [0.05, 0.1],
             'amplitude_min_max': [0.5, 5.0],
-            'responsiveness': np.random.uniform(1 - 0.9 * factor * 0, 1 + 1 * factor * 0)
+            'responsiveness': np.random.uniform(1 - 0.9 * n_factor, 1 + 1 * n_factor)
         }
 
         if factor > 0: # and not (self.progress > 0 and environment.is_evaluation_environment):

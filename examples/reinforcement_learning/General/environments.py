@@ -221,6 +221,7 @@ class GeneralEnv(CustomEnv):
         self.observation_dict['U_con'].append(clean_action)
         dirty_action = self.find_delay_action()
         dirty_action += np.random.normal(self.action_bias, self.action_noise)
+        dirty_action = np.clip(dirty_action, -1, 1)
         return dirty_action
 
     def get_last_clean_observation(self):

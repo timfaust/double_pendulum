@@ -9,6 +9,32 @@ import gymnasium as gym
 from examples.reinforcement_learning.General.reward_functions import get_state_values
 
 
+class SmoothingFilter(nn.Module):
+    def __init__(self, num_features, kernel_size=11, padding='same'):
+        super(SmoothingFilter, self).__init__()
+        self.num_features = num_features
+        self.conv = nn.Conv1d(
+            in_channels=num_features,
+            out_channels=num_features,
+            kernel_size=kernel_size,
+            padding=padding,
+            groups=num_features,
+            bias=False
+        )
+        nn.init.constant_(self.conv.weight, 1.0 / kernel_size)
+        self.alpha = nn.Parameter(th.zeros(num_features))
+        self.activation = nn.Sigmoid()
+
+    def forward(self, x):
+        batch_size, sequence_length, num_features = x.size()
+        x_t = x.transpose(1, 2)  # Transpose to (batch_size, num_features, sequence_length)
+        smoothed = self.conv(x_t)
+        smoothed = smoothed.transpose(1, 2)  # Transpose back to (batch_size, sequence_length, num_features)
+
+        alpha_sigmoid = self.activation(self.alpha).view(1, 1, -1)
+        alpha_sigmoid = alpha_sigmoid.expand(batch_size, sequence_length, num_features)  # Expand to match the input dimensions
+        return alpha_sigmoid * x + (1 - alpha_sigmoid) * smoothed
+
 class SequenceExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space: gym.spaces.Box, translator):
         super().__init__(observation_space, translator.output_dim + translator.additional_features)
@@ -47,11 +73,13 @@ class LSTMExtractor(SequenceExtractor):
         self.lstm = nn.LSTM(self.input_features, hidden_size, num_layers, batch_first=True, dropout=dropout)
         self.fc = nn.Linear(hidden_size, self.output_dim)
         self.activation = nn.Tanh()
+        self.smoothing = SmoothingFilter(self.input_features)
 
     def _process_main_features(self, obs: th.Tensor) -> th.Tensor:
         batch_size = obs.size(0)
         obs_reshaped = obs.view(batch_size, self.timesteps, self.input_features)
-        lstm_out, (h_n, c_n) = self.lstm(obs_reshaped)
+        obs_smoothed = self.smoothing(obs_reshaped)
+        lstm_out, (h_n, c_n) = self.lstm(obs_smoothed)
         last_hidden = h_n[-1]
         fc_output = self.fc(last_hidden)
         return self.activation(fc_output)
@@ -60,7 +88,7 @@ class LSTMExtractor(SequenceExtractor):
 class SequenceTranslator(DefaultTranslator):
     def __init__(self):
         self.reset()
-        self.timesteps = 256
+        self.timesteps = 128
         self.feature_dim = 5
         self.output_dim = 16
         self.additional_features = 8
