@@ -102,7 +102,7 @@ class Visualizer:
         self.acc_reward = np.sum(reward_history)
         actual_Q = calculate_q_values(reward_history, gamma)
 
-        reward_shifted = reward_history * 3 - 1
+        reward_shifted = reward_history - 1
         actual_Q_scaled, predicted_Q_scaled = self.scale_arrays_together(actual_Q, self.predicted_Q)
         past_scores_scaled = [score * 2 - 1 for score in self.past_scores]
 

@@ -14,7 +14,7 @@ import pygame
 import numpy as np
 import gymnasium as gym
 from examples.reinforcement_learning.General.dynamics_functions import default_dynamics, load_param, custom_dynamics_func_4PI
-from examples.reinforcement_learning.General.reward_functions import score_reward, pos_reward, quadratic_rew, saturated_distance_from_target
+from examples.reinforcement_learning.General.reward_functions import score_reward, pos_reward, quadratic_rew, saturated_distance_from_target, future_pos_reward
 from double_pendulum.simulation.simulation import Simulator
 
 from src.python.double_pendulum.simulation.perturbations import get_random_gauss_perturbation_array
@@ -260,9 +260,9 @@ class GeneralEnv(CustomEnv):
         terminated = self.terminated_func(dirty_observation, clean_action)
         self.killed_because = (np.argmax(terminated) + 1) if np.any(terminated) else 0
         done = self.killed_because != 0
-        if not done:
-            self.stabilized = get_stabilized(self.observation_dict) >= 1
-            done = self.stabilized
+        # if not done:
+        #     self.stabilized = get_stabilized(self.observation_dict) >= 1
+        #     done = self.stabilized
 
         reward_list = self.get_reward(clean_observation, clean_action)
         for i in range(len(reward_list)):
@@ -270,8 +270,8 @@ class GeneralEnv(CustomEnv):
             if key not in self.observation_dict:
                 self.observation_dict[key] = []
                 self.observation_dict[key].append(0.0)
-            # if self.stabilized:
-            #     reward_list[i] += 0.5
+            if done:
+                reward_list[i] -= 0.5
             self.observation_dict[key].append(reward_list[i])
 
         truncated = self.check_episode_end()

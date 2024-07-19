@@ -557,9 +557,11 @@ class CustomSAC(SAC):
         fps = int((self.num_timesteps - self._num_timesteps_at_start) / time_elapsed)
         self.logger.record("time/episodes", self._episode_num, exclude="tensorboard")
         if len(self.ep_info_buffer) > 0 and len(self.ep_info_buffer[0]) > 0:
+            mean_length = safe_mean([ep_info[0]["l"] for ep_info in self.ep_info_buffer])
             for i in range(len(self.ep_info_buffer[0])):
                 self.logger.record("rollout/ep_rew_mean_" + str(i), safe_mean([ep_info[i]["r"] for ep_info in self.ep_info_buffer]))
-            self.logger.record("rollout/ep_len_mean", safe_mean([ep_info[0]["l"] for ep_info in self.ep_info_buffer]))
+                self.logger.record("rollout/avg_rew_" + str(i), safe_mean([ep_info[i]["r"] for ep_info in self.ep_info_buffer])/mean_length)
+            self.logger.record("rollout/ep_len_mean", mean_length)
         self.logger.record("time/fps", fps)
         self.logger.record("time/time_elapsed", int(time_elapsed), exclude="tensorboard")
         self.logger.record("time/total_timesteps", self.num_timesteps, exclude="tensorboard")
@@ -590,15 +592,15 @@ class CustomSAC(SAC):
         return last_obs, last_original_obs
 
     def after_environment_reset(self, environment):
-        base = 0.0
-        start = 0.05
-        rise = 0.2
-        end = 0.25
+        base = 0.1
+        start = 0.025
+        rise = 0.075
+        end = 1
 
         factor = ((self.progress - start) / rise)
         factor = np.clip(factor, 0, 1) * (end - base) + base
 
-        factor = 0.2
+        factor = 0.0
 
         #
         # changing_values = {
@@ -633,20 +635,20 @@ class CustomSAC(SAC):
             'com': 0.25 * factor,
             'I': 0.25 * factor,
             'Ir': 0.0001 * factor,
-            'start_delay': 0.1 * factor,
+            'start_delay': 0.1 * factor * 0,
             'delay': 0.04 * factor,
             'velocity_noise': 0.025 * factor,
             'velocity_bias': 0.0,
             'position_noise': 0.025 * factor * 0,
             'position_bias': 0.0,
-            'action_noise': 0.025 * factor * 0,
+            'action_noise': 0.1 * factor * 0,
             'action_bias': 0.0,
             'n_pert_per_joint': 0,
             'min_t_dist': 1.0,
             'sigma_minmax': [0.05, 0.1],
             'amplitude_min_max': [0.5, 5.0],
-            'responsiveness': np.random.uniform(1 - 0.9 * factor * 2 * 0, 1 + 1 * factor * 2 * 0)
+            'responsiveness': np.random.uniform(1 - 0.9 * factor * 0, 1 + 1 * factor * 0)
         }
 
-        if factor > 0:
+        if factor > 0: # and not (self.progress > 0 and environment.is_evaluation_environment):
             environment.change_dynamics(changing_values, self.progress)

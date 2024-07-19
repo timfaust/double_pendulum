@@ -31,14 +31,14 @@
       "train_env": {
         "dynamics_function": "default_dynamics",
         "reset_function": "low_reset",
-        "reward_function": "score_reward",
+        "reward_function": "future_pos_reward",
         "same_environment": 1,
         "n_envs": 20
       },
       "eval_env": {
         "dynamics_function": "default_dynamics",
         "reset_function": "low_reset",
-        "reward_function": "score_reward",
+        "reward_function": "future_pos_reward",
         "same_environment": 1,
         "n_envs": 1
       },
@@ -46,16 +46,16 @@
       "dt": 0.01,
       "max_torque": 6,
 
-      "actor_schedule": ["MultiStepLR(milestones=[99,100], gamma=0.1, lr=0.001)", 0.001],
-      "critic_schedule": ["MultiStepLR(milestones=[99,100], gamma=0.1, lr=0.001)", 0.001],
+      "actor_schedule": ["ExponentialLR(gamma=0.95, lr=0.005)", 0.001],
+      "critic_schedule": ["ExponentialLR(gamma=0.95, lr=0.005)", 0.001],
       "entropy_schedule": [0.001, 0.001],
       "gradient_steps": 3,
-      "buffer_size": 200000,
-      "batch_size": 1024,
+      "buffer_size": 125000,
+      "batch_size": 512,
       "train_freq": 1,
       "target_update_interval": 1,
       "max_episode_steps": 1000,
-      "training_steps": 10000000,
+      "training_steps": 2000000,
       "use_action_noise": 1,
       "eval_freq": 25000,
       "n_eval_episodes": 1,
