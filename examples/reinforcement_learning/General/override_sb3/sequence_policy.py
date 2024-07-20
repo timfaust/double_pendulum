@@ -35,6 +35,7 @@ class SmoothingFilter(nn.Module):
         alpha_sigmoid = alpha_sigmoid.expand(batch_size, sequence_length, num_features)  # Expand to match the input dimensions
         return alpha_sigmoid * x + (1 - alpha_sigmoid) * smoothed
 
+
 class SequenceExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space: gym.spaces.Box, translator):
         super().__init__(observation_space, translator.output_dim + translator.additional_features)
@@ -88,7 +89,7 @@ class LSTMExtractor(SequenceExtractor):
 class SequenceTranslator(DefaultTranslator):
     def __init__(self):
         self.reset()
-        self.timesteps = 128
+        self.timesteps = 256
         self.feature_dim = 5
         self.output_dim = 16
         self.additional_features = 8

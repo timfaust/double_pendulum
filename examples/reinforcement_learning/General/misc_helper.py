@@ -123,7 +123,7 @@ def calculate_q_values(reward, gamma):
     return np.array(actual_Q)
 
 
-def get_i_decay(x, factor=2, offset=0.1):
+def get_i_decay(x, factor=2, offset=0.0):
     return np.where(x <= offset, 1, 1 / (factor * (x - offset) + 1))
 
 

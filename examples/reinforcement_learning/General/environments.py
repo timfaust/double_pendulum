@@ -308,6 +308,10 @@ class GeneralEnv(CustomEnv):
         self.observation_dict['X_real'].append(clean_observation)
 
     def change_dynamics(self, changing_values, progress):
+        factory_reset = np.random.random() < 0.1
+
+        if factory_reset:
+            changing_values['n_pert_per_joint'] = 0
 
         if self.use_perturbations and 'n_pert_per_joint' in changing_values and changing_values['n_pert_per_joint'] > 0:
             perturbation_array, _, _, _ = get_random_gauss_perturbation_array(
@@ -335,6 +339,8 @@ class GeneralEnv(CustomEnv):
         for key, value in plant_parameters.items():
             if key in changing_values:
                 sigma = changing_values[key]
+                if factory_reset:
+                    sigma = 0
                 if key == 'l' or key == 'I' or key == 'm' or key == 'com':
                     new_value = np.array(value) + np.random.uniform(-value[0] * sigma, value[0] * sigma, 2)
                     new_value = new_value.tolist()
@@ -354,11 +360,13 @@ class GeneralEnv(CustomEnv):
         for param in environment_parameters:
             if param in changing_values:
                 value = np.random.uniform(-changing_values[param], changing_values[param])
+                if factory_reset:
+                    value = 0
                 if 'bias' not in param:
                     value = np.abs(value)
                 setattr(self, param, value)
 
-        if 'responsiveness' in changing_values:
+        if 'responsiveness' in changing_values or factory_reset:
             self.responsiveness = changing_values['responsiveness']
         else:
             self.responsiveness = 1

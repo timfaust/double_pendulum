@@ -600,7 +600,7 @@ class CustomSAC(SAC):
         factor = ((self.progress - start) / rise)
         factor = np.clip(factor, 0, 1) * (end - base) + base
 
-        p_factor = 0.0
+        p_factor = 1.0
         n_factor = 1.0
 
         #
@@ -651,5 +651,4 @@ class CustomSAC(SAC):
             'responsiveness': np.random.uniform(1 - 0.9 * n_factor, 1 + 1 * n_factor)
         }
 
-        if factor > 0: # and not (self.progress > 0 and environment.is_evaluation_environment):
-            environment.change_dynamics(changing_values, self.progress)
+        environment.change_dynamics(changing_values, self.progress)

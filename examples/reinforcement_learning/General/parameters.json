@@ -40,7 +40,7 @@
         "reset_function": "low_reset",
         "reward_function": "future_pos_reward",
         "same_environment": 1,
-        "n_envs": 1
+        "n_envs": 50
       },
       "normalization": "custom_dynamics_func_4PI",
       "dt": 0.01,
@@ -57,10 +57,10 @@
       "max_episode_steps": 1000,
       "training_steps": 2000000,
       "use_action_noise": 1,
-      "eval_freq": 25000,
+      "eval_freq": 100000,
       "n_eval_episodes": 1,
       "render_eval": 1,
-      "render_every_steps": 5,
+      "render_every_steps": 1,
       "render_every_envs": 100,
       "verbose": 0,
       "show_progress_bar": 1,
