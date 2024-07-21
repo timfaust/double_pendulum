@@ -165,6 +165,7 @@ class CustomSAC(SAC):
             env = self.env
         for monitor in env.envs:
             monitor.env.visualizer.model = self
+            monitor.env.sac = self
 
     def select_policy(self, policy_id):
         if len(self.policies) > policy_id >= 0:
@@ -603,31 +604,6 @@ class CustomSAC(SAC):
         p_factor = 1.0
         n_factor = 1.0
 
-        #
-        # changing_values = {
-        #     'l': 0.0 * factor,
-        #     'm': 0.25 * factor,
-        #     'b': 0.1 * factor,
-        #     'coulomb_fric': 0.2 * factor,
-        #     'com': 0.25 * factor,
-        #     'I': 0.25 * factor,
-        #     'Ir': 0.0001 * factor,
-        #     'start_delay': 0.0 * factor,
-        #     'delay': 0.04 * factor,
-        #     'velocity_noise': 0.025 * factor,
-        #     'velocity_bias': 0.0 * factor,
-        #     'position_noise': 0.0 * factor,
-        #     'position_bias': 0.0 * factor,
-        #     'action_noise': 0.22 * factor,
-        #     'action_bias': 0.0 * factor,
-        #     'n_pert_per_joint': 0,
-        #     'min_t_dist': 1.0,
-        #     'sigma_minmax': [0.05, 0.1],
-        #     'amplitude_min_max': [0.1, 5.0],
-        #     'responsiveness': np.random.uniform(1 - factor * 1.8, 1 + factor * 2)
-        # }
-        #
-
         changing_values = {
             'l': 0.0,
             'm': 0.25 * p_factor,
@@ -638,17 +614,17 @@ class CustomSAC(SAC):
             'Ir': 0.0001 * p_factor,
             'start_delay': 0.0,
             'delay': 0.04 * n_factor,
-            'velocity_noise': 0.025 * n_factor,
+            'velocity_noise': 0.5 / environment.dynamics_func.max_velocity * n_factor,
             'velocity_bias': 0.0,
             'position_noise': 0.0,
             'position_bias': 0.0,
-            'action_noise': 0.1 * n_factor,
+            'action_noise': 1.1 / environment.dynamics_func.torque_limit[0] * n_factor,
             'action_bias': 0.0,
             'n_pert_per_joint': 0,
             'min_t_dist': 1.0,
             'sigma_minmax': [0.05, 0.1],
             'amplitude_min_max': [0.5, 5.0],
-            'responsiveness': np.random.uniform(1 - 0.9 * n_factor, 1 + 1 * n_factor)
+            'responsiveness': [1 - 0.9 * n_factor, 1 + 1 * n_factor]
         }
 
         environment.change_dynamics(changing_values, self.progress)
