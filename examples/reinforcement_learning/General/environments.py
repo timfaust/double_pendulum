@@ -262,9 +262,9 @@ class GeneralEnv(CustomEnv):
         terminated = self.terminated_func(dirty_observation, clean_action)
         self.killed_because = (np.argmax(terminated) + 1) if np.any(terminated) else 0
         done = self.killed_because != 0
-        # if not done:
-        #     self.stabilized = get_stabilized(self.observation_dict) >= 1
-        #     done = self.stabilized
+        if not done:
+            self.stabilized = get_stabilized(self.observation_dict) >= 1
+            done = self.stabilized
 
         reward_list = self.get_reward(clean_observation, clean_action)
         for i in range(len(reward_list)):
@@ -272,8 +272,10 @@ class GeneralEnv(CustomEnv):
             if key not in self.observation_dict:
                 self.observation_dict[key] = []
                 self.observation_dict[key].append(0.0)
-            if done:
+            if done and not self.stabilized:
                 reward_list[i] -= 0.5
+            if done and self.stabilized:
+                reward_list[i] += 0.5
             self.observation_dict[key].append(reward_list[i])
 
         truncated = self.check_episode_end()

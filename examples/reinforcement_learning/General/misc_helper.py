@@ -176,9 +176,10 @@ def get_stabilized(observation_dict, threshold=0.001):
     #TODO: add lowpass filter
     X_meas = np.array(observation_dict['X_real'])
     T = observation_dict['T']
+    f = np.abs(np.sin((X_meas[-1][0] + X_meas[-1][1]) * 3 * np.pi / 2))
 
     # Check if the last measurement is within the specified range
-    if abs(abs(X_meas[-1, 0] + X_meas[-1, 1]) - 0.5) > 0.03:
+    if f < 0.99:
         return 0.0
 
     n = len(X_meas)
