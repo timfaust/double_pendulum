@@ -172,7 +172,7 @@ def find_observation_index(observation, observation_dict):
     return -1
 
 
-def get_stabilized(observation_dict, threshold=0.001):
+def get_stabilized(observation_dict, threshold=0.002):
     #TODO: add lowpass filter
     X_meas = np.array(observation_dict['X_real'])
     T = observation_dict['T']

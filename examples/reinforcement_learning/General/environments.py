@@ -91,11 +91,11 @@ class GeneralEnv(CustomEnv):
         self.dynamics_func.simulator.plant.observation_dict = self.observation_dict
 
     def initialize_disturbances(self, use_perturbations=False):
-        self.velocity_noise = 0.0
+        self.velocity_noise = 0.001
         self.velocity_bias = 0.0
-        self.position_noise = 0.0
+        self.position_noise = 0.001
         self.position_bias = 0.0
-        self.action_noise = 0.0
+        self.action_noise = 0.001
         self.action_bias = 0.0
         self.start_delay = 0.0
         self.delay = 0.0
