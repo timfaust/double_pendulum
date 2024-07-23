@@ -45,6 +45,7 @@ class GeneralEnv(CustomEnv):
         self.param_data = json.load(open(path))[param_name]
 
         self.type = None
+        self.initialized = False
         self.render_every_steps = None
         self.render_every_envs = None
         self.same_environment = None
@@ -90,7 +91,7 @@ class GeneralEnv(CustomEnv):
 
         self.dynamics_func.simulator.plant.observation_dict = self.observation_dict
 
-    def initialize_disturbances(self, use_perturbations=False):
+    def initialize_disturbances(self):
         self.velocity_noise = 0.001
         self.velocity_bias = 0.0
         self.position_noise = 0.001
@@ -100,7 +101,6 @@ class GeneralEnv(CustomEnv):
         self.start_delay = 0.0
         self.delay = 0.0
         self.responsiveness = 1
-        self.use_perturbations = use_perturbations
         self.perturbations = []
 
     def initialize_from_params(self):
@@ -149,8 +149,8 @@ class GeneralEnv(CustomEnv):
             if key != 'dynamics_func' and key != 'max_episode_steps' and key != 'mpar':
                 self.observation_dict[key].clear()
 
-        if self.sac and (self.killed_because == 0 or self.sac.progress == 0.0):
-            self.sac.after_environment_reset(self)
+        if self.sac and (not self.initialized or self.use_perturbations):
+            self.change_dynamics()
 
         clean_observation = np.array(self.reset_function())
         dirty_observation = self.apply_observation_disturbances(clean_observation)
@@ -310,7 +310,32 @@ class GeneralEnv(CustomEnv):
         self.observation_dict['X_meas'].append(dirty_observation)
         self.observation_dict['X_real'].append(clean_observation)
 
-    def change_dynamics(self, changing_values: Dict[str, Any], progress: float, N: int = 21):
+    def change_dynamics(self, option: [] = [14, 0], progress: float = 0.0, N: int = 5):
+        p_factor = 1
+        n_factor = 1
+        changing_values = {
+            'l': 0.0,
+            'm': 0.25 * p_factor,
+            'b': 0.1 * p_factor,
+            'coulomb_fric': 0.2 * p_factor,
+            'com': 0.25 * p_factor,
+            'I': 0.25 * p_factor,
+            'Ir': 0.0001 * p_factor,
+            'start_delay': 0.0,
+            'delay': 0.04 * n_factor,
+            'velocity_noise': 0.5 / self.dynamics_func.max_velocity * n_factor,
+            'velocity_bias': 0.0,
+            'position_noise': 0.0,
+            'position_bias': 0.0,
+            'action_noise': 1.1 / self.dynamics_func.torque_limit[0] * n_factor,
+            'action_bias': 0.0,
+            'n_pert_per_joint': 3,
+            'min_t_dist': 1.0,
+            'sigma_minmax': [0.05, 0.1],
+            'amplitude_min_max': [0.5, 5.0],
+            'responsiveness': [1 - 0.9 * n_factor, 1 + 1 * n_factor]
+        }
+
         plant = self.dynamics_func.simulator.plant
         plant_parameters = {
             'l': self.mpar.l.copy(),
@@ -325,20 +350,21 @@ class GeneralEnv(CustomEnv):
         for key, value in plant_parameters.items():
             setattr(plant, key, value)
 
-        self.initialize_disturbances(changing_values.get('n_pert_per_joint', 0) > 0)
+        self.initialize_disturbances()
 
         variables_to_change = [
-            'm', 'b', 'coulomb_fric', 'com', 'I', 'Ir', 'delay',
-            'velocity_noise', 'action_noise', 'responsiveness'
+            'm2', 'b1', 'b2', 'coulomb_fric1', 'coulomb_fric2', 'com1', 'com2', 'I1', 'I2', 'Ir', 'delay',
+            'velocity_noise', 'action_noise', 'responsiveness', 'n_pert_per_joint'
         ]
 
-        if self.use_perturbations:
-            variables_to_change.append('n_pert_per_joint')
-
-        action = np.random.choice(variables_to_change + ['reset_to_default'])
-        index = np.random.choice([0, 1])
+        action = variables_to_change[option[0]]
+        index = -1
+        if action[-1].isdigit():
+            index = int(action[-1]) - 1
+            action = action[:-1]
 
         if action == 'n_pert_per_joint':
+            self.use_perturbations = True
             self.perturbations, *_ = get_random_gauss_perturbation_array(
                 self.dynamics_func.dt * self.max_episode_steps,
                 self.dynamics_func.dt,
@@ -354,26 +380,27 @@ class GeneralEnv(CustomEnv):
                     base_value = plant_parameters[action][index]
                     steps = np.linspace((1 - value) * base_value, (1 + value) * base_value, N)
                     new_value = getattr(plant, action)
-                    new_value[index] = np.random.choice(steps)
+                    new_value[index] = steps[option[1]]
                     setattr(plant, action, new_value)
                 elif action in ['coulomb_fric', 'b']:
                     steps = np.linspace(-value, value, N)
                     new_value = getattr(plant, action)
-                    new_value[index] = np.random.choice(steps)
+                    new_value[index] = steps[option[1]]
                     setattr(plant, action, new_value)
                 elif action == 'Ir':
                     steps = np.linspace(0, value, N)
-                    setattr(plant, action, np.random.choice(steps))
+                    setattr(plant, action, steps[option[1]])
                 elif action == 'responsiveness':
                     steps = np.linspace(value[0], value[1], N)
-                    self.responsiveness = np.random.choice(steps)
+                    self.responsiveness = steps[option[1]]
                 elif action in ["position_noise", "velocity_noise", "action_noise", "delay", "start_delay"]:
                     steps = np.linspace(0, value, N)
-                    setattr(self, action, np.random.choice(steps))
+                    setattr(self, action, steps[option[1]])
                 elif action in ["position_bias", "velocity_bias", "action_bias"]:
                     steps = np.linspace(-value, value, N)
-                    setattr(self, action, np.random.choice(steps))
+                    setattr(self, action, steps[option[1]])
 
+        self.initialized = True
         self.update_plant()
 
     def change_dynamics_old(self, changing_values, progress):

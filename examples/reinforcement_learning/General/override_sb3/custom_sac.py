@@ -163,9 +163,16 @@ class CustomSAC(SAC):
     def connect_visualization(self, env=None):
         if env is None:
             env = self.env
+        options = [0, 0]
         for monitor in env.envs:
             monitor.env.visualizer.model = self
             monitor.env.sac = self
+            print("change normal dynamics with option: ", options)
+            monitor.env.change_dynamics(option=options)
+            options[1] += 1
+            if options[1] == 5:
+                options[1] = 0
+                options[0] += 1
 
     def select_policy(self, policy_id):
         if len(self.policies) > policy_id >= 0:
@@ -604,27 +611,4 @@ class CustomSAC(SAC):
         p_factor = 1.0
         n_factor = 1.0
 
-        changing_values = {
-            'l': 0.0,
-            'm': 0.25 * p_factor,
-            'b': 0.1 * p_factor,
-            'coulomb_fric': 0.2 * p_factor,
-            'com': 0.25 * p_factor,
-            'I': 0.25 * p_factor,
-            'Ir': 0.0001 * p_factor,
-            'start_delay': 0.0,
-            'delay': 0.04 * n_factor,
-            'velocity_noise': 0.5 / environment.dynamics_func.max_velocity * n_factor,
-            'velocity_bias': 0.0,
-            'position_noise': 0.0,
-            'position_bias': 0.0,
-            'action_noise': 1.1 / environment.dynamics_func.torque_limit[0] * n_factor,
-            'action_bias': 0.0,
-            'n_pert_per_joint': 0,
-            'min_t_dist': 1.0,
-            'sigma_minmax': [0.05, 0.1],
-            'amplitude_min_max': [0.5, 5.0],
-            'responsiveness': [1 - 0.9 * n_factor, 1 + 1 * n_factor]
-        }
-
-        environment.change_dynamics(changing_values, self.progress)
+        environment.change_dynamics(progress=self.progress)
