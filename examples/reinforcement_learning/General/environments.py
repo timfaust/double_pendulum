@@ -45,7 +45,7 @@ class GeneralEnv(CustomEnv):
         self.param_data = json.load(open(path))[param_name]
 
         self.type = None
-        self.initialized = False
+        self.initialized = None
         self.render_every_steps = None
         self.render_every_envs = None
         self.same_environment = None
@@ -149,8 +149,8 @@ class GeneralEnv(CustomEnv):
             if key != 'dynamics_func' and key != 'max_episode_steps' and key != 'mpar':
                 self.observation_dict[key].clear()
 
-        if self.sac and (not self.initialized or self.use_perturbations):
-            self.change_dynamics()
+        if self.sac and (self.initialized[1] == -1 or self.use_perturbations):
+            self.change_dynamics(N=21)
 
         clean_observation = np.array(self.reset_function())
         dirty_observation = self.apply_observation_disturbances(clean_observation)
@@ -310,7 +310,9 @@ class GeneralEnv(CustomEnv):
         self.observation_dict['X_meas'].append(dirty_observation)
         self.observation_dict['X_real'].append(clean_observation)
 
-    def change_dynamics(self, option: [] = [14, 0], progress: float = 0.0, N: int = 5):
+    def change_dynamics(self, option=None, progress: float = 0.0, N: int = 5):
+        if option is None:
+            option = self.initialized
         p_factor = 1
         n_factor = 1
         changing_values = {
@@ -353,7 +355,7 @@ class GeneralEnv(CustomEnv):
         self.initialize_disturbances()
 
         variables_to_change = [
-            'm2', 'b1', 'b2', 'coulomb_fric1', 'coulomb_fric2', 'com1', 'com2', 'I1', 'I2', 'Ir', 'delay',
+            'nothing', 'm2', 'b1', 'b2', 'coulomb_fric1', 'coulomb_fric2', 'com1', 'com2', 'I1', 'I2', 'Ir', 'delay',
             'velocity_noise', 'action_noise', 'responsiveness', 'n_pert_per_joint'
         ]
 
@@ -363,6 +365,7 @@ class GeneralEnv(CustomEnv):
             index = int(action[-1]) - 1
             action = action[:-1]
 
+        self.use_perturbations = False
         if action == 'n_pert_per_joint':
             self.use_perturbations = True
             self.perturbations, *_ = get_random_gauss_perturbation_array(
@@ -381,93 +384,45 @@ class GeneralEnv(CustomEnv):
                     steps = np.linspace((1 - value) * base_value, (1 + value) * base_value, N)
                     new_value = getattr(plant, action)
                     new_value[index] = steps[option[1]]
+                    if option[1] == -1:
+                        new_value[index] = np.random.choice(steps)
                     setattr(plant, action, new_value)
                 elif action in ['coulomb_fric', 'b']:
                     steps = np.linspace(-value, value, N)
                     new_value = getattr(plant, action)
                     new_value[index] = steps[option[1]]
+                    if option[1] == -1:
+                        new_value[index] = np.random.choice(steps)
                     setattr(plant, action, new_value)
                 elif action == 'Ir':
                     steps = np.linspace(0, value, N)
-                    setattr(plant, action, steps[option[1]])
+                    new_value = steps[option[1]]
+                    if option[1] == -1:
+                        new_value = np.random.choice(steps)
+                    setattr(plant, action, new_value)
                 elif action == 'responsiveness':
                     steps = np.linspace(value[0], value[1], N)
-                    self.responsiveness = steps[option[1]]
+                    new_value = steps[option[1]]
+                    if option[1] == -1:
+                        new_value = np.random.choice(steps)
+                    self.responsiveness = new_value
                 elif action in ["position_noise", "velocity_noise", "action_noise", "delay", "start_delay"]:
                     steps = np.linspace(0, value, N)
-                    setattr(self, action, steps[option[1]])
+                    new_value = steps[option[1]]
+                    if option[1] == -1:
+                        new_value = np.random.choice(steps)
+                    setattr(self, action, new_value)
                 elif action in ["position_bias", "velocity_bias", "action_bias"]:
                     steps = np.linspace(-value, value, N)
-                    setattr(self, action, steps[option[1]])
+                    new_value = steps[option[1]]
+                    if option[1] == -1:
+                        new_value = np.random.choice(steps)
+                    setattr(self, action, new_value)
 
-        self.initialized = True
-        self.update_plant()
-
-    def change_dynamics_old(self, changing_values, progress):
-        factory_reset = np.random.random() < 0.1
-
-        if factory_reset:
-            changing_values['n_pert_per_joint'] = 0
-
-        if self.use_perturbations and 'n_pert_per_joint' in changing_values and changing_values['n_pert_per_joint'] > 0:
-            perturbation_array, _, _, _ = get_random_gauss_perturbation_array(
-                self.dynamics_func.dt * self.max_episode_steps,
-                self.dynamics_func.dt,
-                changing_values['n_pert_per_joint'],
-                changing_values['min_t_dist'],
-                changing_values['sigma_minmax'],
-                changing_values['amplitude_min_max']
-            )
-            self.perturbations = perturbation_array
-
-        plant = self.dynamics_func.simulator.plant
-
-        plant_parameters = {
-            'l': self.mpar.l,
-            'm': self.mpar.m,
-            'b': self.mpar.b,
-            'coulomb_fric': self.mpar.cf,
-            'com': self.mpar.r,
-            'I': self.mpar.I,
-            'Ir': self.mpar.Ir,
-        }
-
-        for key, value in plant_parameters.items():
-            if key in changing_values:
-                sigma = changing_values[key]
-                if factory_reset:
-                    sigma = 0
-                if key == 'l' or key == 'I' or key == 'm' or key == 'com':
-                    new_value = np.array(value) + np.random.uniform(-value[0] * sigma, value[0] * sigma, 2)
-                    new_value = new_value.tolist()
-                elif key == 'coulomb_fric' or key == 'b':
-                    new_value = np.array(value) + np.random.uniform(-sigma, sigma, 2)
-                    new_value = new_value.tolist()
-                elif key == 'Ir':
-                    new_value = (np.array(value) + np.random.uniform(0, sigma, 1))[0]
-
-                setattr(plant, key, new_value)
-
-        environment_parameters = [
-            'velocity_noise', 'velocity_bias', 'position_noise', 'position_bias',
-            'action_noise', 'action_bias', 'start_delay', 'delay'
-        ]
-
-        for param in environment_parameters:
-            if param in changing_values:
-                value = np.random.uniform(-changing_values[param], changing_values[param])
-                if factory_reset:
-                    value = 0
-                if 'bias' not in param:
-                    value = np.abs(value)
-                setattr(self, param, value)
-
-        if 'responsiveness' in changing_values and not factory_reset:
-            self.responsiveness = np.random.uniform(changing_values['responsiveness'][0], changing_values['responsiveness'][1])
-        else:
-            self.responsiveness = 1
-
-        self.update_plant()
+        if (self.initialized is None or self.initialized[1] == -1) and action not in ['nothing', 'delay', 'velocity_noise', 'action_noise', 'responsiveness', 'n_pert_per_joint']:
+            self.update_plant()
+            print("update plant", option, ", is eval:", self.is_evaluation_environment, ",action:", action)
+        self.initialized = option
 
     def update_plant(self):
         plant = self.dynamics_func.simulator.plant

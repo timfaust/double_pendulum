@@ -33,14 +33,14 @@
         "reset_function": "low_reset",
         "reward_function": "future_pos_reward",
         "same_environment": 1,
-        "n_envs": 75
+        "n_envs": 32
       },
       "eval_env": {
         "dynamics_function": "default_dynamics",
         "reset_function": "low_reset",
         "reward_function": "future_pos_reward",
         "same_environment": 1,
-        "n_envs": 75
+        "n_envs": 112
       },
       "normalization": "custom_dynamics_func_4PI",
       "dt": 0.01,
@@ -49,7 +49,7 @@
       "actor_schedule": ["ExponentialLR(gamma=0.95, lr=0.005)", 0.001],
       "critic_schedule": ["ExponentialLR(gamma=0.95, lr=0.005)", 0.001],
       "entropy_schedule": [0.001, 0.001],
-      "gradient_steps": 12,
+      "gradient_steps": 5,
       "buffer_size": 125000,
       "batch_size": 512,
       "train_freq": 1,

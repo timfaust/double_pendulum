@@ -161,18 +161,27 @@ class CustomSAC(SAC):
                 self.schedulers.append(create_lr_schedule(self.ent_coef_optimizer, schedule_params['entropy_schedule'][i]))
 
     def connect_visualization(self, env=None):
+        N = 7
         if env is None:
             env = self.env
         options = [0, 0]
         for monitor in env.envs:
             monitor.env.visualizer.model = self
             monitor.env.sac = self
-            print("change normal dynamics with option: ", options)
-            monitor.env.change_dynamics(option=options)
+            if monitor.env.is_evaluation_environment:
+                print("change eval dynamics with option: ", options)
+                monitor.env.change_dynamics(option=options, N=N)
+            else:
+                options2 = [options[0], -1]
+                print("change normal dynamics with option: ", options2)
+                monitor.env.change_dynamics(option=options2)
+                options[1] = N - 1
             options[1] += 1
-            if options[1] == 5:
+            if options[1] == N:
                 options[1] = 0
                 options[0] += 1
+            if options[0] == 15:
+                options[0] = 0
 
     def select_policy(self, policy_id):
         if len(self.policies) > policy_id >= 0:
@@ -598,17 +607,3 @@ class CustomSAC(SAC):
             monitor.env.sac = self
 
         return last_obs, last_original_obs
-
-    def after_environment_reset(self, environment):
-        base = 0.1
-        start = 0.0
-        rise = 0.8
-        end = 1
-
-        factor = ((self.progress - start) / rise)
-        factor = np.clip(factor, 0, 1) * (end - base) + base
-
-        p_factor = 1.0
-        n_factor = 1.0
-
-        environment.change_dynamics(progress=self.progress)
