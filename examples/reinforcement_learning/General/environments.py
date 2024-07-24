@@ -92,11 +92,11 @@ class GeneralEnv(CustomEnv):
         self.dynamics_func.simulator.plant.observation_dict = self.observation_dict
 
     def initialize_disturbances(self):
-        self.velocity_noise = 0.001
+        self.velocity_noise = 0.00
         self.velocity_bias = 0.0
-        self.position_noise = 0.001
+        self.position_noise = 0.00
         self.position_bias = 0.0
-        self.action_noise = 0.001
+        self.action_noise = 0.00
         self.action_bias = 0.0
         self.start_delay = 0.0
         self.delay = 0.0
@@ -421,7 +421,6 @@ class GeneralEnv(CustomEnv):
 
         if (self.initialized is None or self.initialized[1] == -1) and action not in ['nothing', 'delay', 'velocity_noise', 'action_noise', 'responsiveness', 'n_pert_per_joint']:
             self.update_plant()
-            print("update plant", option, ", is eval:", self.is_evaluation_environment, ",action:", action)
         self.initialized = option
 
     def update_plant(self):

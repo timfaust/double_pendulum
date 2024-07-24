@@ -170,17 +170,17 @@ class CustomSAC(SAC):
             monitor.env.sac = self
             if monitor.env.is_evaluation_environment:
                 print("change eval dynamics with option: ", options)
-                monitor.env.change_dynamics(option=options, N=N)
+                monitor.env.change_dynamics(option=options.copy(), N=N)
             else:
                 options2 = [options[0], -1]
                 print("change normal dynamics with option: ", options2)
-                monitor.env.change_dynamics(option=options2)
+                monitor.env.change_dynamics(option=options2.copy())
                 options[1] = N - 1
             options[1] += 1
             if options[1] == N:
                 options[1] = 0
                 options[0] += 1
-            if options[0] == 15:
+            if options[0] == 16:
                 options[0] = 0
 
     def select_policy(self, policy_id):
