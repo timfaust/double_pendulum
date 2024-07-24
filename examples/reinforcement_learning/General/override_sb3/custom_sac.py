@@ -1,31 +1,26 @@
 import ast
+import io
+import pathlib
+import pickle
 import re
 import sys
 import time
 from copy import deepcopy
-import random
-from typing import List, Optional, Union, Dict, Any, Tuple
+from typing import List, Optional, Union, Dict, Any, Tuple, Iterable, Type
 
 import numpy as np
 from matplotlib import pyplot as plt
 from stable_baselines3 import SAC
+from stable_baselines3.common.base_class import SelfBaseAlgorithm
 from stable_baselines3.common.buffers import ReplayBuffer
-from stable_baselines3.common.callbacks import BaseCallback
-from stable_baselines3.common.noise import ActionNoise
-from stable_baselines3.common.type_aliases import RolloutReturn, TrainFreq, TrainFrequencyUnit, GymEnv
-from stable_baselines3.common.utils import polyak_update, should_collect_more_steps, safe_mean
-from stable_baselines3.common.vec_env import VecEnv
+from stable_baselines3.common.type_aliases import RolloutReturn, GymEnv
+from stable_baselines3.common.utils import polyak_update, safe_mean
 from torch.optim import lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
-from gymnasium import spaces
 
-from examples.reinforcement_learning.General.misc_helper import softmax_and_select, default_decider, \
-    disturbed_parameters
-from examples.reinforcement_learning.General.override_sb3.common import MultiplePoliciesReplayBuffer, SplitReplayBuffer
+from examples.reinforcement_learning.General.misc_helper import softmax_and_select, default_decider, disturbed_parameters
 import torch as th
 from torch.nn import functional as F
-
-from examples.reinforcement_learning.General.override_sb3.sequence_policy import SequenceSACPolicy
 
 
 def parse_args_kwargs(input_string):
@@ -588,6 +583,62 @@ class CustomSAC(SAC):
             self.logger.record("rollout/success_rate", safe_mean(self.ep_success_buffer))
         # Pass the number of timesteps for tensorboard
         self.logger.dump(step=self.num_timesteps)
+
+    def save(
+        self,
+        path: Union[str, pathlib.Path, io.BufferedIOBase],
+        exclude: Optional[Iterable[str]] = None,
+        include: Optional[Iterable[str]] = None,
+    ) -> None:
+        path = path.replace('.zip', '.pkl')
+        data_to_save = {
+            "policy_classes": self.policy_classes,
+            "decider": self.decider,
+            "replay_buffer_classes": self.replay_buffer_classes,
+            "ent_coef_optimizers": [optimizer.state_dict() for optimizer in self.ent_coef_optimizers],
+            "log_ent_coefs": [coef.detach().cpu().numpy() for coef in self.log_ent_coefs],
+            "policies": [policy.state_dict() for policy in self.policies],
+            # "replay_buffers": self.replay_buffers,
+        }
+
+        with open(path, 'wb') as f:
+            pickle.dump(data_to_save, f)
+
+    @classmethod
+    def load(  # noqa: C901
+            cls: Type[SelfBaseAlgorithm],
+            path: Union[str, pathlib.Path, io.BufferedIOBase],
+            env: Optional[GymEnv] = None,
+            device: Union[th.device, str] = "auto",
+            custom_objects: Optional[Dict[str, Any]] = None,
+            print_system_info: bool = False,
+            force_reset: bool = True,
+            **kwargs,
+    ) -> SelfBaseAlgorithm:
+        path = path + '.pkl'
+        with open(path, 'rb') as f:
+            loaded_data = pickle.load(f)
+
+        model = CustomSAC(
+            policy_classes=loaded_data["policy_classes"],
+            replay_buffer_classes=loaded_data["replay_buffer_classes"],
+            decider=loaded_data["decider"],
+            env=env,
+            **kwargs
+        )
+
+        for i, optimizer_state in enumerate(loaded_data["ent_coef_optimizers"]):
+            model.ent_coef_optimizers[i].load_state_dict(optimizer_state)
+
+        model.log_ent_coefs = [th.tensor(coef) for coef in loaded_data["log_ent_coefs"]]
+
+        for i, policy_state in enumerate(loaded_data["policies"]):
+            model.policies[i].load_state_dict(policy_state)
+
+        if "replay_buffers" in loaded_data:
+            model.replay_buffers = loaded_data["replay_buffers"]
+
+        return model
 
     def set_env(self, env: GymEnv, force_reset: bool = True, last_obs=None, last_original_obs=None):
         if last_obs is not None:

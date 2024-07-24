@@ -16,6 +16,7 @@ from examples.reinforcement_learning.General.environments import GeneralEnv
 from double_pendulum.controller.abstract_controller import AbstractController
 from double_pendulum.utils.plotting import plot_timeseries
 
+from examples.reinforcement_learning.General.misc_helper import debug_reset
 from examples.reinforcement_learning.General.override_sb3.callbacks import CustomEvalCallback
 from examples.reinforcement_learning.General.override_sb3.custom_sac import CustomSAC
 
@@ -117,7 +118,7 @@ class Trainer:
         agent.save(os.path.join(self.log_dir, "saved_model", "trained_model"))
 
     def retrain(self, model_path):
-        if not os.path.exists(self.log_dir + model_path + ".zip"):
+        if not os.path.exists(self.log_dir + model_path + ".pkl"):
             raise Exception("model not found")
 
         self.environment.render_mode = None
@@ -125,12 +126,16 @@ class Trainer:
 
         envs = self.environment.get_envs(log_dir=self.log_dir)
 
-        agent = CustomSAC.load(self.log_dir + model_path, print_system_info=True)
-        agent.set_env(envs)
-        agent.connect_visualization()
+        agent = CustomSAC.load(
+            self.log_dir + model_path,
+            env=envs,
+            action_noise=self.action_noise,
+            seed=self.environment.seed,
+            tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
+            **get_filtered_data(self.environment)
+        )
 
         callback_list = self.get_callback_list(agent)
-
         agent.learn(self.training_steps, callback=callback_list, reset_num_timesteps=True)
         agent.save(os.path.join(self.log_dir, "saved_model", "trained_model"))
 
@@ -144,12 +149,25 @@ class Trainer:
         return eval_envs
 
     def evaluate(self, model_path):
-        if not os.path.exists(self.log_dir + model_path + ".zip"):
+        if not os.path.exists(self.log_dir + model_path + ".pkl"):
             raise Exception("model not found")
 
-        agent = CustomSAC.load(self.log_dir + model_path, print_system_info=True)
+        self.environment.render_mode = None
+        self.environment.reset()
+
+        envs = self.environment.get_envs(log_dir=self.log_dir)
+
+        agent = CustomSAC.load(
+            self.log_dir + model_path,
+            env=envs,
+            action_noise=self.action_noise,
+            seed=self.environment.seed,
+            tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
+            **get_filtered_data(self.environment)
+        )
 
         eval_envs = self.get_eval_envs(agent)
+        agent.set_env(eval_envs)
 
         episode_rewards = []
         episode_lengths = []
@@ -241,23 +259,44 @@ class GeneralController(AbstractController):
     def __init__(self, environment: GeneralEnv, model_path):
         super().__init__()
 
-        self.model = CustomSAC.load(model_path, print_system_info=True)
         self.environment = environment
+        environment.n_envs = 1
+
+        envs = self.environment.get_envs(log_dir=None)
+        envs.envs[0].env.reset_function = debug_reset
+        envs.envs[0].env.reset()
+
+        self.model = CustomSAC.load(
+            model_path,
+            env=envs,
+            action_noise=None,
+            seed=self.environment.seed,
+            tensorboard_log=None,
+            **get_filtered_data(self.environment)
+        )
+
         self.simulation = environment.simulation
         self.dynamics_func = environment.dynamics_func
         self.dt = environment.dynamics_func.dt
         self.scaling = environment.dynamics_func.scaling
         self.integrator = environment.dynamics_func.integrator
 
+        self.last_u = None
+        self.last_action = 0.0
+
     # TODO:needs build state rework, aktuellste action eigentlich unbekannt!
     def get_control_output_(self, x, t=None):
 
-        if self.scaling:
+        rounded_t = np.rint(t * 10000).astype(int)
+        rounded_dt = np.rint(self.dt * 10000).astype(int)
+        if rounded_t % rounded_dt == 0:
+            env = self.model.env.envs[0].env
             obs = self.dynamics_func.normalize_state(x)
-            action = self.model.predict(observation=self.environment.translator.build_state(self.environment, obs, obs), deterministic=True)
-            u = self.dynamics_func.unscale_action(action)
-        else:
-            action = self.model.predict(observation=self.environment.translator.build_state(self.environment, x, x), deterministic=True)
-            u = self.dynamics_func.unscale_action(action)
+            if t != 0:
+                env.append_observation_dict(obs, obs, self.last_action)
+                env.observation_dict['U_con'].append(self.last_action)
+            action, _ = self.model.predict(observation=obs.reshape(1, -1), deterministic=True)
+            self.last_u = self.dynamics_func.unscale_action(action)
+            self.last_action = action.item()
 
-        return u
+        return self.last_u.copy()
