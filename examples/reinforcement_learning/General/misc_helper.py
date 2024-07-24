@@ -129,7 +129,9 @@ def calculate_q_values(reward, gamma):
 
 
 def get_i_decay(x, factor=2, offset=0.0):
-    return np.where(x < offset, 1, 1 / (factor * (x - offset) + 1))
+    if x < offset:
+        x = offset
+    return 1 / (factor * (x - offset) + 1)
 
 
 def get_unscaled_action(observation_dict, t_minus=0, key='U_real'):

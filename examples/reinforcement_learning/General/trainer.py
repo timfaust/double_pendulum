@@ -284,7 +284,7 @@ class GeneralController(AbstractController):
         self.last_u = None
         self.last_action = 0.0
 
-    # TODO:needs build state rework, aktuellste action eigentlich unbekannt!
+    # TODO:only use every 10th entry in full observation dict und damit zu jedem step neue action
     def get_control_output_(self, x, t=None):
 
         rounded_t = np.rint(t * 10000).astype(int)

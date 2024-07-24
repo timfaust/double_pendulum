@@ -150,7 +150,7 @@ class GeneralEnv(CustomEnv):
                 self.observation_dict[key].clear()
 
         if self.sac and (self.configuration[1] == -1 or self.use_perturbations):
-            self.change_dynamics(N=21)
+            self.change_dynamics()
 
         clean_observation = np.array(self.reset_function())
         dirty_observation = self.apply_observation_disturbances(clean_observation)
@@ -337,7 +337,7 @@ class GeneralEnv(CustomEnv):
 
         return disturbances
 
-    def change_dynamics(self, disturbance=None, progress: float = 0.0, N: int = 5):
+    def change_dynamics(self, disturbance=None, progress: float = 0.0, N: int = 21):
         if disturbance is None:
             disturbance = self.configuration
 

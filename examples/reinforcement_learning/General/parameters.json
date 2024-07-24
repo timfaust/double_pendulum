@@ -32,14 +32,14 @@
         "dynamics_function": "default_dynamics",
         "reset_function": "low_reset",
         "reward_function": "future_pos_reward",
-        "same_environment": 1,
+        "same_environment": 0,
         "n_envs": 32
       },
       "eval_env": {
         "dynamics_function": "default_dynamics",
         "reset_function": "debug_reset",
         "reward_function": "future_pos_reward",
-        "same_environment": 1,
+        "same_environment": 0,
         "n_envs": 112
       },
       "normalization": "custom_dynamics_func_4PI",
