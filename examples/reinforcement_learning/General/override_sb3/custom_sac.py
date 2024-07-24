@@ -19,7 +19,8 @@ from torch.optim import lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
 from gymnasium import spaces
 
-from examples.reinforcement_learning.General.misc_helper import softmax_and_select, default_decider
+from examples.reinforcement_learning.General.misc_helper import softmax_and_select, default_decider, \
+    disturbed_parameters
 from examples.reinforcement_learning.General.override_sb3.common import MultiplePoliciesReplayBuffer, SplitReplayBuffer
 import torch as th
 from torch.nn import functional as F
@@ -121,7 +122,6 @@ def create_lr_schedule(optimizer, schedule_str):
 
 class CustomSAC(SAC):
     def __init__(self, policy_classes, replay_buffer_classes, decider=[default_decider], *args, **kwargs):
-        #TODO: what can be combined? buffer, decider, policies, rewards, translator...
         self.replay_buffer_classes = replay_buffer_classes
         self.schedulers = []
         self.active_policy = 0
@@ -149,7 +149,7 @@ class CustomSAC(SAC):
         kwargs['policy'] = self.policy_classes[0]
         super().__init__(*args, **kwargs)
 
-        self.connect_visualization()
+        self.connect_envs()
 
         for i in range(len(self.policies)):
             self.select_policy(i)
@@ -160,28 +160,28 @@ class CustomSAC(SAC):
             if schedule_params['entropy_schedule']:
                 self.schedulers.append(create_lr_schedule(self.ent_coef_optimizer, schedule_params['entropy_schedule'][i]))
 
-    def connect_visualization(self, env=None):
+    def connect_envs(self, env=None):
         N = 7
         if env is None:
             env = self.env
-        options = [0, 0]
+        if env is None:
+            return
+        configuration = [0, 0]
         for monitor in env.envs:
             monitor.env.visualizer.model = self
             monitor.env.sac = self
             if monitor.env.is_evaluation_environment:
-                print("change eval dynamics with option: ", options)
-                monitor.env.change_dynamics(option=options.copy(), N=N)
+                monitor.env.change_dynamics(disturbance=configuration.copy(), N=N)
             else:
-                options2 = [options[0], -1]
-                print("change normal dynamics with option: ", options2)
-                monitor.env.change_dynamics(option=options2.copy())
-                options[1] = N - 1
-            options[1] += 1
-            if options[1] == N:
-                options[1] = 0
-                options[0] += 1
-            if options[0] == 16:
-                options[0] = 0
+                configuration_random = [configuration[0], -1]
+                monitor.env.change_dynamics(disturbance=configuration_random.copy())
+                configuration[1] = N - 1
+            configuration[1] += 1
+            if configuration[1] == N:
+                configuration[1] = 0
+                configuration[0] += 1
+            if configuration[0] == len(disturbed_parameters):
+                configuration[0] = 0
 
     def select_policy(self, policy_id):
         if len(self.policies) > policy_id >= 0:
@@ -422,8 +422,7 @@ class CustomSAC(SAC):
                 plt.savefig(self.logger.dir + '/gradients.png')
                 plt.close()
 
-                writer.add_image('gradient_chart/' + logging_name, plt.imread(self.logger.dir + '/gradients.png'),
-                                 self.num_timesteps, dataformats='HWC')
+                writer.add_image('gradient_chart/' + logging_name, plt.imread(self.logger.dir + '/gradients.png'), self.num_timesteps, dataformats='HWC')
 
     def train(self, gradient_steps: int, batch_size: int = 64) -> None:
         for i in range(len(self.policies)):

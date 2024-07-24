@@ -6,7 +6,7 @@ from sympy import lambdify
 
 from examples.reinforcement_learning.General.misc_helper import updown_reset, balanced_reset, no_termination, \
     noisy_reset, low_reset, high_reset, random_reset, semi_random_reset, debug_reset, kill_switch, get_unscaled_action, \
-    get_stabilized
+    get_stabilized, disturbed_parameters
 from examples.reinforcement_learning.General.override_sb3.utils import CustomDummyVecEnv, make_vec_env
 from examples.reinforcement_learning.General.reward_functions import get_state_values
 from examples.reinforcement_learning.General.visualizer import Visualizer
@@ -45,7 +45,7 @@ class GeneralEnv(CustomEnv):
         self.param_data = json.load(open(path))[param_name]
 
         self.type = None
-        self.initialized = None
+        self.configuration = None
         self.render_every_steps = None
         self.render_every_envs = None
         self.same_environment = None
@@ -149,7 +149,7 @@ class GeneralEnv(CustomEnv):
             if key != 'dynamics_func' and key != 'max_episode_steps' and key != 'mpar':
                 self.observation_dict[key].clear()
 
-        if self.sac and (self.initialized[1] == -1 or self.use_perturbations):
+        if self.sac and (self.configuration[1] == -1 or self.use_perturbations):
             self.change_dynamics(N=21)
 
         clean_observation = np.array(self.reset_function())
@@ -186,7 +186,6 @@ class GeneralEnv(CustomEnv):
         )
         return envs
 
-    # normalized noise
     def apply_observation_disturbances(self, clean_observation):
         dirty_observation = clean_observation.copy()
         dirty_observation[:2] += np.random.normal(self.position_bias, self.position_noise, size=2)
@@ -310,12 +309,10 @@ class GeneralEnv(CustomEnv):
         self.observation_dict['X_meas'].append(dirty_observation)
         self.observation_dict['X_real'].append(clean_observation)
 
-    def change_dynamics(self, option=None, progress: float = 0.0, N: int = 5):
-        if option is None:
-            option = self.initialized
+    def get_disturbance_values(self, progress: float):
         p_factor = 1
         n_factor = 1
-        changing_values = {
+        disturbances = {
             'l': 0.0,
             'm': 0.25 * p_factor,
             'b': 0.1 * p_factor,
@@ -338,6 +335,14 @@ class GeneralEnv(CustomEnv):
             'responsiveness': [1 - 0.9 * n_factor, 1 + 1 * n_factor]
         }
 
+        return disturbances
+
+    def change_dynamics(self, disturbance=None, progress: float = 0.0, N: int = 5):
+        if disturbance is None:
+            disturbance = self.configuration
+
+        disturbances = self.get_disturbance_values(progress)
+
         plant = self.dynamics_func.simulator.plant
         plant_parameters = {
             'l': self.mpar.l.copy(),
@@ -354,74 +359,70 @@ class GeneralEnv(CustomEnv):
 
         self.initialize_disturbances()
 
-        variables_to_change = [
-            'nothing', 'm2', 'b1', 'b2', 'coulomb_fric1', 'coulomb_fric2', 'com1', 'com2', 'I1', 'I2', 'Ir', 'delay',
-            'velocity_noise', 'action_noise', 'responsiveness', 'n_pert_per_joint'
-        ]
-
-        action = variables_to_change[option[0]]
-        index = -1
-        if action[-1].isdigit():
-            index = int(action[-1]) - 1
-            action = action[:-1]
+        parameter = disturbed_parameters[disturbance[0]]
+        step_index = disturbance[1]
+        parameter_index = -1
+        if parameter[-1].isdigit():
+            parameter_index = int(parameter[-1]) - 1
+            parameter = parameter[:-1]
 
         self.use_perturbations = False
-        if action == 'n_pert_per_joint':
+        if parameter == 'n_pert_per_joint':
             self.use_perturbations = True
             self.perturbations, *_ = get_random_gauss_perturbation_array(
                 self.dynamics_func.dt * self.max_episode_steps,
                 self.dynamics_func.dt,
-                changing_values['n_pert_per_joint'],
-                changing_values['min_t_dist'],
-                changing_values['sigma_minmax'],
-                changing_values['amplitude_min_max']
+                disturbances['n_pert_per_joint'],
+                disturbances['min_t_dist'],
+                disturbances['sigma_minmax'],
+                disturbances['amplitude_min_max']
             )
         else:
-            value = changing_values.get(action)
+            value = disturbances.get(parameter)
             if value is not None:
-                if action in ['l', 'I', 'm', 'com']:
-                    base_value = plant_parameters[action][index]
+                if parameter in ['l', 'I', 'm', 'com']:
+                    base_value = plant_parameters[parameter][parameter_index]
                     steps = np.linspace((1 - value) * base_value, (1 + value) * base_value, N)
-                    new_value = getattr(plant, action)
-                    new_value[index] = steps[option[1]]
-                    if option[1] == -1:
-                        new_value[index] = np.random.choice(steps)
-                    setattr(plant, action, new_value)
-                elif action in ['coulomb_fric', 'b']:
+                    new_value = getattr(plant, parameter)
+                    new_value[parameter_index] = steps[step_index]
+                    if step_index == -1:
+                        new_value[parameter_index] = np.random.choice(steps)
+                    setattr(plant, parameter, new_value)
+                elif parameter in ['coulomb_fric', 'b']:
                     steps = np.linspace(-value, value, N)
-                    new_value = getattr(plant, action)
-                    new_value[index] = steps[option[1]]
-                    if option[1] == -1:
-                        new_value[index] = np.random.choice(steps)
-                    setattr(plant, action, new_value)
-                elif action == 'Ir':
+                    new_value = getattr(plant, parameter)
+                    new_value[parameter_index] = steps[step_index]
+                    if step_index == -1:
+                        new_value[parameter_index] = np.random.choice(steps)
+                    setattr(plant, parameter, new_value)
+                elif parameter == 'Ir':
                     steps = np.linspace(0, value, N)
-                    new_value = steps[option[1]]
-                    if option[1] == -1:
+                    new_value = steps[step_index]
+                    if step_index == -1:
                         new_value = np.random.choice(steps)
-                    setattr(plant, action, new_value)
-                elif action == 'responsiveness':
+                    setattr(plant, parameter, new_value)
+                elif parameter == 'responsiveness':
                     steps = np.linspace(value[0], value[1], N)
-                    new_value = steps[option[1]]
-                    if option[1] == -1:
+                    new_value = steps[step_index]
+                    if step_index == -1:
                         new_value = np.random.choice(steps)
                     self.responsiveness = new_value
-                elif action in ["position_noise", "velocity_noise", "action_noise", "delay", "start_delay"]:
+                elif parameter in ["position_noise", "velocity_noise", "action_noise", "delay", "start_delay"]:
                     steps = np.linspace(0, value, N)
-                    new_value = steps[option[1]]
-                    if option[1] == -1:
+                    new_value = steps[step_index]
+                    if step_index == -1:
                         new_value = np.random.choice(steps)
-                    setattr(self, action, new_value)
-                elif action in ["position_bias", "velocity_bias", "action_bias"]:
+                    setattr(self, parameter, new_value)
+                elif parameter in ["position_bias", "velocity_bias", "action_bias"]:
                     steps = np.linspace(-value, value, N)
-                    new_value = steps[option[1]]
-                    if option[1] == -1:
+                    new_value = steps[step_index]
+                    if step_index == -1:
                         new_value = np.random.choice(steps)
-                    setattr(self, action, new_value)
+                    setattr(self, parameter, new_value)
 
-        if (self.initialized is None or self.initialized[1] == -1) and action not in ['nothing', 'delay', 'velocity_noise', 'action_noise', 'responsiveness', 'n_pert_per_joint']:
+        if (self.configuration is None or self.configuration[1] == -1) and parameter not in ['nothing', 'delay', 'velocity_noise', 'action_noise', 'responsiveness', 'n_pert_per_joint']:
             self.update_plant()
-        self.initialized = option
+        self.configuration = disturbance
 
     def update_plant(self):
         plant = self.dynamics_func.simulator.plant

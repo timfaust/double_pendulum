@@ -20,6 +20,17 @@ from examples.reinforcement_learning.General.override_sb3.callbacks import Custo
 from examples.reinforcement_learning.General.override_sb3.custom_sac import CustomSAC
 
 
+def get_filtered_data(environment):
+    # keys which can be replaced from param
+    valid_keys = ['actor_schedule', 'critic_schedule', 'entropy_schedule', 'gradient_steps', 'ent_coef',
+                  'learning_rate', 'qf_learning_rate', 'batch_size', 'buffer_size', 'target_update_interval',
+                  'train_freq', 'gamma']
+    filtered_data = {key: value for key, value in environment.param_data.items() if key in valid_keys}
+    if isinstance(filtered_data['train_freq'], str) and "'" in filtered_data['train_freq']:
+        filtered_data['train_freq'] = ast.literal_eval(filtered_data['train_freq'])
+    return filtered_data
+
+
 class ProgressBarCallback(BaseCallback):
     def __init__(self, total_steps, log_dir, data, n_envs):
         super(ProgressBarCallback, self).__init__()
@@ -90,12 +101,6 @@ class Trainer:
 
         envs = self.environment.get_envs(log_dir=self.log_dir)
 
-        # keys which can be replaced from param
-        valid_keys = ['actor_schedule', 'critic_schedule', 'entropy_schedule', 'gradient_steps', 'ent_coef', 'learning_rate', 'qf_learning_rate', 'batch_size', 'buffer_size', 'target_update_interval', 'train_freq', 'gamma']
-        filtered_data = {key: value for key, value in self.environment.param_data.items() if key in valid_keys}
-        if isinstance(filtered_data['train_freq'], str) and "'" in filtered_data['train_freq']:
-            filtered_data['train_freq'] = ast.literal_eval(filtered_data['train_freq'])
-
         agent = CustomSAC(
             policy_classes=self.policy_classes,
             replay_buffer_classes=self.replay_buffer_classes,
@@ -104,7 +109,7 @@ class Trainer:
             action_noise=self.action_noise,
             seed=self.environment.seed,
             decider=self.decider,
-            **filtered_data
+            **get_filtered_data(self.environment)
         )
 
         callback_list = self.get_callback_list(agent)
@@ -131,7 +136,7 @@ class Trainer:
 
     def get_eval_envs(self, agent):
         eval_envs = self.eval_environment.get_envs(log_dir=self.log_dir)
-        agent.connect_visualization(eval_envs)
+        agent.connect_envs(eval_envs)
         for i in range(len(eval_envs.envs)):
             monitor = eval_envs.envs[i]
             if self.render_eval and i % self.eval_environment.render_every_envs == 0:

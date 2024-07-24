@@ -2,6 +2,11 @@ from collections import deque
 from double_pendulum.utils.wrap_angles import wrap_angles_diff
 import numpy as np
 
+disturbed_parameters = [
+    'nothing', 'm2', 'b1', 'b2', 'coulomb_fric1', 'coulomb_fric2', 'com1', 'com2', 'I1', 'I2', 'Ir', 'delay',
+    'velocity_noise', 'action_noise', 'responsiveness', 'n_pert_per_joint'
+]
+
 
 def smooth_transition(value, threshold, sharpness=80):
     return 0.5 * (1 + np.tanh(sharpness * (value - threshold)))
@@ -124,7 +129,7 @@ def calculate_q_values(reward, gamma):
 
 
 def get_i_decay(x, factor=2, offset=0.0):
-    return np.where(x <= offset, 1, 1 / (factor * (x - offset) + 1))
+    return np.where(x < offset, 1, 1 / (factor * (x - offset) + 1))
 
 
 def get_unscaled_action(observation_dict, t_minus=0, key='U_real'):

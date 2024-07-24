@@ -74,13 +74,13 @@ class LSTMExtractor(SequenceExtractor):
         self.lstm = nn.LSTM(self.input_features, hidden_size, num_layers, batch_first=True, dropout=dropout)
         self.fc = nn.Linear(hidden_size, self.output_dim)
         self.activation = nn.Tanh()
-        #self.smoothing = SmoothingFilter(self.input_features)
+        self.smoothing = SmoothingFilter(self.input_features)
 
     def _process_main_features(self, obs: th.Tensor) -> th.Tensor:
         batch_size = obs.size(0)
         obs_reshaped = obs.view(batch_size, self.timesteps, self.input_features)
-        #obs_smoothed = self.smoothing(obs_reshaped)
-        lstm_out, (h_n, c_n) = self.lstm(obs_reshaped)
+        obs_smoothed = self.smoothing(obs_reshaped)
+        lstm_out, (h_n, c_n) = self.lstm(obs_smoothed)
         last_hidden = h_n[-1]
         fc_output = self.fc(last_hidden)
         return self.activation(fc_output)

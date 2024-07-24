@@ -263,7 +263,7 @@ def evaluate_policy(
                         episode_lengths.append(current_lengths[i])
                         episode_counts[i] += 1
                     score = calculate_score(env.envs[i].env.observation_dict_old)
-                    print("env", env.envs[i].env.initialized, "has score:", score)
+                    print("env", env.envs[i].env.configuration, "has score:", score)
                     episode_scores.append(score)
 
         observations = new_observations
