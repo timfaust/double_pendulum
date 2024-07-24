@@ -99,7 +99,7 @@ def make_vec_env(
             # Create the monitor folder if needed
             if monitor_path is not None and monitor_dir is not None:
                 os.makedirs(monitor_dir, exist_ok=True)
-            env = CustomMonitor(env, filename=monitor_path, **monitor_kwargs)
+            env = CustomMonitor(env, filename=None, **monitor_kwargs)
             # Optionally, wrap the environment with the provided wrapper
             if wrapper_class is not None:
                 env = wrapper_class(env, **wrapper_kwargs)

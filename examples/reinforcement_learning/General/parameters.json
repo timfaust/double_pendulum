@@ -37,7 +37,7 @@
       },
       "eval_env": {
         "dynamics_function": "default_dynamics",
-        "reset_function": "low_reset",
+        "reset_function": "debug_reset",
         "reward_function": "future_pos_reward",
         "same_environment": 1,
         "n_envs": 112
@@ -55,7 +55,7 @@
       "train_freq": 1,
       "target_update_interval": 1,
       "max_episode_steps": 1000,
-      "training_steps": 2000000,
+      "training_steps": 3000000,
       "use_action_noise": 1,
       "eval_freq": 100000,
       "n_eval_episodes": 1,
