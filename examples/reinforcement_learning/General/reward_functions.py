@@ -18,9 +18,10 @@ def pos_reward(observation, action, env_type, dynamic_func, observation_dict):
     reward = reward * state_values['s2']
     return reward * np.min(punish_limit(observation_dict['X_meas'][-1], action, observation_dict['dynamics_func']))
 
+
 def future_pos_reward(observation, action, env_type, dynamic_func, observation_dict):
     state_values = get_state_values(observation_dict, 'X_real')
-    reward = get_i_decay(state_values['distance']) - get_i_decay(2)
+    reward = get_i_decay(0, factor=0.5) - get_i_decay(2 - state_values['distance'], factor=0.5)
     abstract_distance = (state_values['omega_squared_1'] + state_values['omega_squared_2']) / 400.0 + (state_values['unscaled_action'] ** 2) / 20.0  # + np.linalg.norm(u_p)/10
     reward += get_i_decay(abstract_distance, factor=4)
     uo = state_values['unscaled_observation']
