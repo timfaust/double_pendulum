@@ -72,7 +72,7 @@ class LSTMExtractor(SequenceExtractor):
         self.num_layers = num_layers
 
         self.lstm = nn.LSTM(self.input_features, hidden_size, num_layers, batch_first=True, dropout=dropout)
-        self.fc = nn.Linear(hidden_size, self.output_dim)
+        self.fc = nn.Linear(hidden_size * 2, self.output_dim)
         self.activation = nn.Tanh()
         self.smoothing = SmoothingFilter(self.input_features)
 
@@ -82,7 +82,9 @@ class LSTMExtractor(SequenceExtractor):
         obs_smoothed = self.smoothing(obs_reshaped)
         lstm_out, (h_n, c_n) = self.lstm(obs_smoothed)
         last_hidden = h_n[-1]
-        fc_output = self.fc(last_hidden)
+        last_cell = c_n[-1]
+        concatenated = th.cat((last_hidden, last_cell), dim=1)
+        fc_output = self.fc(concatenated)
         return self.activation(fc_output)
 
 
