@@ -31,8 +31,7 @@ class GeneralEnv(CustomEnv):
         seed,
         path="parameters.json",
         is_evaluation_environment=False,
-        existing_dynamics_function=None,
-        existing_plant=None
+        existing_dynamics_function=None
     ):
 
         self.sac = None
@@ -53,12 +52,10 @@ class GeneralEnv(CustomEnv):
         self.training_steps = None
         self.initialize_from_params()
 
-        self.plant = None
-        self.simulation = None
         self.reward_function = None
         self.reward_name = None
         self.reset_function = None
-        dynamics_function = self.initialize_functions(existing_dynamics_function, existing_plant, env_type)
+        dynamics_function = self.initialize_functions(existing_dynamics_function)
 
         self.velocity_noise = None
         self.velocity_bias = None
@@ -114,34 +111,32 @@ class GeneralEnv(CustomEnv):
         self.render_every_envs = self.param_data["render_every_envs"]
         self.training_steps = self.param_data["training_steps"]
 
-    def initialize_functions(self, existing_dynamics_function, existing_plant, env_type):
+    def initialize_functions(self, existing_dynamics_function):
         dynamics_function_class = None
         if existing_dynamics_function is None:
             dynamics_function_class = globals()[self.param_data[self.type]["dynamics_function"]]
-
-        if existing_plant is not None:
-            self.plant = existing_plant
-            self.simulation = Simulator(plant=existing_plant)
+        elif not self.same_environment:
+            existing_dynamics_function = copy.deepcopy(existing_dynamics_function)
 
         normalization_class_name = self.param_data["normalization"]
         low_pos = [0, 0, 0, 0]
 
         if dynamics_function_class is not None and hasattr(dynamics_function_class, '__code__'):
-            existing_dynamics_function, self.simulation, self.plant = dynamics_function_class(env_type, self.param_data["dt"], self.param_data["max_torque"], globals()[normalization_class_name])
+            existing_dynamics_function, _, _ = dynamics_function_class(self.env_type, self.param_data["dt"], self.param_data["max_torque"], globals()[normalization_class_name])
 
         reset_function = globals()[self.param_data[self.type]["reset_function"]]
         self.reset_function = lambda: reset_function(low_pos)
 
         reward_function = globals()[self.param_data[self.type]["reward_function"]]
         self.reward_name = self.param_data[self.type]["reward_function"]
-        self.reward_function = lambda obs, act, observation_dict: reward_function(obs, act, env_type, existing_dynamics_function, observation_dict)
+        self.reward_function = lambda obs, act, observation_dict: reward_function(obs, act, self.env_type, existing_dynamics_function, observation_dict)
 
         return existing_dynamics_function
 
     def custom_reset(self):
         self.visualizer.reset()
-        if self.simulation is not None:
-            self.simulation.reset()
+        if self.dynamics_func.simulator is not None:
+            self.dynamics_func.simulator.reset()
         self.observation_dict_old = copy.deepcopy(self.observation_dict)
         if 'dynamics_func' not in self.observation_dict:
             self.observation_dict['dynamics_func'] = self.dynamics_func
@@ -163,11 +158,7 @@ class GeneralEnv(CustomEnv):
         return dirty_observation
 
     def get_envs(self, log_dir):
-        existing_dynamics_function = None
-        existing_plant = None
-        if self.same_environment:
-            existing_dynamics_function = self.dynamics_func
-            existing_plant = self.plant
+        existing_dynamics_function = self.dynamics_func
 
         envs = make_vec_env(
             env_id=GeneralEnv,
@@ -177,7 +168,6 @@ class GeneralEnv(CustomEnv):
                 "param_name": self.param_name,
                 "existing_dynamics_function": existing_dynamics_function,
                 "is_evaluation_environment": self.is_evaluation_environment,
-                "existing_plant": existing_plant,
                 "seed": self.seed
             },
             monitor_dir=log_dir,

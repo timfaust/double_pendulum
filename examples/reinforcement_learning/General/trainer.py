@@ -220,9 +220,9 @@ class Trainer:
 
         controller = self.get_controller(model_path)
         controller.init()
-        controller.simulation.set_state(0, [0, 0, 0, 0])
+        controller.simulator.set_state(0, [0, 0, 0, 0])
 
-        T, X, U = controller.simulation.simulate_and_animate(
+        T, X, U = controller.simulator.simulate_and_animate(
             t0=0.0,
             x0=[0.0, 0.0, 0.0, 0.0],
             tf=tf,
@@ -240,7 +240,7 @@ class Trainer:
             T,
             X,
             U,
-            X_meas=controller.simulation.meas_x_values,
+            X_meas=controller.simulator.meas_x_values,
             pos_y_lines=[-np.pi, 0.0, np.pi],
             vel_y_lines=[0.0],
             tau_y_lines=[-5.0, 0.0, 5.0],
@@ -275,8 +275,8 @@ class GeneralController(AbstractController):
             **get_filtered_data(self.environment)
         )
 
-        self.simulation = environment.simulation
         self.dynamics_func = environment.dynamics_func
+        self.simulator = self.dynamics_func.simulator
         self.dt = environment.dynamics_func.dt
         self.scaling = environment.dynamics_func.scaling
         self.integrator = environment.dynamics_func.integrator
