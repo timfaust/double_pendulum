@@ -102,7 +102,7 @@ def no_termination(observation):
     return False
 
 
-def punish_limit(observation, action, dynamics_function, k=50):
+def punish_limit(observation, action, dynamics_function, k=10):
     thresholds = np.array([0.95] * 5)
 
     values = np.concatenate([np.abs(observation), np.array([np.abs(action)])])
@@ -110,7 +110,7 @@ def punish_limit(observation, action, dynamics_function, k=50):
 
     factors = np.where(ratios <= 1, 1 - np.exp(-k * np.abs(ratios - 1)), 0)
 
-    return factors[:2].min(), factors[2:4].min(), 1# factors[4]
+    return factors[:2].min(), factors[2:4].min(), factors[4]
 
 
 def kill_switch(observation, action, dynamics_func):

@@ -24,12 +24,13 @@ def r1(state_values):
 
 
 def f1(state_values):
-    # uo = state_values['unscaled_observation']
-    # f = np.abs(np.sin((uo[0] + uo[1])/2)) * np.abs(np.sin(uo[0]/2))
-    f = 1
-    v = state_values['v2'][0]
-    if state_values['distance'] > 0.5:
-        f = 1-1/(1+np.exp(-10*(v + 0.3)))
+    uo = state_values['unscaled_observation']
+    # TODO: austauschen mit was besserem als sin
+    f = np.abs(np.sin((uo[0] + uo[1])/2)) * np.abs(np.sin(uo[0]/2))
+    # f = 1
+    # v = state_values['v2'][0]
+    # if state_values['distance'] > 0.5:
+    #     f = 1-1/(1+np.exp(-10*(v + 0.3)))
     return f
 
 
