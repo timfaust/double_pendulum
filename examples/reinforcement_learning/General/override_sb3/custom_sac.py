@@ -630,7 +630,9 @@ class CustomSAC(SAC):
         for i, optimizer_state in enumerate(loaded_data["ent_coef_optimizers"]):
             model.ent_coef_optimizers[i].load_state_dict(optimizer_state)
 
-        model.log_ent_coefs = [th.tensor(coef) for coef in loaded_data["log_ent_coefs"]]
+        for i, coef in enumerate(loaded_data["log_ent_coefs"]):
+            old_coef = model.log_ent_coefs[i]
+            old_coef.data = th.tensor(coef, dtype=old_coef.dtype, device=old_coef.device)
 
         for i, policy_state in enumerate(loaded_data["policies"]):
             model.policies[i].load_state_dict(policy_state)
