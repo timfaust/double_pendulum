@@ -19,15 +19,31 @@ def pos_reward(observation, action, env_type, dynamic_func, observation_dict):
     return reward * np.min(punish_limit(observation_dict['X_meas'][-1], action, observation_dict['dynamics_func']))
 
 
+def r1(state_values):
+    return get_i_decay(state_values['distance']) - get_i_decay(2)
+
+
+def f1(state_values):
+    # uo = state_values['unscaled_observation']
+    # f = np.abs(np.sin((uo[0] + uo[1])/2)) * np.abs(np.sin(uo[0]/2))
+    f = 1
+    v = state_values['v2'][0]
+    if state_values['distance'] > 0.5:
+        f = 1-1/(1+np.exp(-10*(v + 0.3)))
+    return f
+
+
+def r2(state_values):
+    abstract_distance = (state_values['omega_squared_1'] + state_values['omega_squared_2']) / 400.0 + (state_values['unscaled_action'] ** 2) / 20.0  # + np.linalg.norm(u_p)/10
+    return get_i_decay(abstract_distance, factor=4)
+
+
 def future_pos_reward(observation, action, env_type, dynamic_func, observation_dict):
     state_values = get_state_values(observation_dict, 'X_real')
-    # reward = get_i_decay(0, factor=0.5) - get_i_decay(2 - state_values['distance'], factor=0.5)
-    reward = get_i_decay(state_values['distance']) - get_i_decay(2)
-    abstract_distance = (state_values['omega_squared_1'] + state_values['omega_squared_2']) / 400.0 + (state_values['unscaled_action'] ** 2) / 20.0  # + np.linalg.norm(u_p)/10
-    reward += get_i_decay(abstract_distance, factor=4) * 2
-    uo = state_values['unscaled_observation']
-    f = np.abs(np.sin((uo[0] + uo[1])/2)) * np.abs(np.sin(uo[0]/2))
-    return reward * np.min(punish_limit(observation_dict['X_meas'][-1], action, observation_dict['dynamics_func'])) * f
+    reward = r1(state_values)
+    f = f1(state_values)
+    reward += r2(state_values) * f
+    return reward * np.min(punish_limit(observation_dict['X_meas'][-1], action, observation_dict['dynamics_func']))
 
 
 def saturated_distance_from_target(observation, action, env_type, dynamic_func, observation_dict):

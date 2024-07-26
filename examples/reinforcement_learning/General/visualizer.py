@@ -2,8 +2,8 @@ import pygame
 import numpy as np
 import torch as th
 from examples.reinforcement_learning.General.score import calculate_score
-from examples.reinforcement_learning.General.misc_helper import calculate_q_values, get_stabilized
-from examples.reinforcement_learning.General.reward_functions import get_state_values
+from examples.reinforcement_learning.General.misc_helper import calculate_q_values, get_stabilized, get_i_decay
+from examples.reinforcement_learning.General.reward_functions import get_state_values, r1, r2, f1
 
 
 class Visualizer:
@@ -189,8 +189,8 @@ class Visualizer:
             'acc_reward': round(self.acc_reward, 5),
             'reward': round(self.reward, 5),
             'step_counter': len(self.env.observation_dict['T']) - 1,
-            'x_1': round(y[0] / (dynamics_func.max_angle), 4),
-            'x_2': round(y[1] / (dynamics_func.max_angle), 4),
+            'x_1': round(y[0] / dynamics_func.max_angle, 4),
+            'x_2': round(y[1] / dynamics_func.max_angle, 4),
             'distance_next': round(distance_next, 4),
             'v_1': round(y[2] / dynamics_func.max_velocity, 4),
             'v_2': round(y[3] / dynamics_func.max_velocity, 4),
@@ -198,7 +198,11 @@ class Visualizer:
             'time': self.env.observation_dict['T'][-1],
             'policy': self.policy,
             'killed': self.env.killed_because,
-            'stabilized': get_stabilized(self.env.observation_dict)
+            'stabilized': get_stabilized(self.env.observation_dict),
+            'r1': r1(state_values),
+            'r2': r2(state_values),
+            'v2[0]': state_values['v2'][0],
+            'f': f1(state_values)
         }
 
         return state_values['x1'], state_values['x2'], state_values['x3'], state_values['goal'], state_values[
