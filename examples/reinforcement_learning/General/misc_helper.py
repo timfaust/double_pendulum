@@ -255,7 +255,7 @@ def get_state_values(observation_dict, key='X_meas', offset=0):
             u_pp = (unscaled_action - 2 * get_unscaled_action(observation_dict, offset-1, action_key) + get_unscaled_action(observation_dict, offset-2, action_key))/(dt * dt)
 
     state_values = {
-        "unscaled_observation": unscaled_observation,
+        "y": y,
         "x1": x1,
         "x2": x2,
         "x3": x3,
@@ -265,8 +265,8 @@ def get_state_values(observation_dict, key='X_meas', offset=0):
         "c2": c2,
         "v1": v1,
         "v2": v2,
-        "omega_squared_1": unscaled_observation[2] ** 2,
-        "omega_squared_2": unscaled_observation[3] ** 2,
+        "omega_squared_1": y[2] ** 2,
+        "omega_squared_2": y[3] ** 2,
         "goal": goal,
         "dt_goal": dt_goal,
         "threshold_distance": threshold_distance,

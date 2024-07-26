@@ -24,9 +24,9 @@ def r1(state_values):
 
 
 def f1(state_values):
-    uo = state_values['unscaled_observation']
+    y = state_values['y']
     # TODO: austauschen mit was besserem als sin
-    f = np.abs(np.sin((uo[0] + uo[1])/2)) * np.abs(np.sin(uo[0]/2))
+    f = np.abs(np.sin((y[0] + y[1])/2)) * np.abs(np.sin(y[0]/2))
     # f = 1
     # v = state_values['v2'][0]
     # if state_values['distance'] > 0.5:

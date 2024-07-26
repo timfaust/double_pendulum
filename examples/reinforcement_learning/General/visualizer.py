@@ -182,7 +182,7 @@ class Visualizer:
     def calculate_positions(self, key):
         state_values = get_state_values(self.env.observation_dict, key)
         distance_next = (state_values['x3'] - state_values['goal'])[1]
-        y = state_values['unscaled_observation']
+        y = state_values['y']
         dynamics_func = self.env.observation_dict['dynamics_func']
 
         metrics = {
