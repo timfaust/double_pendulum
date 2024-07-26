@@ -598,7 +598,7 @@ class CustomSAC(SAC):
             "ent_coef_optimizers": [optimizer.state_dict() for optimizer in self.ent_coef_optimizers],
             "log_ent_coefs": [coef.detach().cpu().numpy() for coef in self.log_ent_coefs],
             "policies": [policy.state_dict() for policy in self.policies],
-            # "replay_buffers": self.replay_buffers,
+            "replay_buffers": self.replay_buffers,
         }
 
         with open(path, 'wb') as f:
