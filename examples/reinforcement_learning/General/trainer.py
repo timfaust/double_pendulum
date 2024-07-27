@@ -282,11 +282,20 @@ class GeneralController(AbstractController):
         self.dt = environment.dynamics_func.dt
         self.scaling = environment.dynamics_func.scaling
         self.integrator = environment.dynamics_func.integrator
+        self.controller_dt = np.rint(self.dt * 10000).astype(int)
+        self.observation_dict = None
+        self.last_action = None
+        self.n = None
+        self.last_u = None
+        self.reset()
+
+    def reset(self):
+        super().reset()
         self.observation_dict = {'X': [], 'U': []}
         self.last_action = 0.0
-        self.controller_dt = np.rint(self.dt * 10000).astype(int)
         self.n = 1
         self.last_u = None
+        self.model.env.envs[0].env.reset()
 
     def get_control_output_(self, x, t=None):
 
