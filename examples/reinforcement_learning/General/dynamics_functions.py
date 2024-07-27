@@ -36,9 +36,9 @@ def default_dynamics(robot, dt, max_torque, class_obj):
 def general_dynamics(robot, plant, dt, max_torque, class_obj):
     print("build new plant")
     simulator = Simulator(plant=plant)
-    max_vel = 20.0
+    max_vel = 50.0
     if robot == "acrobot":
-        max_vel = 30.0
+        max_vel = 50.0
 
     dynamics_function = class_obj(
         simulator=simulator,
