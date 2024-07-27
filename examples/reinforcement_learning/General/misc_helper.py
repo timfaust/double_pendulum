@@ -2,6 +2,7 @@ from collections import deque
 from double_pendulum.utils.wrap_angles import wrap_angles_diff
 import numpy as np
 
+# TODO: remove nothing
 disturbed_parameters = [
     'nothing', 'm2', 'b1', 'b2', 'coulomb_fric1', 'coulomb_fric2', 'com1', 'com2', 'I1', 'I2', 'Ir', 'delay',
     'velocity_noise', 'action_noise', 'responsiveness', 'n_pert_per_joint'
@@ -102,7 +103,7 @@ def no_termination(observation):
     return False
 
 
-def punish_limit(observation, action, dynamics_function, k=10):
+def punish_limit(observation, action, dynamics_function, k=5):
     thresholds = np.array([0.95] * 5)
 
     values = np.concatenate([np.abs(observation), np.array([np.abs(action)])])

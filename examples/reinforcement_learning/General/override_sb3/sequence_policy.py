@@ -154,7 +154,7 @@ class SequenceSACPolicy(CustomPolicy):
                 features_extractor_class=LSTMExtractor,
                 features_extractor_kwargs=dict(translator=self.translator),
                 share_features_extractor=False,
-                optimizer_kwargs={'weight_decay': 0.000001}
+               # optimizer_kwargs={'weight_decay': 0.00001}
             )
         )
 
