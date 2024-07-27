@@ -58,7 +58,7 @@ class CustomEvalCallback(EvalCallback):
 
             backup_env = self.model.env
             last_obs, last_original_obs = self.model.set_env(self.eval_env)
-            episode_rewards, episode_scores, episode_lengths = evaluate_policy(
+            episode_rewards, episode_scores, episode_lengths, default_score = evaluate_policy(
                 self.model,
                 self.eval_env,
                 n_eval_episodes=self.n_eval_episodes,
@@ -91,7 +91,7 @@ class CustomEvalCallback(EvalCallback):
                     **kwargs,
                 )
 
-            mean_reward, mean_ep_length = self.evaluate_additional(episode_rewards, episode_scores, episode_lengths)
+            mean_reward, mean_ep_length = self.evaluate_additional(episode_rewards, episode_scores, episode_lengths, default_score)
             self.logger.record("eval/mean_ep_length", mean_ep_length)
 
             if len(self._is_success_buffer) > 0:
@@ -121,7 +121,7 @@ class CustomEvalCallback(EvalCallback):
 
         return continue_training
 
-    def evaluate_additional(self, episode_rewards, episode_scores, episode_lengths):
+    def evaluate_additional(self, episode_rewards, episode_scores, episode_lengths, default_score):
         mean_reward, std_reward = np.mean(episode_rewards, axis=0), np.std(episode_rewards, axis=0)
         success_scores = np.array(episode_scores)[np.array(episode_scores) != 0.0]
         mean_score, std_score = 0, 0
@@ -141,6 +141,7 @@ class CustomEvalCallback(EvalCallback):
         self.logger.record("eval/failed_attempts", episode_scores.count(0.0))
         self.logger.record("eval/mean_score", float(mean_score))
         self.logger.record("eval/std_score", float(std_score))
+        self.logger.record("eval/default_score", default_score)
 
         return mean_reward, mean_ep_length
 
@@ -155,7 +156,7 @@ def evaluate_policy(
     reward_threshold: Optional[float] = None,
     return_episode_rewards: bool = False,
     warn: bool = True,
-) -> Union[Tuple[float, float, float, float], Tuple[List[float], List[float], List[int]]]:
+) -> Union[Tuple[float, float, float, float], Tuple[List[float], List[float], List[int], float]]:
     """
     Runs policy for ``n_eval_episodes`` episodes and returns average reward.
     If a vector env is passed in, this divides the episodes to evaluate onto the
@@ -212,6 +213,7 @@ def evaluate_policy(
     episode_rewards = []
     episode_scores = []
     episode_lengths = []
+    default_score = 0.0
 
     episode_counts = np.zeros(n_envs, dtype="int")
     # Divides episodes among different sub environments in the vector as evenly as possible
@@ -265,6 +267,8 @@ def evaluate_policy(
                         episode_counts[i] += 1
                     score = calculate_score(env.envs[i].env.observation_dict_old)
                     c = env.envs[i].env.configuration
+                    if c[0] == 0 and c[1] == 0:
+                        default_score = score
                     print("env", disturbed_parameters[c[0]], ":", c[1], "has score:", score, ", killed because:", env.envs[i].env.observation_dict_old['killed_because'])
                     episode_scores.append(score)
 
@@ -280,5 +284,5 @@ def evaluate_policy(
     if reward_threshold is not None:
         assert mean_reward > reward_threshold, "Mean reward below threshold: " f"{mean_reward:.2f} < {reward_threshold:.2f}"
     if return_episode_rewards:
-        return episode_rewards, episode_scores, episode_lengths
+        return episode_rewards, episode_scores, episode_lengths, default_score
     return mean_reward, std_reward, mean_score, std_score
