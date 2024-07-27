@@ -269,7 +269,12 @@ def evaluate_policy(
                     c = env.envs[i].env.configuration
                     if c[0] == 0 and c[1] == 0:
                         default_score = score
-                    print("env", disturbed_parameters[c[0]], ":", c[1], "has score:", score, ", killed because:", env.envs[i].env.observation_dict_old['killed_because'])
+
+                    killed = env.envs[i].env.observation_dict_old['killed_because']
+                    if killed > 0:
+                        print(disturbed_parameters[c[0]], c[1], "with score:", score, "was killed because:", killed)
+                    else:
+                        print(disturbed_parameters[c[0]], c[1], "with score:", score)
                     episode_scores.append(score)
 
         observations = new_observations

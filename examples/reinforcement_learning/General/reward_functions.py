@@ -25,9 +25,9 @@ def r1(state_values):
 
 def f1(state_values):
     f = 1
-    v = state_values['v2'][0]
+    v = state_values['v2'][1]
     if state_values['distance'] > 0.5:
-        f = 1-1/(1+np.exp(-10*(v + 0.3)))
+        f = 1-1/(1+np.exp(-10*(v + 0.2)))
     return f
 
 

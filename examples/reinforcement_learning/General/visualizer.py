@@ -201,7 +201,7 @@ class Visualizer:
             'stabilized': get_stabilized(self.env.observation_dict),
             'r1': r1(state_values),
             'r2': r2(state_values),
-            'v2[0]': state_values['v2'][0],
+            'v2[1]': state_values['v2'][1],
             'f': f1(state_values)
         }
 
