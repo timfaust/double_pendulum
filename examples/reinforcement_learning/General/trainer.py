@@ -144,7 +144,9 @@ class Trainer:
         agent.connect_envs(eval_envs)
         for i in range(len(eval_envs.envs)):
             monitor = eval_envs.envs[i]
-            if self.render_eval and i % self.eval_environment.render_every_envs == 0:
+            # render_env = i % self.eval_environment.render_every_envs == 0
+            render_env = monitor.env.configuration[0] == 1 and monitor.env.configuration[1] == 0
+            if self.render_eval and render_env:
                 monitor.env.render_mode = 'human'
         return eval_envs
 

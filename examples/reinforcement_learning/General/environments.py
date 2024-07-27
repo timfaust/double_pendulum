@@ -420,7 +420,6 @@ class GeneralEnv(CustomEnv):
         plant.lambdify_matrices()
 
     def render(self, mode="human"):
-        # show_env = self.step_counter % self.render_every_steps == 0
-        show_env = self.configuration[0] == 1 and self.configuration[1] == 1
+        show_env = self.step_counter % self.render_every_steps == 0
         if self.render_mode == "human" and show_env and len(self.observation_dict['X_meas']) > 1:
             self.visualizer.render()
