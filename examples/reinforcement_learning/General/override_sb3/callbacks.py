@@ -272,6 +272,7 @@ def evaluate_policy(
 
                     killed = env.envs[i].env.observation_dict_old['killed_because']
                     if killed > 0:
+                        score = 0.0
                         print(disturbed_parameters[c[0]], c[1], "with score:", score, "was killed because:", killed)
                     else:
                         print(disturbed_parameters[c[0]], c[1], "with score:", score)
