@@ -10,6 +10,7 @@ from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.logger import Logger
 from torch.utils.tensorboard import SummaryWriter
 
+from examples.reinforcement_learning.General.misc_helper import disturbed_parameters
 from examples.reinforcement_learning.General.override_sb3.custom_sac import CustomSAC
 from examples.reinforcement_learning.General.score import calculate_score
 
@@ -263,7 +264,8 @@ def evaluate_policy(
                         episode_lengths.append(current_lengths[i])
                         episode_counts[i] += 1
                     score = calculate_score(env.envs[i].env.observation_dict_old)
-                    print("env", env.envs[i].env.configuration, "has score:", score)
+                    c = env.envs[i].env.configuration
+                    print("env", disturbed_parameters[c[0]], ":", c[1], "has score:", score, ", killed because:", env.envs[i].env.observation_dict_old['killed_because'])
                     episode_scores.append(score)
 
         observations = new_observations

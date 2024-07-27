@@ -138,6 +138,7 @@ class GeneralEnv(CustomEnv):
         if self.dynamics_func.simulator is not None:
             self.dynamics_func.simulator.reset()
         self.observation_dict_old = copy.deepcopy(self.observation_dict)
+        self.observation_dict_old['killed_because'] = self.killed_because
         if 'dynamics_func' not in self.observation_dict:
             self.observation_dict['dynamics_func'] = self.dynamics_func
         for key in self.observation_dict:
