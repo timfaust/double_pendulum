@@ -1,5 +1,6 @@
 import copy
 import json
+import os
 from typing import Dict, Any
 
 from sympy import lambdify
@@ -41,6 +42,8 @@ class GeneralEnv(CustomEnv):
         self.env_type = env_type
         self.killed_because = 0
         self.stabilized = False
+        if not os.path.exists(path):
+            path = os.path.join("../../../examples/reinforcement_learning/General/", path)
         self.param_data = json.load(open(path))[param_name]
 
         self.type = None

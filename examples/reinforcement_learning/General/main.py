@@ -59,7 +59,7 @@ if __name__ == '__main__':
             print(e)
 
     if args.mode == "simulate":
-        sac.simulate(model_path=args.model_path, tf=3.0)
+        sac.simulate(model_path=args.model_path, tf=10.0)
 
     profiler.disable()
     s = io.StringIO()
