@@ -282,16 +282,36 @@ class GeneralController(AbstractController):
         self.dt = environment.dynamics_func.dt
         self.scaling = environment.dynamics_func.scaling
         self.integrator = environment.dynamics_func.integrator
-
-        self.last_u = None
+        self.observation_dict = {'X': [], 'U': []}
         self.last_action = 0.0
+        self.controller_dt = np.rint(self.dt * 10000).astype(int)
+        self.n = 1
+        self.last_u = None
 
-    # TODO:only use every 10th entry in full observation dict und damit zu jedem step neue action
     def get_control_output_(self, x, t=None):
 
+        if self.n == 1 and t > 0:
+            self.n = np.rint(self.dt / np.round(t, decimals=5)).astype(int)
+
+        env = self.model.env.envs[0].env
+        obs = self.dynamics_func.normalize_state(x)
         rounded_t = np.rint(t * 10000).astype(int)
-        rounded_dt = np.rint(self.dt * 10000).astype(int)
-        if rounded_t % rounded_dt == 0:
+        if rounded_t % self.controller_dt == 0 and t > 0.0:
+            env.observation_dict['T'].append(np.round(t, decimals=5))
+        self.observation_dict['X'].append(obs)
+        self.observation_dict['U'].append(self.last_action)
+
+        env.observation_dict['U_con'] = self.observation_dict['U'][::-1][::self.n][::-1].copy()
+        env.observation_dict['X_meas'] = self.observation_dict['X'][::-1][::self.n][::-1].copy()
+        action, _ = self.model.predict(observation=obs.reshape(1, -1), deterministic=True)
+        self.last_action = action.item()
+
+        return self.dynamics_func.unscale_action(action)
+
+    def get_control_output_old(self, x, t=None):
+
+        rounded_t = np.rint(t * 10000).astype(int)
+        if rounded_t % self.controller_dt == 0:
             env = self.model.env.envs[0].env
             obs = self.dynamics_func.normalize_state(x)
             if t != 0:
