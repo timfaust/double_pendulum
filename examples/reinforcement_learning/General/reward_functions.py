@@ -47,7 +47,7 @@ def r2(state_values):
 def future_pos_reward(observation, action, env_type, dynamic_func, observation_dict):
     state_values = get_state_values(observation_dict, 'X_real')
     reward = r1(state_values)
-    f = f2(state_values)
+    f = f1(state_values)
     reward += r2(state_values) * f
     return reward * np.min(punish_limit(observation_dict['X_meas'][-1], action, observation_dict['dynamics_func']))
 

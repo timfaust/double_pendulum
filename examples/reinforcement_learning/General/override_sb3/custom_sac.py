@@ -618,7 +618,7 @@ class CustomSAC(SAC):
     ) -> SelfBaseAlgorithm:
         path = path + '.pkl'
         if not os.path.exists(path):
-            path = os.path.join("../../../examples/reinforcement_learning/General/", path[2:])
+            path = os.path.basename(path)
         with open(path, 'rb') as f:
             loaded_data = pickle.load(f)
 
