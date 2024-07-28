@@ -28,7 +28,8 @@ RUN cp -r eigen-3.4.0/Eigen /usr/local/include
 #RUN python -m ensurepip --upgrade
 RUN pip install -U pip
 
-RUN git clone https://github.com/dfki-ric-underactuated-lab/double_pendulum.git
+RUN git clone -b more_policies --single-branch  https://github.com/timfaust/double_pendulum.git
+
 
 WORKDIR "/double_pendulum"
 
@@ -36,5 +37,21 @@ WORKDIR "/double_pendulum"
 
 RUN make install
 RUN make pythonfull
-RUN make doc
-RUN make tests
+
+# install & activate conda
+RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
+    bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/conda && \
+    rm Miniconda3-latest-Linux-x86_64.sh
+
+RUN /opt/conda/bin/conda init bash
+
+# Ensure Conda's base environment is activated (bash shell)
+SHELL ["/bin/bash", "--login", "-c"]
+
+RUN /opt/conda/bin/conda config --add channels conda-forge
+RUN /opt/conda/bin/conda config --set channel_priority flexible
+RUN /opt/conda/bin/conda env create -f environment.yml
+
+RUN echo "conda activate double_pendulum" >> ~/.bashrc
+SHELL ["/bin/bash", "--login", "-c"]
+CMD ["bash"]
