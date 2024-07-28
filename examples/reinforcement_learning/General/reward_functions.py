@@ -31,6 +31,14 @@ def f1(state_values):
     return f
 
 
+def f2(state_values):
+    y = state_values['y']
+    y[1] += y[0]
+    y = wrap_angles_diff(y)
+    f = np.abs(np.sin(y[0]/2)) * np.abs(np.sin(y[1]/2))
+    return f
+
+
 def r2(state_values):
     abstract_distance = (state_values['omega_squared_1'] + state_values['omega_squared_2']) / 400.0 + (state_values['unscaled_action'] ** 2) / 20.0  # + np.linalg.norm(u_p)/10
     return get_i_decay(abstract_distance, factor=4)
@@ -39,7 +47,7 @@ def r2(state_values):
 def future_pos_reward(observation, action, env_type, dynamic_func, observation_dict):
     state_values = get_state_values(observation_dict, 'X_real')
     reward = r1(state_values)
-    f = f1(state_values)
+    f = f2(state_values)
     reward += r2(state_values) * f
     return reward * np.min(punish_limit(observation_dict['X_meas'][-1], action, observation_dict['dynamics_func']))
 

@@ -3,7 +3,7 @@ import numpy as np
 import torch as th
 from examples.reinforcement_learning.General.score import calculate_score
 from examples.reinforcement_learning.General.misc_helper import calculate_q_values, get_stabilized, get_i_decay
-from examples.reinforcement_learning.General.reward_functions import get_state_values, r1, r2, f1
+from examples.reinforcement_learning.General.reward_functions import get_state_values, r1, r2, f1, f2
 
 
 class Visualizer:
@@ -202,7 +202,8 @@ class Visualizer:
             'r1': r1(state_values),
             'r2': r2(state_values),
             'v2[1]': state_values['v2'][1],
-            'f': f1(state_values)
+            'f1': f1(state_values),
+            'f2': f2(state_values)
         }
 
         return state_values['x1'], state_values['x2'], state_values['x3'], state_values['goal'], state_values[
