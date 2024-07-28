@@ -30,6 +30,7 @@ RUN pip install -U pip
 
 RUN git clone -b more_policies --single-branch  https://github.com/timfaust/double_pendulum.git
 
+
 WORKDIR "/double_pendulum"
 
 # RUN git checkout v0.1.0
@@ -47,5 +48,7 @@ RUN /opt/conda/bin/conda init bash
 # Ensure Conda's base environment is activated (bash shell)
 SHELL ["/bin/bash", "--login", "-c"]
 
+RUN conda config --add channels conda-forge
+RUN conda config --set channel_priority flexible
 RUN conda env create -f environment.yml
-RUN conda activate test
+RUN conda activate double_pendulum
