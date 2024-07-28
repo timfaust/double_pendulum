@@ -36,5 +36,16 @@ WORKDIR "/double_pendulum"
 
 RUN make install
 RUN make pythonfull
-RUN make doc
-RUN make tests
+
+# install & activate conda
+RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
+    bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/conda && \
+    rm Miniconda3-latest-Linux-x86_64.sh
+
+RUN /opt/conda/bin/conda init bash
+
+# Ensure Conda's base environment is activated (bash shell)
+SHELL ["/bin/bash", "--login", "-c"]
+
+RUN conda env create -f environment.yml
+RUN conda activate test
