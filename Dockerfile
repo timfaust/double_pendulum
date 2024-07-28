@@ -28,7 +28,7 @@ RUN cp -r eigen-3.4.0/Eigen /usr/local/include
 #RUN python -m ensurepip --upgrade
 RUN pip install -U pip
 
-RUN git clone https://github.com/dfki-ric-underactuated-lab/double_pendulum.git
+RUN git clone -b more_policies --single-branch  https://github.com/timfaust/double_pendulum.git
 
 WORKDIR "/double_pendulum"
 
