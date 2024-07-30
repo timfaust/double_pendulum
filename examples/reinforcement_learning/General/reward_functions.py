@@ -52,11 +52,8 @@ def future_pos_reward(observation, action, env_type, dynamic_func, observation_d
     return reward * np.min(punish_limit(observation_dict['X_meas'][-1], action, observation_dict['dynamics_func']))
 
 
-def saturated_distance_from_target(observation, action, env_type, dynamic_func, observation_dict):
+def exp_distance_from_target(observation, action, env_type, dynamic_func, observation_dict):
     u = dynamic_func.unscale_action(action)
-    u_diff = 0
-    if len(observation) > 4:
-        u_diff = action - observation[-2]
 
     x = dynamic_func.unscale_state(observation)
 
@@ -65,7 +62,7 @@ def saturated_distance_from_target(observation, action, env_type, dynamic_func, 
     diff = wrap_angles_diff(diff)
 
     sat_dist = np.dot(diff.T, diff)
-    exp_indx = -sat_dist - np.linalg.norm(u) - np.linalg.norm(u_diff)
+    exp_indx = -sat_dist - np.linalg.norm(u)
 
     exp_term = np.exp(exp_indx)
     return exp_term
