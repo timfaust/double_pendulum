@@ -122,9 +122,13 @@ class CustomSAC(SAC):
         self.schedulers = []
         self.active_policy = 0
         self.sample_policy = 0
+
+        # DIFFERENCE: Support for multiple policies
         self.policies = []
         self.policy_classes = policy_classes
         self.policy_number = len(self.policy_classes)
+
+        # DIFFERENCE: Initialize replay buffers for each policy
         self.replay_buffers = []
         self.ent_coef_optimizers = []
         self.log_ent_coefs = []
@@ -132,6 +136,7 @@ class CustomSAC(SAC):
 
         self.progress = 0
 
+        # DIFFERENCE: Setup schedulers
         schedule_params = {
             'actor_schedule': "",
             'critic_schedule': "",

@@ -109,6 +109,9 @@ def punish_limit(observation, action, dynamics_function, k=50):
     values = np.concatenate([np.abs(observation), np.array([np.abs(action)])])
     ratios = values / thresholds
 
+    # Calculate punishment factors based on the ratios
+    # If the ratio is less than or equal to 1, apply a scaled punishment factor using an exponential function
+    # If the ratio is greater than 1, the factor is set to 0
     factors = np.where(ratios <= 1, 1 - np.exp(-k * np.abs(ratios - 1)), 0)
 
     return factors[:2].min(), factors[2:4].min(), 1 #factors[4]
@@ -163,6 +166,13 @@ def softmax_and_select(arr):
 
 
 def find_index_and_dict(observation, env):
+    """
+        Finds the index of the given observation in the environment's observation dictionaries.
+
+        This function first attempts to find the observation in the current observation dictionary
+        (`env.observation_dict`). If the observation is not found, it falls back to searching in an
+        older observation dictionary (`env.observation_dict_old`).
+    """
     observation_dict = env.observation_dict
     index = find_observation_index(observation, observation_dict)
     if index < 0:
@@ -173,6 +183,13 @@ def find_index_and_dict(observation, env):
 
 
 def find_observation_index(observation, observation_dict):
+    """
+        Finds the index of a specific observation in an array of observations.
+
+        This function searches through the array of measurements stored in `observation_dict['X_meas']`
+        and returns the index where the given `observation` is found. It compares each entry in
+        reverse order to find the most recent match.
+    """
     X_meas = observation_dict['X_meas']
     for idx, array in reversed(list(enumerate(X_meas))):
         if np.array_equal(observation, array.astype(np.float32)) or np.array_equal(observation, array):
@@ -215,6 +232,35 @@ def get_stabilized(observation_dict, threshold=0.002):
 
 
 def get_state_values(observation_dict, key='X_meas', offset=0):
+    """
+        Computes and returns various state-related values based on the observations and system parameters.
+
+        This function calculates a set of derived values such as joint angles, positions, velocities,
+        and other dynamics-related metrics from the given observation data. It uses these values to
+        provide a comprehensive state description, which can be useful for control and decision-making
+        processes in a dynamic system, like a double pendulum.
+
+        Args:
+            observation_dict (dict): A dictionary containing observation data and system parameters.
+            key (str): The key in `observation_dict` used to retrieve the state data. Default is 'X_meas'.
+            offset (int): The offset used to index into the observation data. Default is 0.
+
+        Returns:
+            dict: A dictionary containing various computed state values including:
+                  - 'y': Angles wrapped to the range [-π, π].
+                  - 'x1', 'x2', 'x3': Cartesian coordinates of the joints, end-effector and future_pos based on velocity.
+                  - 's1', 's2', 'c1', 'c2': Sine and cosine of the angles for trigonometric calculations.
+                  - 'v1', 'v2': Cartesian velocities of the joints.
+                  - 'omega_squared_1', 'omega_squared_2': Squared angular velocities.
+                  - 'goal': Goal position for the end-effector.
+                  - 'dt_goal': Time step used for goal calculation.
+                  - 'threshold_distance': Distance threshold for goals.
+                  - 'distance': Normalized distance of the end-effector from the goal.
+                  - 'unscaled_action': The unscaled control action.
+                  - 'u_p': First derivative of the control action.
+                  - 'u_pp': Second derivative of the control action.
+    """
+
     l = observation_dict['mpar'].l
     action_key = 'U_con'
     if key == 'X_real':
@@ -227,7 +273,7 @@ def get_state_values(observation_dict, key='X_meas', offset=0):
     unscaled_observation = observation_dict['dynamics_func'].unscale_state(observation_dict[key][offset-1])
     unscaled_action = get_unscaled_action(observation_dict, offset, action_key)
 
-    y = wrap_angles_diff(unscaled_observation) #now both angles from -pi to pi
+    y = wrap_angles_diff(unscaled_observation)  #now both angles from -pi to pi
 
     s1 = np.sin(y[0])
     s2 = np.sin(y[0] + y[1])

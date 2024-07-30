@@ -88,6 +88,20 @@ class SplitReplayBuffer(ReplayBuffer):
 
 
 class MultiplePoliciesReplayBuffer(ReplayBuffer):
+    """
+        A specialized replay buffer for reinforcement learning, designed to handle multiple policies.
+
+        This buffer stores experiences from different policies, allowing for efficient storage and retrieval of data for training multiple policies simultaneously. It extends the standard replay buffer by adding functionality to track which policy generated each experience.
+
+        Attributes:
+        -----------
+        next_observations : list
+            Stores the next observations in the buffer, initialized with `None` and sized to the buffer capacity.
+        next_state_policy : int
+            The policy identifier for the next state.
+        next_policies : np.ndarray
+            An array to store the policy index for each experience, facilitating multi-policy training.
+    """
 
     def __init__(self, *args, **kwargs):
         kwargs['n_envs'] = 1
@@ -105,6 +119,34 @@ class MultiplePoliciesReplayBuffer(ReplayBuffer):
         done: np.ndarray,
         infos: List[Dict[str, Any]],
     ) -> None:
+        """
+            Adds a new experience to the buffer.
+
+            Parameters:
+            -----------
+            obs : np.ndarray
+                The current observation.
+
+            next_obs : np.ndarray
+                The next observation following the action.
+
+            action : np.ndarray
+                The action taken by the agent.
+
+            reward : np.ndarray
+                The reward received after taking the action.
+
+            done : np.ndarray
+                Boolean array indicating whether the episode ended.
+
+            infos : List[Dict[str, Any]]
+                Additional information about the episode, such as whether it ended due to a time limit.
+
+            Returns:
+            --------
+            None
+        """
+
         # Reshape needed when using multiple envs with discrete observations
         # as numpy cannot broadcast (n_discrete,) to (n_discrete, 1)
         if isinstance(self.observation_space, spaces.Discrete):
@@ -136,6 +178,22 @@ class MultiplePoliciesReplayBuffer(ReplayBuffer):
             self.pos = 0
 
     def _get_samples(self, batch_inds: np.ndarray, env: Optional[VecNormalize] = None):
+        """
+            Retrieves a batch of samples from the buffer, including policy indices.
+
+            Parameters:
+            -----------
+            batch_inds : np.ndarray
+                Indices of the experiences to sample.
+
+            env : Optional[VecNormalize]
+                Optional environment for normalizing observations and rewards.
+
+            Returns:
+            --------
+            tuple
+                Contains sampled data and next observations, along with policy indices.
+        """
         # Sample randomly the env idx
         env_indices = np.random.randint(0, high=self.n_envs, size=(len(batch_inds),))
 
@@ -169,6 +227,11 @@ class DefaultTranslator:
         self.act_space = gym.spaces.Box(np.array([-1.0]), np.array([1.0]))
 
     def build_state(self, observation, env) -> np.ndarray:
+        """
+            Processes and returns the latest raw observation from the environment's observation dictionary.
+
+            This method retrieves the most recent measurement from the environment's observation dictionary and returns it.
+        """
         dirty_observation = env.observation_dict['X_meas'][-1]
         return dirty_observation
 
@@ -177,6 +240,12 @@ class DefaultTranslator:
 
 
 class CustomPolicy(SACPolicy):
+    """
+        A base class for custom Soft Actor-Critic (SAC) policies.
+
+        This class extends the SACPolicy and serves as a template for more specialized policies. It includes additional mechanisms for
+        handling actor and critic network configurations through keyword arguments, and it supports the use of a custom translator for preprocessing observations.
+    """
     additional_actor_kwargs = {}
     additional_critic_kwargs = {}
 

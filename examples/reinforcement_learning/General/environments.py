@@ -34,20 +34,30 @@ class GeneralEnv(CustomEnv):
         is_evaluation_environment=False,
         existing_dynamics_function=None
     ):
+        """
+            Initialize the GeneralEnv environment.
 
+            Args:
+                env_type (str): Type of environment ('train_env' or 'eval_env').
+                param_name (str): Name of the Parameter in json.file set to be used.
+                seed (int): Seed for random number generation.
+                path (str): Path to the JSON file containing parameters.
+                is_evaluation_environment (bool): Flag indicating if the environment is for evaluation purposes.
+                existing_dynamics_function (Any): Optional; an existing dynamics function.
+        """
         self.sac = None
         self.seed = seed
         self.is_evaluation_environment = is_evaluation_environment
         self.param_name = param_name
         self.env_type = env_type
-        self.killed_because = 0
-        self.stabilized = False
+        self.killed_because = 0     # !=0 is killed, 0 is not killed
+        self.stabilized = False     # Flag indicating if the environment has stabilized
         if not os.path.exists(path):
             path = os.path.join("../../../examples/reinforcement_learning/General/", path)
         self.param_data = json.load(open(path))[param_name]
 
         self.type = None
-        self.configuration = None
+        self.configuration = None   # Configuration for disturbances
         self.render_every_steps = None
         self.render_every_envs = None
         self.same_environment = None
@@ -75,7 +85,7 @@ class GeneralEnv(CustomEnv):
 
         self.mpar = load_param(self.param_data["max_torque"])
         self.observation_dict = {"T": [], 'X_meas': [], 'X_real': [], 'U_con': [], 'U_real': [], "push": [], "max_episode_steps": self.max_episode_steps, "mpar": self.mpar}
-        self.observation_dict_old = None
+        self.observation_dict_old = None    # Updated after reset is called to store the old values
         self.render_mode = "None"
         self.visualizer = Visualizer(self)
 
@@ -188,12 +198,18 @@ class GeneralEnv(CustomEnv):
         return dirty_observation
 
     def find_delay_action(self):
+        """
+            Find the action to be applied with a delay based on the observed time and configured delay.
+
+            Returns:
+                float: The action to be applied with delay.
+        """
         T = self.observation_dict['T']
         U_con = self.observation_dict['U_con']
 
         current_time = T[-1]
 
-        offset = np.round(self.dynamics_func.dt / 2, decimals=5)
+        offset = np.round(self.dynamics_func.dt / 2, decimals=5)    # Half-step offset for adjusting delay
         if current_time < self.start_delay - offset:
             return 0.0
 
@@ -252,6 +268,7 @@ class GeneralEnv(CustomEnv):
         dirty_observation = self.apply_observation_disturbances(clean_observation)
         self.append_observation_dict(clean_observation, dirty_observation, dirty_action)
 
+        # boolean array of length 4 indicating if any joint has ecxeed position or velocity limits
         terminated = self.terminated_func(dirty_observation, clean_action)
         self.killed_because = (np.argmax(terminated) + 1) if np.any(terminated) else 0
         done = self.killed_because != 0
