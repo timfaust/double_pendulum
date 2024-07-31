@@ -26,6 +26,7 @@ from stable_baselines3.common.vec_env.patch_gym import _patch_env
 from stable_baselines3.common.vec_env.util import copy_obs_dict, dict_to_obs, obs_space_info
 
 
+# override only to use custom monitor
 def make_vec_env(
     env_id: Union[str, Callable[..., gym.Env]],
     n_envs: int = 1,
@@ -118,7 +119,7 @@ def make_vec_env(
     return vec_env
 
 
-# overwritten
+# overwritten to enable usage of multiple rewards
 class CustomMonitor(Monitor):
 
     def __init__(self, *args, **kwargs):
@@ -174,7 +175,7 @@ class CustomMonitor(Monitor):
         return observation, np.array(reward_list), terminated, truncated, info
 
 
-# overwritten
+# overwritten to enable usage of multiple rewards
 class CustomDummyVecEnv(DummyVecEnv):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from stable_baselines3.common import base_class
 
 
+# override sb3 method to also log scores
 class CustomEvalCallback(EvalCallback):
 
     def __init__(self, *args, **kwargs):
@@ -146,6 +147,7 @@ class CustomEvalCallback(EvalCallback):
         return mean_reward, mean_ep_length
 
 
+# override sb3 method to also return scores
 def evaluate_policy(
     model: CustomSAC,
     env: Union[gym.Env, VecEnv],
@@ -273,9 +275,9 @@ def evaluate_policy(
                     killed = env.envs[i].env.observation_dict_old['killed_because']
                     if killed > 0:
                         score = 0.0
-                        print(disturbed_parameters[c[0]], c[1], "with score:", score, "was killed because:", killed)
-                    else:
-                        print(disturbed_parameters[c[0]], c[1], "with score:", score)
+                        # print(disturbed_parameters[c[0]], c[1], "with score:", score, "was killed because:", killed)
+                    # else:
+                    #     print(disturbed_parameters[c[0]], c[1], "with score:", score)
                     episode_scores.append(score)
 
         observations = new_observations

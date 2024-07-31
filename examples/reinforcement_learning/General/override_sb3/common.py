@@ -13,6 +13,7 @@ from gymnasium import spaces
 from examples.reinforcement_learning.General.misc_helper import softmax_and_select, stabilize, swing_up
 
 
+# custom replay buffer that is split into multiple different which get filled and sampled depending on the state (chosen by the decider functions)
 class SplitReplayBuffer(ReplayBuffer):
     def __init__(
         self,
@@ -87,6 +88,7 @@ class SplitReplayBuffer(ReplayBuffer):
         return self.combine_replay_buffer_samples(samples)
 
 
+# changes replay buffer history storage to allow multiple policies in parallel with possibly different reward functions
 class MultiplePoliciesReplayBuffer(ReplayBuffer):
     """
         A specialized replay buffer for reinforcement learning, designed to handle multiple policies.
@@ -214,12 +216,14 @@ class MultiplePoliciesReplayBuffer(ReplayBuffer):
         return ReplayBufferSamples(*tuple(map(self.to_torch, data))), next_obs, self.next_policies[batch_inds, env_indices]
 
 
+# return the actual current plant parameters as ground truth values
 def get_all_knowing(env):
     plant = env.dynamics_func.simulator.plant
     all_knowing = np.array([plant.l[0], plant.l[1], plant.m[0], plant.m[1], plant.b[0], plant.b[1], plant.cf[0], plant.cf[1], env.delay, env.start_delay])
     return all_knowing
 
 
+# default state builder, just returns the observation from the simulator
 class DefaultTranslator:
 
     def __init__(self, input_dim: int):
@@ -239,6 +243,7 @@ class DefaultTranslator:
         pass
 
 
+# custom policies which is almost the same but can return the default translator for generic state building
 class CustomPolicy(SACPolicy):
     """
         A base class for custom Soft Actor-Critic (SAC) policies.

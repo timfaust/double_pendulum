@@ -24,6 +24,7 @@ import torch as th
 from torch.nn import functional as F
 
 
+# parse args for a custom scheduler from a string in the parameters.json
 def parse_args_kwargs(input_string):
     def parse_value(value):
         try:
@@ -63,6 +64,7 @@ def parse_args_kwargs(input_string):
     return args, kwargs
 
 
+# creates learning rate schedulers (for actor, critic, ent_coef) from a string
 def create_lr_schedule(optimizer, schedule_str):
     schedule_str = str(schedule_str)
     if schedule_str.replace(".", "", 1).isdigit():
@@ -161,6 +163,7 @@ class CustomSAC(SAC):
             if schedule_params['entropy_schedule']:
                 self.schedulers.append(create_lr_schedule(self.ent_coef_optimizer, schedule_params['entropy_schedule'][i]))
 
+    # connects each env to the SAC and initializes their disturbance configurations
     def connect_envs(self, env=None):
         N = 7
         if env is None:
@@ -230,6 +233,7 @@ class CustomSAC(SAC):
 
         return self.get_actions(observation, deterministic), None
 
+    # allow replay buffer storage dependent on current state (for multiple buffers), used in overridden _store_transition
     def add_to_buffer(self, next_obs, buffer_action, reward, dones, infos):
         n_envs = len(buffer_action)
         envs = [m.env for m in self.env.envs]
@@ -269,6 +273,7 @@ class CustomSAC(SAC):
                         [infos[i]]
                     )
 
+    # build and return last observed state in specific environment
     def get_last_state(self, env):
         obs = [env.observation_dict['X_meas'][-1]]
         selected_policy = self.decide_policy(obs)
@@ -277,6 +282,7 @@ class CustomSAC(SAC):
                 return self.policies[policy_index].translator.build_state(obs[0], env), policy_index
         return None, None
 
+    # overrides from sb3 to allow custom experience storage
     def _store_transition(
         self,
         replay_buffer: ReplayBuffer,
@@ -335,6 +341,7 @@ class CustomSAC(SAC):
         if self._vec_normalize_env is not None:
             self._last_original_obs = new_obs_
 
+    # selects action dependent on policy used for state
     def get_actions(self, obs, deterministic):
         selected_policies = self.decide_policy(obs)
         envs = [m.env for m in self.env.envs]
@@ -356,6 +363,7 @@ class CustomSAC(SAC):
 
         return actions
 
+    # returns critic target value dependent on policy used for the next state in replay buffer experience
     def get_critic_target(self, next_observations, next_policies, device):
         policy_indices = [[] for _ in range(self.policy_number)]
 
@@ -425,12 +433,14 @@ class CustomSAC(SAC):
 
                 writer.add_image('gradient_chart/' + logging_name, plt.imread(self.logger.dir + '/gradients.png'), self.num_timesteps, dataformats='HWC')
 
+    # overriden to train all active policies instead of just one
     def train(self, gradient_steps: int, batch_size: int = 64) -> None:
         for i in range(len(self.policies)):
             self.select_policy(i)
             if self.replay_buffer.full or self.replay_buffer.pos > batch_size * 4:
                 self.train_policy(i, gradient_steps, batch_size)
 
+    # train one specific policy (with id policy_id)
     def train_policy(self, policy_id, gradient_steps: int, batch_size: int = 64, critic_loss_goal=-1.0) -> None:
         logging_name = str(self.active_policy)
         # Switch to train mode (this affects batch norm / dropout)
@@ -590,6 +600,7 @@ class CustomSAC(SAC):
         # Pass the number of timesteps for tensorboard
         self.logger.dump(step=self.num_timesteps)
 
+    # custom save
     def save(
         self,
         path: Union[str, pathlib.Path, io.BufferedIOBase],
@@ -610,6 +621,7 @@ class CustomSAC(SAC):
         with open(path, 'wb') as f:
             pickle.dump(data_to_save, f)
 
+    # custom load
     @classmethod
     def load(  # noqa: C901
             cls: Type[SelfBaseAlgorithm],
