@@ -17,6 +17,13 @@ import argparse
 
 seed = 42
 
+"""
+this is used only for remote debugging!
+leave it out otherwise
+"""
+#import pydevd_pycharm
+#pydevd_pycharm.settrace('localhost', port=55972, stdoutToServer=True, stderrToServer=True)
+
 if __name__ == '__main__':
 
     # set seeds
