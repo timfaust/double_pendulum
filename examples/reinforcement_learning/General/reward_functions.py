@@ -62,9 +62,11 @@ def exp_distance_from_target(observation, action, env_type, dynamic_func, observ
     diff = wrap_angles_diff(diff)
 
     sat_dist = np.dot(diff.T, diff)
-    exp_indx = -sat_dist - np.linalg.norm(u)
+    exp_indx = (- sat_dist - np.linalg.norm(u)) / np.abs(calculate_score(observation_dict, needs_success=False))
 
     exp_term = np.exp(exp_indx)
+    if np.linalg.norm(diff) < 1:
+        print(exp_term)
     return exp_term
 
 

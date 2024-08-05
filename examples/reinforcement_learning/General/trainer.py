@@ -110,12 +110,13 @@ class Trainer:
             action_noise=self.action_noise,
             seed=self.environment.seed,
             decider=self.decider,
-            **get_filtered_data(self.environment)
+            **get_filtered_data(self.environment),
+            verbose=self.verbose
         )
 
         callback_list = self.get_callback_list(agent)
         agent.learn(self.training_steps, callback=callback_list)
-        agent.save(os.path.join(self.log_dir, "saved_model", "trained_model"))
+        agent.save(os.path.join(self.log_dir, "saved_model", "trained_model.pkl"))
 
     def retrain(self, model_path):
         if not os.path.exists(self.log_dir + model_path + ".pkl"):

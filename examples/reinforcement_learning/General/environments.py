@@ -432,6 +432,7 @@ class GeneralEnv(CustomEnv):
                     setattr(self, parameter, new_value)
 
         if (self.configuration is None or self.configuration[1] == -1) and parameter not in ['nothing', 'delay', 'velocity_noise', 'action_noise', 'responsiveness', 'n_pert_per_joint']:
+            print("updating plant! this might take a while")
             self.update_plant()
         self.configuration = disturbance
 

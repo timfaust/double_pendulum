@@ -567,8 +567,9 @@ class CustomSAC(SAC):
         def record_grads(logger, model, model_name, logging_name):
             for name, param in model.named_parameters():
                 if param.grad is not None:
-                    logger.record(f"{model_name}/{logging_name}/grads/{name}", param.grad.norm().item())
-                logger.record(f"{model_name}/{logging_name}/weights/{name}", param.data.norm().item())
+                    pass
+                    #logger.record(f"{model_name}/{logging_name}/grads/{name}", param.grad.norm().item())
+                #logger.record(f"{model_name}/{logging_name}/weights/{name}", param.data.norm().item())
 
         record_grads(self.logger, self.actor, "actor", logging_name)
         record_grads(self.logger, self.critic, "critic", logging_name)

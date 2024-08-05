@@ -105,8 +105,8 @@ class CustomEvalCallback(EvalCallback):
             self.logger.record("time/total_timesteps", self.num_timesteps, exclude="tensorboard")
             self.logger.dump(self.num_timesteps)
 
-            # TODO: werden neue best models gespeichert? Aktuell extra nicht
-            if np.any(mean_reward > self.best_mean_reward) and False:
+            # TODO: werden neue best models gespeichert?
+            if np.any(mean_reward > self.best_mean_reward):
                 if self.verbose >= 1:
                     print("New best mean reward!")
                 if self.best_model_save_path is not None:

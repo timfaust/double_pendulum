@@ -11,10 +11,10 @@ class Visualizer:
         self.acc_reward = 0
         self.reward = 0
         self.policy = 0
-        self.pendulum_length_visualization = 700
-        self.graph_window_width = 1500
-        self.graph_window_height = 1500
-        self.metrics_width = 3000
+        self.pendulum_length_visualization = 300
+        self.graph_window_width = 800
+        self.graph_window_height = 800
+        self.metrics_width = 300
         self.full_window_width = self.graph_window_width + self.metrics_width
         self.window = None
         self.clock = None
@@ -173,7 +173,7 @@ class Visualizer:
 
         return metrics
 
-    def draw_grid(self, line_color=(200, 200, 200), spacing=75):
+    def draw_grid(self, line_color=(200, 200, 200), spacing=50):
         for x in range(0, self.full_window_width, spacing):
             pygame.draw.line(self.canvas, line_color, (x, 0), (x, self.graph_window_height), 1)
         for y in range(0, self.graph_window_height, spacing):
@@ -234,7 +234,7 @@ class Visualizer:
         for i, (label, value) in enumerate(metrics.items()):
             text = self.font.render(f"{label}: {value:.4f}" if isinstance(value, float) else f"{label}: {value}", True,
                                     (0, 0, 0))
-            self.canvas.blit(text, (10, i * 40 + 150))
+            self.canvas.blit(text, (10, i * 40 + 100))
 
     def update_display(self):
         self.window.blit(self.canvas, self.canvas.get_rect())
