@@ -31,7 +31,7 @@
 echo "Loading Modules!"
 srun cd /mnt/beegfs/home/stud_aghadavoodi/double_pendulum/examples/reinforcement_learning/General/ || exit 2
 
-srun srun --pty bash conda init
+srun --pty bash conda init
 srun conda activate double_pendulum
 
 srun export PYTHONPATH="/mnt/beegfs/home/stud_aghadavoodi/double_pendulum/src/python:$PYTHONPATH"
