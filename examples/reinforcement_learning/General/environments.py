@@ -16,7 +16,7 @@ import pygame
 import numpy as np
 import gymnasium as gym
 from examples.reinforcement_learning.General.dynamics_functions import default_dynamics, load_param, custom_dynamics_func_4PI
-from examples.reinforcement_learning.General.reward_functions import score_reward, pos_reward, quadratic_rew, exp_distance_from_target, future_pos_reward
+from examples.reinforcement_learning.General.reward_functions import score_reward, pos_reward, quadratic_rew, exp_distance_from_target, future_pos_reward, lagrangian
 from double_pendulum.simulation.simulation import Simulator
 
 from src.python.double_pendulum.simulation.perturbations import get_random_gauss_perturbation_array
@@ -90,6 +90,7 @@ class GeneralEnv(CustomEnv):
         self.visualizer = Visualizer(self)
 
         self.episode_id = 0
+        self.episode_steps = 0
 
         super().__init__(
             dynamics_function,
@@ -142,7 +143,7 @@ class GeneralEnv(CustomEnv):
 
         reward_function = globals()[self.param_data[self.type]["reward_function"]]
         self.reward_name = self.param_data[self.type]["reward_function"]
-        self.reward_function = lambda obs, act, observation_dict: reward_function(obs, act, self.env_type, existing_dynamics_function, observation_dict)
+        self.reward_function = lambda obs, act, observation_dict: reward_function(obs, act, self.env_type, existing_dynamics_function, observation_dict,self.episode_steps, self.max_episode_steps)
 
         return existing_dynamics_function
 
@@ -170,6 +171,8 @@ class GeneralEnv(CustomEnv):
         self.stabilized = False
 
         return dirty_observation
+
+
 
     def get_envs(self, log_dir):
         existing_dynamics_function = self.dynamics_func
@@ -261,6 +264,8 @@ class GeneralEnv(CustomEnv):
 
     # overwritten
     def step(self, clean_action):
+        if self.episode_steps < 200: self.episode_steps += 1
+
         clean_action = clean_action[0].astype(np.float64)
         dirty_action = self.get_dirty_action(clean_action)
 
@@ -298,6 +303,7 @@ class GeneralEnv(CustomEnv):
         self.step_counter += 1
         if self.step_counter >= self.max_episode_steps:
             truncated = True
+            self.episode_steps = 0
             self.step_counter = 0
         return truncated
 

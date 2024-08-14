@@ -139,3 +139,25 @@ def quadratic_rew(observation, action, env_type, dynamic_func, observation_dict)
 
 
     return reward
+
+def lagrangian(observation, action, env_type, dynamic_func, observation_dict,steps_in_episode, max_steps):
+    u = dynamic_func.unscale_action(action)
+
+    x = dynamic_func.unscale_state(observation) #state is angle, angle, angl vel, angl vel
+
+    m = [1,1] #unknown
+     #unknown
+    l = [0.2, 0.3]
+
+    e_kin = .5 * m[0] * l[0] **2 * x[2] **2 + .5 * m[1] * ( l[0] **2 * x[2] **2 + l[1] **2 * x[3] **2 + 2 * l[0] * l[1] * x[2] * x[3] * np.cos(x[0] - x[1]) )
+    e_pot = -(m[0] + m[1]) * 9.81 * l[0] * np.cos(x[0]) - m[1] * 9.81 * l[1] * np.cos(x[1])
+    kin_cost_factor = (max_steps - steps_in_episode) * 100
+    pot_cost_factor = max_steps * 100
+
+    kin_cost_factor = kin_cost_factor / (max_steps * 100)
+    pot_cost_factor = 1
+
+    #goal is to maximize the lagrangian, while the component of kinetic energy gets penalized
+    Lagrangian = e_kin * kin_cost_factor - e_pot * pot_cost_factor
+
+    return Lagrangian

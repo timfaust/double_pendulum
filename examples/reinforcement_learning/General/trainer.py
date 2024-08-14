@@ -89,6 +89,7 @@ class Trainer:
         self.render_eval = self.environment.param_data["render_eval"] == 1
         self.n_eval_episodes = self.environment.param_data["n_eval_episodes"]
         self.show_progressBar = self.environment.param_data["show_progress_bar"]
+        self.counter = 0
 
         if not self.use_action_noise:
             self.action_noise = None

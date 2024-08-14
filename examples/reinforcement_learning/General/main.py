@@ -33,11 +33,11 @@ if __name__ == '__main__':
 
     # arguments for trainer
     parser = argparse.ArgumentParser()
-    parser.add_argument('--name', default="test_6_4")
-    parser.add_argument('--mode', default="evaluate", choices=["train", "retrain", "evaluate", "simulate"])
+    parser.add_argument('--name', default="Acro_on_Cluster_w_Lagrange")
+    parser.add_argument('--mode', default="train", choices=["train", "retrain", "evaluate", "simulate"])
     parser.add_argument('--model_path', default="/best_model/best_model")
     parser.add_argument('--env_type', default="acrobot", choices=["pendubot", "acrobot"])
-    parser.add_argument('--param', default="test")
+    parser.add_argument('--param', default="lagrange")
     args = parser.parse_args()
 
     action_noise = OrnsteinUhlenbeckActionNoise(mean=np.array([0.0]), sigma=0.1 * np.ones(1), theta=0.15, dt=1e-2)
