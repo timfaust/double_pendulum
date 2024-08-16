@@ -160,7 +160,7 @@ class CustomSAC(SAC):
                 self.schedulers.append(create_lr_schedule(self.actor.optimizer, schedule_params['actor_schedule'][i]))
             if schedule_params['critic_schedule']:
                 self.schedulers.append(create_lr_schedule(self.critic.optimizer, schedule_params['critic_schedule'][i]))
-            if schedule_params['entropy_schedule']:
+            if schedule_params['entropy_schedule'] and self.ent_coef_optimizer is not None:
                 self.schedulers.append(create_lr_schedule(self.ent_coef_optimizer, schedule_params['entropy_schedule'][i]))
 
     # connects each env to the SAC and initializes their disturbance configurations
@@ -557,11 +557,13 @@ class CustomSAC(SAC):
 
         actor_lr = self.actor.optimizer.param_groups[0]['lr']
         critic_lr = self.critic.optimizer.param_groups[0]['lr']
-        entropy_lr = self.ent_coef_optimizer.param_groups[0]['lr']
 
         self.logger.record("train/" + logging_name + "/actor_lr", actor_lr)
         self.logger.record("train/" + logging_name + "/critic_lr", critic_lr)
-        self.logger.record("train/" + logging_name + "/entropy_lr", entropy_lr)
+
+        if self.ent_coef_optimizer is not None:
+            entropy_lr = self.ent_coef_optimizer.param_groups[0]['lr']
+            self.logger.record("train/" + logging_name + "/entropy_lr", entropy_lr)
 
         self.policy.after_train()
 
@@ -613,8 +615,8 @@ class CustomSAC(SAC):
             "policy_classes": self.policy_classes,
             "decider": self.decider,
             "replay_buffer_classes": self.replay_buffer_classes,
-            "ent_coef_optimizers": [optimizer.state_dict() for optimizer in self.ent_coef_optimizers],
-            "log_ent_coefs": [coef.detach().cpu().numpy() for coef in self.log_ent_coefs],
+            "ent_coef_optimizers": [optimizer.state_dict() for optimizer in self.ent_coef_optimizers if optimizer is not None],
+            "log_ent_coefs": [coef.detach().cpu().numpy() for coef in self.log_ent_coefs if coef is not None],
             "policies": [policy.state_dict() for policy in self.policies],
             "replay_buffers": self.replay_buffers,
         }
