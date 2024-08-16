@@ -52,13 +52,27 @@ class SmoothingFilter(nn.Module):
 
     def forward(self, x):
         batch_size, sequence_length, num_features = x.size()
+
+        # Create a mask for non-zero (non-padded) elements
+        mask = (x != 2.0).float()
+        mask = mask[:, :, 0]  # Use the first feature channel to create the mask, assuming padding is uniform across features
+
+        # Transpose and apply the convolution
         x_t = x.transpose(1, 2)  # Transpose to (batch_size, num_features, sequence_length)
         smoothed = self.conv(x_t)
         smoothed = smoothed.transpose(1, 2)  # Transpose back to (batch_size, sequence_length, num_features)
 
+        # Apply the smoothing filter with the learnable alpha
         alpha_sigmoid = self.activation(self.alpha).view(1, 1, -1)
         alpha_sigmoid = alpha_sigmoid.expand(batch_size, sequence_length, num_features)  # Expand to match the input dimensions
-        return alpha_sigmoid * x + (1 - alpha_sigmoid) * smoothed
+
+        # Combine the original and smoothed values
+        output = alpha_sigmoid * x + (1 - alpha_sigmoid) * smoothed
+
+        # Apply the mask to retain padding values in the output
+        output = output * mask.unsqueeze(-1) + x * (1 - mask.unsqueeze(-1))
+
+        return output
 
 
 class SequenceExtractor(BaseFeaturesExtractor):
@@ -184,7 +198,12 @@ class LSTMExtractor(SequenceExtractor):
         obs_reshaped = obs.view(batch_size, self.timesteps, self.input_features)
         obs_smoothed = self.smoothing(obs_reshaped)
 
-        lstm_out, (h_n, c_n) = self.lstm(obs_smoothed)
+        lengths = (obs_smoothed != 2.0).any(dim=2).sum(dim=1).cpu()
+        sorted_lengths, sorted_idx = lengths.sort(descending=True)
+        sorted_input_tensor = obs_smoothed[sorted_idx]
+        packed_input = nn.utils.rnn.pack_padded_sequence(sorted_input_tensor, sorted_lengths, batch_first=True, enforce_sorted=False)
+
+        lstm_out, (h_n, c_n) = self.lstm(packed_input)
 
         last_hidden = h_n[-1]
         last_cell = c_n[-1]
@@ -210,11 +229,11 @@ class SequenceTranslator(DefaultTranslator):
     """
     def __init__(self):
         self.reset()
-        self.timesteps = 256
+        self.timesteps = 64
         self.feature_dim = 5
         self.output_dim = 16
         self.additional_features = 8
-        self.net_arch = [128, 64, 32]
+        self.net_arch = [512, 512, 512]
 
         super().__init__(self.timesteps * self.feature_dim + self.additional_features)
 
@@ -250,7 +269,7 @@ class SequenceTranslator(DefaultTranslator):
 
         output = conv_memory
         if output.shape[0] < self.timesteps:
-            padding = np.zeros((self.timesteps - output.shape[0], output.shape[1]))
+            padding = np.ones((self.timesteps - output.shape[0], output.shape[1])) * 2
             output = np.vstack((padding, output))
 
         output = output.flatten()

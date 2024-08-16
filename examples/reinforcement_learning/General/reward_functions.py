@@ -19,13 +19,38 @@ def pos_reward(observation, action, env_type, dynamic_func, observation_dict):
     return reward * np.min(punish_limit(observation_dict['X_meas'][-1], action, observation_dict['dynamics_func']))
 
 
-def r1(state_values):
-    return get_i_decay(state_values['distance']) - get_i_decay(2)
+def angle_distance(state_values):
+    goal = [np.pi, 0]
+    diff = state_values['y'][:2] - goal
+    diff = wrap_angles_diff(diff)
+
+    dist = np.dot(diff.T, diff)
+
+    return dist
+
+
+def r1(observation_dict, state_values):
+    d = angle_distance(state_values) * 0.5 + energy_distance(observation_dict, state_values) * 0.5 + effort_distance(state_values) * 4
+    # score = calculate_score(observation_dict, needs_success=False)
+    b = 0 #np.exp(2*(score - 1)) * 10
+    if state_values['distance'] < 0.2:
+        b += np.exp(-np.linalg.norm(state_values['v1']) - np.linalg.norm(state_values['v1'])) * 5
+    return (5 - d + b)/10.0
+
+
+def energy_distance(observation_dict, state_values):
+    Ekin = observation_dict['dynamics_func'].simulator.plant.kinetic_energy(state_values['y'])
+    Epot = observation_dict['dynamics_func'].simulator.plant.potential_energy(state_values['y'])
+    Etot = Ekin + Epot
+    goal = np.array([np.pi, 0.0, 0.0, 0.0])
+    Epot_goal = observation_dict['dynamics_func'].simulator.plant.potential_energy(goal)
+    f = 1# np.clip(observation_dict['T'][-1] / 2.0, 0, 1)
+    return np.abs(Epot_goal * f - Etot)
 
 
 def f1(state_values):
     f = 1
-    v = state_values['v2'][1]
+    v = state_values['v1'][1]
     if state_values['distance'] > 0.5:
         f = 1-1/(1+np.exp(-10*(v + 0.2)))
     return f
@@ -39,16 +64,18 @@ def f2(state_values):
     return f
 
 
-def r2(state_values):
-    abstract_distance = (state_values['omega_squared_1'] + state_values['omega_squared_2']) / 400.0 + (state_values['unscaled_action'] ** 2) / 20.0  # + np.linalg.norm(u_p)/10
-    return get_i_decay(abstract_distance, factor=4)
+def effort_distance(state_values):
+    abstract_distance = (np.abs(state_values['y'][2]) + np.abs(state_values['y'][3])) / 20.0 + np.abs(state_values['unscaled_action']) / 4.0
+    return abstract_distance
 
 
 def future_pos_reward(observation, action, env_type, dynamic_func, observation_dict):
     state_values = get_state_values(observation_dict, 'X_real')
-    reward = r1(state_values)
-    f = f1(state_values)
-    reward += r2(state_values) * f
+    # score = calculate_score(observation_dict, needs_success=False)
+    # abstract_distance = (state_values['omega_squared_1'] + state_values['omega_squared_2']) / 400.0 + (state_values['unscaled_action'] ** 2) / 20.0
+    # print(abstract_distance)
+    # reward = r3(observation_dict, state_values) + score * 4
+    reward = r1(observation_dict, state_values)
     return reward * np.min(punish_limit(observation_dict['X_meas'][-1], action, observation_dict['dynamics_func']))
 
 

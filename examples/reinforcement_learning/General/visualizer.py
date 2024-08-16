@@ -3,7 +3,7 @@ import numpy as np
 import torch as th
 from examples.reinforcement_learning.General.score import calculate_score
 from examples.reinforcement_learning.General.misc_helper import calculate_q_values, get_stabilized, get_i_decay
-from examples.reinforcement_learning.General.reward_functions import get_state_values, r1, r2, f1, f2
+from examples.reinforcement_learning.General.reward_functions import get_state_values, angle_distance, effort_distance, energy_distance, r1
 
 
 class Visualizer:
@@ -102,7 +102,9 @@ class Visualizer:
         self.acc_reward = np.sum(reward_history)
         actual_Q = calculate_q_values(reward_history, gamma)
 
-        reward_shifted = reward_history - 1
+        # reward_shifted = [(reward - min(reward_history)) / (max(reward_history) - min(reward_history)) * 2 - 1 for reward in reward_history.tolist()]
+        reward_shifted = reward_history * 2 - 1
+        reward_shifted = reward_shifted.tolist()
         actual_Q_scaled, predicted_Q_scaled = self.scale_arrays_together(actual_Q, self.predicted_Q)
         past_scores_scaled = [score * 2 - 1 for score in self.past_scores]
 
@@ -115,7 +117,7 @@ class Visualizer:
             (clean_v, (0, 255, 0, 255), 1),
             (predicted_Q_scaled, (60, 60, 230, 150), 2),
             (actual_Q_scaled, (0, 0, 255, 255), 2),
-            (reward_shifted.tolist(), (0, 200, 0, 255), 2),
+            (reward_shifted, (0, 200, 0, 255), 2),
             (past_scores_scaled, (200, 0, 0, 255), 2)
         ]
 
@@ -199,11 +201,10 @@ class Visualizer:
             'policy': self.policy,
             'killed': self.env.killed_because,
             'stabilized': get_stabilized(self.env.observation_dict),
-            'r1': r1(state_values),
-            'r2': r2(state_values),
-            'v2[1]': state_values['v2'][1],
-            'f1': f1(state_values),
-            'f2': f2(state_values)
+            'd1': angle_distance(state_values),
+            'd2': effort_distance(state_values),
+            'd3': energy_distance(self.env.observation_dict, state_values),
+            'r1': r1(self.env.observation_dict, state_values)
         }
 
         return state_values['x1'], state_values['x2'], state_values['x3'], state_values['goal'], state_values[
