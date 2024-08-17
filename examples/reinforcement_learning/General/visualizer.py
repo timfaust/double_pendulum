@@ -22,6 +22,7 @@ class Visualizer:
         self.env = env
         self.model = None
         self.past_scores = []
+        self.reward_history = {}
         self.predicted_Q = []
         self.used_policies = []
 
@@ -45,6 +46,7 @@ class Visualizer:
         self.past_scores = []
         self.predicted_Q = []
         self.used_policies = []
+        self.reward_history = {"effort": [], "reward": [], "angle": [], "energy": []}
 
     def init_pygame(self):
         pygame.init()
@@ -91,20 +93,27 @@ class Visualizer:
         clean_x = [x[1] for x in self.env.observation_dict['X_real'][1:]]
         dirty_v = [x[3] for x in self.env.observation_dict['X_meas'][1:]]
         clean_v = [x[3] for x in self.env.observation_dict['X_real'][1:]]
-        reward_history = np.array(self.env.observation_dict[reward_name][1:])
 
-        self.past_scores.append(calculate_score(self.env.observation_dict, needs_success=True))
-
-        if len(reward_history) == 0:
+        if len(self.env.observation_dict[reward_name][1:]) == 0:
             return
 
-        self.reward = reward_history[-1]
-        self.acc_reward = np.sum(reward_history)
-        actual_Q = calculate_q_values(reward_history, gamma)
+        state_values = get_state_values(self.env.observation_dict)
+        self.past_scores.append(calculate_score(self.env.observation_dict, needs_success=True))
+        self.reward_history["reward"].append(self.env.observation_dict[reward_name][1:][-1])
+        self.reward_history["energy"].append(energy_distance(self.env.observation_dict, state_values))
+        self.reward_history["effort"].append(effort_distance(state_values))
+        self.reward_history["angle"].append(angle_distance(state_values))
+
+        self.reward = self.reward_history["reward"][-1]
+        self.acc_reward = np.sum(self.reward_history["reward"])
+        actual_Q = calculate_q_values(self.reward_history["reward"], gamma)
 
         # reward_shifted = [(reward - min(reward_history)) / (max(reward_history) - min(reward_history)) * 2 - 1 for reward in reward_history.tolist()]
-        reward_shifted = reward_history * 2 - 1
-        reward_shifted = reward_shifted.tolist()
+        reward_shifted = (np.array(self.reward_history["reward"]) * -2 - 1).tolist()
+        effort_shifted = (np.array(self.reward_history["effort"]) * 2 - 1).tolist()
+        energy_shifted = (np.array(self.reward_history["energy"]) * 2 - 1).tolist()
+        angle_shifted = (np.array(self.reward_history["angle"]) * 2 - 1).tolist()
+
         actual_Q_scaled, predicted_Q_scaled = self.scale_arrays_together(actual_Q, self.predicted_Q)
         past_scores_scaled = [score * 2 - 1 for score in self.past_scores]
 
@@ -118,6 +127,9 @@ class Visualizer:
             (predicted_Q_scaled, (60, 60, 230, 150), 2),
             (actual_Q_scaled, (0, 0, 255, 255), 2),
             (reward_shifted, (0, 200, 0, 255), 2),
+            (effort_shifted, (200, 200, 0, 255), 2),
+            (angle_shifted, (200, 0, 200, 255), 2),
+            (energy_shifted, (0, 200, 200, 255), 2),
             (past_scores_scaled, (200, 0, 0, 255), 2)
         ]
 
@@ -202,7 +214,7 @@ class Visualizer:
             'killed': self.env.killed_because,
             'stabilized': get_stabilized(self.env.observation_dict),
             'angle_distance': angle_distance(state_values),
-            'effort_distance': (state_values['omega_squared_1'] + state_values['omega_squared_2']) / 400.0 + (state_values['unscaled_action'] ** 2) / 10.0,
+            'effort_distance': effort_distance(state_values),
             'energy_distance': energy_distance(self.env.observation_dict, state_values),
             'r1': r1(self.env.observation_dict, state_values)
         }

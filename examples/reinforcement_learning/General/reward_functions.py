@@ -26,13 +26,12 @@ def angle_distance(state_values):
 
     dist = np.dot(diff.T, diff)
 
-    return dist
+    return dist * 0.5 * 0.05 * 0.5
 
 
 def r1(observation_dict, state_values):
-    abstract_distance = (state_values['omega_squared_1'] + state_values['omega_squared_2']) / 400.0 + (state_values['unscaled_action'] ** 2) / 10.0
-    d = angle_distance(state_values) * 0.5 + energy_distance(observation_dict, state_values) * 0.5 + abstract_distance * 5
-    return -d/20.0 #+ calculate_score(observation_dict, needs_success=True) / 10.0
+    d = angle_distance(state_values) + energy_distance(observation_dict, state_values) + effort_distance(state_values)
+    return -d #+ calculate_score(observation_dict, needs_success=True) / 10.0
 
 
 def energy_distance(observation_dict, state_values):
@@ -41,8 +40,7 @@ def energy_distance(observation_dict, state_values):
     Etot = Ekin + Epot
     goal = np.array([np.pi, 0.0, 0.0, 0.0])
     Epot_goal = observation_dict['dynamics_func'].simulator.plant.potential_energy(goal)
-    f = 1# np.clip(observation_dict['T'][-1] / 2.0, 0, 1)
-    return np.abs(Epot_goal * f - Etot)
+    return np.abs(Epot_goal - Etot) * 0.5 * 0.05 * 0.5
 
 
 def f1(state_values):
@@ -62,8 +60,8 @@ def f2(state_values):
 
 
 def effort_distance(state_values):
-    abstract_distance = (np.abs(state_values['y'][2]) + np.abs(state_values['y'][3])) / 20.0 + np.abs(state_values['unscaled_action']) / 4.0
-    return abstract_distance
+    abstract_distance = (state_values['omega_squared_1'] + state_values['omega_squared_2']) / 400.0 + (state_values['unscaled_action'] ** 2) / 5.0
+    return abstract_distance * 20 * 0.05 * 0.5
 
 
 def future_pos_reward(observation, action, env_type, dynamic_func, observation_dict):
@@ -73,7 +71,7 @@ def future_pos_reward(observation, action, env_type, dynamic_func, observation_d
     # print(abstract_distance)
     # reward = r3(observation_dict, state_values) + score * 4
     reward = r1(observation_dict, state_values)
-    return reward # * np.min(punish_limit(observation_dict['X_meas'][-1], action, observation_dict['dynamics_func']))
+    return reward# * np.min(punish_limit(observation_dict['X_meas'][-1], action, observation_dict['dynamics_func']))
 
 
 def exp_distance_from_target(observation, action, env_type, dynamic_func, observation_dict):
