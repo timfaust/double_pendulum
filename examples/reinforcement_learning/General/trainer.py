@@ -202,7 +202,7 @@ class Trainer:
 
         eval_callback = CustomEvalCallback(
             eval_envs,
-            best_model_save_path=os.path.join(self.log_dir, 'best_model'),
+            best_model_save_path=os.path.join(self.log_dir, 'best_model.pkl'),
             log_path=self.log_dir,
             eval_freq=int(self.eval_freq / self.environment.n_envs),
             verbose=self.verbose,

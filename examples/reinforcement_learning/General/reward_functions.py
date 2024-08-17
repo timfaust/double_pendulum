@@ -139,3 +139,49 @@ def quadratic_rew(observation, action, env_type, dynamic_func, observation_dict)
 
 
     return reward
+
+
+def energy_distance_custom(observation, action, env_type, dynamic_func, observation_dict):   #def energy_distance(observation_dict, state_values):
+
+    state_values = get_state_values(observation_dict, 'X_real')
+
+    Ekin = observation_dict['dynamics_func'].simulator.plant.kinetic_energy(state_values['y'])
+    Epot = observation_dict['dynamics_func'].simulator.plant.potential_energy(state_values['y'])
+
+
+
+    Etot = Ekin + Epot
+    goal = np.array([np.pi, 0.0, 0.0, 0.0])
+    Epot_goal = observation_dict['dynamics_func'].simulator.plant.potential_energy(goal)
+    energy_reward = (np.abs(Epot_goal - Etot) * 0.5)
+
+    reward = 0
+    raiseExceptions("Not implemented")
+
+    return reward
+
+
+def like_lqr(observation, action, env_type, dynamic_func, observation_dict):
+    state_values = get_state_values(observation_dict, 'X_real')
+
+    goal = np.array([np.pi, 0., 0., 0.])
+
+    Q = np.zeros((4, 4))   #TODO learn Q and R with Bayesian Inference?
+    Q[0, 0] = 30.0 #weight for state[0] etc
+    Q[1, 1] = 30.0
+    Q[2, 2] = 5
+    Q[3, 3] = 2
+
+    # penalty for actuation
+    R = np.array([[0.2]])
+
+    diff = state_values - goal
+
+    # "control" input penalty
+    u = action  # TODO is reward based on last action beneficial? Rather just depend on state
+
+    # quadratic cost for u, quadratic cost for state
+    cost1 = np.einsum("i, ij, j", diff, Q, diff) + np.einsum("i, ij, j", u, R, u)
+    #TODO: try including LQR gain Matrix K into u --> Static Information enough?
+    #TODO: try including information about the energy
+    return -1 * cost1

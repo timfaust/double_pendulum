@@ -251,7 +251,7 @@ def evaluate_policy(
 
                 if dones[i]:
                     # Irgendwie Monitor wrapped plötzlich
-                    if is_monitor_wrapped and False:
+                    if is_monitor_wrapped:
                         # Atari wrapper can send a "done" signal when
                         # the agent loses a life, but it does not correspond
                         # to the true end of episode
