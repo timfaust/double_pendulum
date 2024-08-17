@@ -175,7 +175,7 @@ def like_lqr(observation, action, env_type, dynamic_func, observation_dict):
     # penalty for actuation
     R = np.array([[0.2]])
 
-    diff = state_values - goal
+    diff = state_values['y'] - goal
 
     # "control" input penalty
     u = action  # TODO is reward based on last action beneficial? Rather just depend on state
