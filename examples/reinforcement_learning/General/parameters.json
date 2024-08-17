@@ -31,14 +31,14 @@
       "train_env": {
         "dynamics_function": "default_dynamics",
         "reset_function": "low_reset",
-        "reward_function": "future_pos_reward",
+        "reward_function": "like_lqr",
         "same_environment": 0,
         "n_envs": 20
       },
       "eval_env": {
         "dynamics_function": "default_dynamics",
         "reset_function": "debug_reset",
-        "reward_function": "future_pos_reward",
+        "reward_function": "like_lqr",
         "same_environment": 0,
         "n_envs": 1
       },
