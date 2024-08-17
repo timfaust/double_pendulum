@@ -181,7 +181,7 @@ def like_lqr(observation, action, env_type, dynamic_func, observation_dict):
     u = action  # TODO is reward based on last action beneficial? Rather just depend on state
 
     # quadratic cost for u, quadratic cost for state
-    cost1 = np.einsum("i, ij, j", diff, Q, diff) + np.einsum("i, ij, j", u, R, u)
+    cost1 = np.einsum("i, ij, j", diff, Q, diff) +  u**2 * R[0,0]#np.einsum("i, ij, j", u, R, u)
     #TODO: try including LQR gain Matrix K into u --> Static Information enough?
     #TODO: try including information about the energy
     return -1 * cost1
