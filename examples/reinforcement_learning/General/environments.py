@@ -272,7 +272,7 @@ class GeneralEnv(CustomEnv):
         terminated = self.terminated_func(dirty_observation, clean_action)
         self.killed_because = (np.argmax(terminated) + 1) if np.any(terminated) else 0
         done = self.killed_because != 0
-        if not done:
+        if not done and False:
             self.stabilized = get_stabilized(self.observation_dict) >= 1
             done = self.stabilized
 
@@ -283,7 +283,7 @@ class GeneralEnv(CustomEnv):
                 self.observation_dict[key] = []
                 self.observation_dict[key].append(0.0)
             if done and not self.stabilized:
-                reward_list[i] -= 1.0
+                reward_list[i] -= 20.0
             if done and self.stabilized:
                 reward_list[i] += 1.0
             self.observation_dict[key].append(reward_list[i])

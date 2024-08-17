@@ -51,7 +51,7 @@ def general_reset(x_values, dx_values):
 
 
 def low_reset(low_pos=[0, 0, 0, 0]):
-    return general_reset(low_pos, [0.01, 0.01, 0.01, 0.01])
+    return general_reset(low_pos, [0.025, 0.025, 0.025, 0.025])
 
 
 def debug_reset(low_pos=[0, 0, 0, 0]):

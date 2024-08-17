@@ -30,12 +30,9 @@ def angle_distance(state_values):
 
 
 def r1(observation_dict, state_values):
-    d = angle_distance(state_values) * 0.5 + energy_distance(observation_dict, state_values) * 0.5 + effort_distance(state_values) * 4
-    # score = calculate_score(observation_dict, needs_success=False)
-    b = 0 #np.exp(2*(score - 1)) * 10
-    if state_values['distance'] < 0.2:
-        b += np.exp(-np.linalg.norm(state_values['v1']) - np.linalg.norm(state_values['v1'])) * 5
-    return (5 - d + b)/10.0
+    abstract_distance = (state_values['omega_squared_1'] + state_values['omega_squared_2']) / 400.0 + (state_values['unscaled_action'] ** 2) / 10.0
+    d = angle_distance(state_values) * 0.5 + energy_distance(observation_dict, state_values) * 0.5 + abstract_distance * 5
+    return -d/20.0 #+ calculate_score(observation_dict, needs_success=True) / 10.0
 
 
 def energy_distance(observation_dict, state_values):
@@ -76,7 +73,7 @@ def future_pos_reward(observation, action, env_type, dynamic_func, observation_d
     # print(abstract_distance)
     # reward = r3(observation_dict, state_values) + score * 4
     reward = r1(observation_dict, state_values)
-    return reward * np.min(punish_limit(observation_dict['X_meas'][-1], action, observation_dict['dynamics_func']))
+    return reward # * np.min(punish_limit(observation_dict['X_meas'][-1], action, observation_dict['dynamics_func']))
 
 
 def exp_distance_from_target(observation, action, env_type, dynamic_func, observation_dict):

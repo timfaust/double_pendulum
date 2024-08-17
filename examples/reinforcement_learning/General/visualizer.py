@@ -201,9 +201,9 @@ class Visualizer:
             'policy': self.policy,
             'killed': self.env.killed_because,
             'stabilized': get_stabilized(self.env.observation_dict),
-            'd1': angle_distance(state_values),
-            'd2': effort_distance(state_values),
-            'd3': energy_distance(self.env.observation_dict, state_values),
+            'angle_distance': angle_distance(state_values),
+            'effort_distance': (state_values['omega_squared_1'] + state_values['omega_squared_2']) / 400.0 + (state_values['unscaled_action'] ** 2) / 10.0,
+            'energy_distance': energy_distance(self.env.observation_dict, state_values),
             'r1': r1(self.env.observation_dict, state_values)
         }
 

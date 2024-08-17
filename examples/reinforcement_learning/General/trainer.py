@@ -2,6 +2,8 @@ import ast
 import json
 import os
 import re
+from pathlib import Path
+
 from stable_baselines3.common.callbacks import BaseCallback
 from torch.utils.tensorboard import SummaryWriter
 from tqdm.auto import tqdm
@@ -19,6 +21,7 @@ from double_pendulum.utils.plotting import plot_timeseries
 from examples.reinforcement_learning.General.misc_helper import debug_reset
 from examples.reinforcement_learning.General.override_sb3.callbacks import CustomEvalCallback
 from examples.reinforcement_learning.General.override_sb3.custom_sac import CustomSAC
+from src.python.double_pendulum.controller.AR_EAPO import AR_EAPOController
 
 
 def get_filtered_data(environment):
@@ -77,6 +80,7 @@ class Trainer:
         self.environment = GeneralEnv(env_type, param_name, seed=seed)
         self.eval_environment = GeneralEnv(env_type, param_name, is_evaluation_environment=True, seed=seed)
         self.log_dir = './log_data/' + name + '/' + env_type
+        self.env_type = env_type
         self.name = name
         self.action_noise = action_noise
 
@@ -181,6 +185,64 @@ class Trainer:
             while not np.all(done):
                 action, _states = agent.predict(observation=state, deterministic=True)
                 state, reward, done, info = eval_envs.step(action)
+                if self.render_eval:
+                    eval_envs.render()
+                total_rewards += reward
+                steps += 1
+
+            episode_rewards.append(total_rewards)
+            episode_lengths.append(steps)
+
+        eval_envs.close()
+
+        print(f"Average reward: {np.mean(episode_rewards)} +/- {np.std(episode_rewards)}")
+        print(f"Average episode length: {np.mean(episode_lengths)}")
+        return episode_rewards, episode_lengths
+
+    def evaluate_korean(self, model_path):
+        if not os.path.exists(self.log_dir + model_path + ".pkl"):
+            raise Exception("model not found")
+
+        self.environment.render_mode = None
+        self.environment.reset()
+
+        envs = self.environment.get_envs(log_dir=self.log_dir)
+
+        agent = CustomSAC.load(
+            self.log_dir + model_path,
+            env=envs,
+            action_noise=self.action_noise,
+            seed=self.environment.seed,
+            tensorboard_log=os.path.join(self.log_dir, "tb_logs"),
+            **get_filtered_data(self.environment)
+        )
+
+        korean_path = Path(
+            "../../../src/python/double_pendulum/controller/AR_EAPO/" + self.env_type + "/AR_EAPO/model.zip"
+        )
+
+        controller = AR_EAPOController(
+            model_path=korean_path,
+            robot=self.env_type,
+            max_torque=6.0,
+            max_velocity=20.0,
+            deterministic=True,
+        )
+
+        eval_envs = self.get_eval_envs(agent)
+        agent.set_env(eval_envs)
+
+        episode_rewards = []
+        episode_lengths = []
+        for episode in range(self.n_eval_episodes):
+            state = eval_envs.reset()
+            done = False
+            total_rewards = 0
+            steps = 0
+            while not np.all(done):
+                actions = np.array([controller.get_control_output_(x=self.environment.dynamics_func.unscale_state(state[i]))/6.0 for i in range(state.shape[0])])
+                processed_actions = np.where(np.any(actions != 0, axis=1, keepdims=True), np.where(actions != 0, actions, np.inf).min(axis=1, keepdims=True), 0)
+                state, reward, done, info = eval_envs.step(processed_actions)
                 if self.render_eval:
                     eval_envs.render()
                 total_rewards += reward
