@@ -170,13 +170,13 @@ def like_lqr(observation, action, env_type, dynamic_func, observation_dict):
     goal = np.array([np.pi, 0., 0., 0.])
 
     Q = np.zeros((4, 4))   #TODO learn Q and R with Bayesian Inference?
-    Q[0, 0] = 30.0 #weight for state[0] etc
-    Q[1, 1] = 30.0
-    Q[2, 2] = 5
+    Q[0, 0] = 50.0 #weight for state[0] etc
+    Q[1, 1] = 50.0
+    Q[2, 2] = 4
     Q[3, 3] = 2
 
     # penalty for actuation
-    R = np.array([[0.2]])
+    R = np.array([[1]])
 
     diff = state_values['y'] - goal
 
@@ -187,4 +187,4 @@ def like_lqr(observation, action, env_type, dynamic_func, observation_dict):
     cost1 = np.einsum("i, ij, j", diff, Q, diff) +  u**2 * R[0,0]#np.einsum("i, ij, j", u, R, u)
     #TODO: try including LQR gain Matrix K into u --> Static Information enough?
     #TODO: try including information about the energy
-    return -1 * cost1
+    return -0.001 * cost1
