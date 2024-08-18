@@ -116,11 +116,11 @@ class CustomEvalCallback(EvalCallback):
                 if self.callback_on_new_best is not None:
                     continue_training = self.callback_on_new_best.on_step()
 
-            if default_score > self.best_score:
+            if default_score[0] > self.best_score:
                 print("New best score!")
                 if self.best_model_save_path is not None:
                     self.model.save(os.path.join(self.best_model_save_path, "best_score.pkl"))
-                self.best_score = default_score
+                self.best_score = default_score[0]
 
             # Trigger callback after every evaluation, if needed
             if self.callback is not None:
@@ -148,7 +148,13 @@ class CustomEvalCallback(EvalCallback):
         self.logger.record("eval/failed_attempts", episode_scores.count(0.0))
         self.logger.record("eval/mean_score", float(mean_score))
         self.logger.record("eval/std_score", float(std_score))
-        self.logger.record("eval/default_score", default_score)
+        self.logger.record("eval/default_score", default_score[0])
+        self.logger.record("eval/default_swingup_time", default_score[1])
+        self.logger.record("eval/default_energy", default_score[3])
+        self.logger.record("eval/default_tau_cost", default_score[5])
+        self.logger.record("eval/default_tau_smoothness", default_score[6])
+        self.logger.record("eval/default_velocity_cost", default_score[7])
+
 
         return mean_reward, mean_ep_length
 
@@ -273,18 +279,18 @@ def evaluate_policy(
                         episode_rewards.append(current_rewards[:, i])
                         episode_lengths.append(current_lengths[i])
                         episode_counts[i] += 1
-                    score, *_ = calculate_score(env.envs[i].env.observation_dict_old)
+                    score = calculate_score(env.envs[i].env.observation_dict_old)
                     c = env.envs[i].env.configuration
                     if c[0] == 0 and c[1] == 0:
                         default_score = score
 
                     killed = env.envs[i].env.observation_dict_old['killed_because']
                     if killed > 0:
-                        score = 0.0
+                        score[0] = 0.0
                         # print(disturbed_parameters[c[0]], c[1], "with score:", score, "was killed because:", killed)
                     # else:
                     #     print(disturbed_parameters[c[0]], c[1], "with score:", score)
-                    episode_scores.append(score)
+                    episode_scores.append(score[0])
 
         observations = new_observations
 

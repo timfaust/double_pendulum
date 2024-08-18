@@ -63,8 +63,8 @@ def effort_distance(observation_dict, state_values):
     du = 0
     if len(observation_dict['U_con']) > 2:
         du = (observation_dict['U_con'][-1] - observation_dict['U_con'][-2]) ** 2
-    abstract_distance = (state_values['omega_squared_1'] + state_values['omega_squared_2']) / 400.0 + (state_values['unscaled_action'] ** 2) / 20.0 + du * 100.0
-    return abstract_distance * 0.2
+    abstract_distance = (state_values['omega_squared_1'] + state_values['omega_squared_2']) / 400.0 + (state_values['unscaled_action'] ** 2) / 20.0 + du * 10.0
+    return abstract_distance * 0.05
 
 
 def future_pos_reward(observation, action, env_type, dynamic_func, observation_dict):
