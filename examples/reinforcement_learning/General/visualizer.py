@@ -107,7 +107,7 @@ class Visualizer:
         self.past_scores.append(calculate_score(self.env.observation_dict, needs_success=True))
         self.reward_history["reward"].append(self.env.observation_dict[reward_name][1:][-1])
         self.reward_history["energy"].append(energy_distance(self.env.observation_dict, state_values))
-        self.reward_history["effort"].append(effort_distance(state_values))
+        self.reward_history["effort"].append(effort_distance(self.env.observation_dict, state_values))
         self.reward_history["angle"].append(angle_distance(state_values))
 
         self.reward = self.reward_history["reward"][-1]
@@ -220,7 +220,7 @@ class Visualizer:
             'killed': self.env.killed_because,
             'stabilized': get_stabilized(self.env.observation_dict),
             'angle_distance': angle_distance(state_values),
-            'effort_distance': effort_distance(state_values),
+            'effort_distance': effort_distance(self.env.observation_dict, state_values),
             'energy_distance': energy_distance(self.env.observation_dict, state_values),
             'r1': r1(self.env.observation_dict, state_values)
         }
