@@ -165,54 +165,28 @@ def calculate_score(
     if needs_success:
         factor = successes[-1]
 
-    score = factor * (
-        1.0
-        - 1.0
-        / nonzero_weigths
-        * (
-            np.tanh(
-                np.pi
-                * weights["swingup_time"]
-                * swingup_times[-1]
-                / normalize["swingup_time"]
-            )
-            + np.tanh(
-                np.pi
-                * weights["max_tau"]
-                * max_taus[-1]
-                / normalize["max_tau"]
-            )
-            + np.tanh(
-                np.pi
-                * weights["energy"]
-                * energies[-1]
-                / normalize["energy"]
-            )
-            + np.tanh(
-                np.pi
-                * weights["integ_tau"]
-                * integ_taus[-1]
-                / normalize["integ_tau"]
-            )
-            + np.tanh(
-                np.pi
-                * weights["tau_cost"]
-                * tau_costs[-1]
-                / normalize["tau_cost"]
-            )
-            + np.tanh(
-                np.pi
-                * weights["tau_smoothness"]
-                * tau_smoothnesses[-1]
-                / normalize["tau_smoothness"]
-            )
-            + np.tanh(
-                np.pi
-                * weights["velocity_cost"]
-                * velocity_costs[-1]
-                / normalize["velocity_cost"]
-            )
-        )
+    # Individual parts of the score
+    scaling = (1.0 / nonzero_weigths)
+    part_swingup_time = scaling * (1 - np.tanh(np.pi * weights["swingup_time"] * swingup_times[-1] / normalize["swingup_time"])) if weights["swingup_time"] != 0 else 0
+    part_max_tau = scaling * (1 - np.tanh(np.pi * weights["max_tau"] * max_taus[-1] / normalize["max_tau"])) if weights["max_tau"] != 0 else 0
+    part_energy = scaling * (1 - np.tanh(np.pi * weights["energy"] * energies[-1] / normalize["energy"])) if weights["energy"] != 0 else 0
+    part_integ_tau = scaling * (1 - np.tanh(np.pi * weights["integ_tau"] * integ_taus[-1] / normalize["integ_tau"])) if weights["integ_tau"] != 0 else 0
+    part_tau_cost = scaling * (1 - np.tanh(np.pi * weights["tau_cost"] * tau_costs[-1] / normalize["tau_cost"])) if weights["tau_cost"] != 0 else 0
+    part_tau_smoothness = scaling * (1 - np.tanh(np.pi * weights["tau_smoothness"] * tau_smoothnesses[-1] / normalize["tau_smoothness"])) if weights["tau_smoothness"] != 0 else 0
+    part_velocity_cost = scaling * (1 - np.tanh(np.pi * weights["velocity_cost"] * velocity_costs[-1] / normalize["velocity_cost"])) if weights["velocity_cost"] != 0 else 0
+
+    # Sum of all individual parts
+    sum_of_parts = (
+            part_swingup_time +
+            part_max_tau +
+            part_energy +
+            part_integ_tau +
+            part_tau_cost +
+            part_tau_smoothness +
+            part_velocity_cost
     )
 
-    return score
+    # Final score calculation
+    score = factor * sum_of_parts
+
+    return score, part_swingup_time, part_max_tau, part_energy, part_integ_tau, part_tau_cost, part_tau_smoothness, part_velocity_cost

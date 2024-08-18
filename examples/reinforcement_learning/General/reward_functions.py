@@ -8,7 +8,7 @@ from examples.reinforcement_learning.General.score import calculate_score
 
 def score_reward(observation, action, env_type, dynamic_func, observation_dict):
     reward = pos_reward(observation, action, env_type, dynamic_func, observation_dict)
-    score = calculate_score(observation_dict, needs_success=False)
+    score, *_ = calculate_score(observation_dict, needs_success=False)
     return reward * score
 
 

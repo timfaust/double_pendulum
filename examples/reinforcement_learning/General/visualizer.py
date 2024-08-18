@@ -61,7 +61,13 @@ class Visualizer:
         self.canvas.fill((255, 255, 255))
         metrics = self.draw_environment()
         self.draw_graph()
-        metrics['score'] = self.past_scores[-1] if self.past_scores else 0
+        if self.past_scores:
+            metrics['score'] = self.past_scores[-1][0]
+            metrics['swingup_time'] = self.past_scores[-1][1]
+            metrics['energy'] = self.past_scores[-1][3]
+            metrics['tau_cost'] = self.past_scores[-1][5]
+            metrics['tau_smoothness'] = self.past_scores[-1][6]
+            metrics['velocity_cost'] = self.past_scores[-1][7]
         self.blit_texts(metrics)
         self.update_display()
 
@@ -115,7 +121,7 @@ class Visualizer:
         angle_shifted = (np.array(self.reward_history["angle"]) * 2 - 1).tolist()
 
         actual_Q_scaled, predicted_Q_scaled = self.scale_arrays_together(actual_Q, self.predicted_Q)
-        past_scores_scaled = [score * 2 - 1 for score in self.past_scores]
+        past_scores_scaled = [score[0] * 2 - 1 for score in self.past_scores]
 
         graphs = [
             (clean_actions, (0, 0, 255, 100), 0),
