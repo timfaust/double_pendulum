@@ -37,7 +37,8 @@ class CustomEvalCallback(EvalCallback):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.best_mean_reward = np.array([-np.inf, -np.inf])
+        self.best_mean_reward = -np.inf
+        self.best_score = 0
 
     def _on_step(self) -> bool:
         continue_training = True
@@ -106,15 +107,20 @@ class CustomEvalCallback(EvalCallback):
             self.logger.dump(self.num_timesteps)
 
             # TODO: werden neue best models gespeichert? Aktuell extra nicht
-            if np.any(mean_reward > self.best_mean_reward) and False:
-                if self.verbose >= 1:
-                    print("New best mean reward!")
+            if mean_reward[0] > self.best_mean_reward:
+                print("New best reward!")
                 if self.best_model_save_path is not None:
-                    self.model.save(os.path.join(self.best_model_save_path, "best_model"))
-                self.best_mean_reward = mean_reward
+                    self.model.save(os.path.join(self.best_model_save_path, "best_reward.pkl"))
+                self.best_mean_reward = mean_reward[0]
                 # Trigger callback on new best model, if needed
                 if self.callback_on_new_best is not None:
                     continue_training = self.callback_on_new_best.on_step()
+
+            if default_score > self.best_score:
+                print("New best score!")
+                if self.best_model_save_path is not None:
+                    self.model.save(os.path.join(self.best_model_save_path, "best_score.pkl"))
+                self.best_score = default_score
 
             # Trigger callback after every evaluation, if needed
             if self.callback is not None:
