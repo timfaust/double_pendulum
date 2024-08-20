@@ -280,17 +280,18 @@ def evaluate_policy(
                         episode_lengths.append(current_lengths[i])
                         episode_counts[i] += 1
                     score = calculate_score(env.envs[i].env.observation_dict_old)
+                    score_value = score[0]
                     c = env.envs[i].env.configuration
                     if c[0] == 0 and c[1] == 0:
                         default_score = score
 
                     killed = env.envs[i].env.observation_dict_old['killed_because']
                     if killed > 0:
-                        score[0] = 0.0
+                        score_value = 0.0
                         # print(disturbed_parameters[c[0]], c[1], "with score:", score, "was killed because:", killed)
                     # else:
                     #     print(disturbed_parameters[c[0]], c[1], "with score:", score)
-                    episode_scores.append(score[0])
+                    episode_scores.append(score_value)
 
         observations = new_observations
 

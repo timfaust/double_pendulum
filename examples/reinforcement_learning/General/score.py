@@ -127,6 +127,11 @@ def calculate_score(
     needs_success=True
 ):
 
+    if len(observation_dict['T']) < 3:
+        if needs_success:
+            return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+        return 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
     swingup_times = []
     max_taus = []
     energies = []
@@ -137,10 +142,9 @@ def calculate_score(
     successes = []
 
     dynamics_func = observation_dict['dynamics_func']
-    T = np.array(observation_dict['T'])
-    X = dynamics_func.unscale_state(np.array(observation_dict['X_real']))
-    U = dynamics_func.unscale_action(observation_dict['U_con'])
-
+    T = np.array(observation_dict['T'])[:-1]
+    X = dynamics_func.unscale_state(np.array(observation_dict['X_real']))[:-1]
+    U = dynamics_func.unscale_action(observation_dict['U_con'])[1:]
     # plant = dynamics_func.simulator.plant
     swingup_times.append(
         get_swingup_time(
@@ -151,7 +155,7 @@ def calculate_score(
     energies.append(get_energy(X, U))
     integ_taus.append(get_integrated_torque(T, U))
     tau_costs.append(get_torque_cost(T, U))
-    tau_smoothnesses.append(get_tau_smoothness(U))
+    tau_smoothnesses.append(get_tau_smoothness(U) * 0.002/dynamics_func.dt)
     velocity_costs.append(get_velocity_cost(T, X))
 
     successes.append(int(swingup_times[-1] < T[-1]))

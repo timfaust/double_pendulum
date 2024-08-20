@@ -155,7 +155,7 @@ class LSTMExtractor(SequenceExtractor):
             activation (nn.Tanh): An activation function applied to the output of the fully connected layer.
             smoothing (SmoothingFilter): A smoothing filter applied to the input features.
     """
-    def __init__(self, observation_space: gym.spaces.Box, translator, hidden_size=32, num_layers=2, dropout=0.0):
+    def __init__(self, observation_space: gym.spaces.Box, translator, hidden_size=64, num_layers=3, dropout=0.0):
         """
             Initializes the LSTMExtractor with specified parameters.
 
@@ -174,7 +174,7 @@ class LSTMExtractor(SequenceExtractor):
         self.lstm = nn.LSTM(self.input_features, hidden_size, num_layers, batch_first=True, dropout=dropout)
 
         # Fully connected layer to produce the final output
-        self.fc = nn.Linear(hidden_size * 2, self.output_dim)
+        self.fc = nn.Linear(hidden_size, self.output_dim)
 
         # Tanh activation function applied to the output of the fully connected layer
         self.activation = nn.Tanh()
@@ -205,12 +205,7 @@ class LSTMExtractor(SequenceExtractor):
 
         lstm_out, (h_n, c_n) = self.lstm(packed_input)
 
-        last_hidden = h_n[-1]
-        last_cell = c_n[-1]
-
-        concatenated = th.cat((last_hidden, last_cell), dim=1)
-
-        fc_output = self.fc(concatenated)
+        fc_output = self.fc(h_n[-1])
         return self.activation(fc_output)
 
 
@@ -229,7 +224,7 @@ class SequenceTranslator(DefaultTranslator):
     """
     def __init__(self):
         self.reset()
-        self.timesteps = 64
+        self.timesteps = 128
         self.feature_dim = 5
         self.output_dim = 16
         self.additional_features = 8
