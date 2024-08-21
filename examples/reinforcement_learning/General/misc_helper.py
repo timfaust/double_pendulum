@@ -63,7 +63,7 @@ def high_reset():
 
 
 def random_reset():
-    return general_reset([0, 0, 0, 0], [1/3, 1/3, 1/5, 1/5])
+    return general_reset([0, 0, 0, 0], [1/3, 1/3, 1/4, 1/4])
 
 
 def semi_random_reset():
@@ -110,8 +110,7 @@ def punish_limit(observation, action, dynamics_function, k=50):
     # If the ratio is greater than 1, the factor is set to 0
     factors = np.where(ratios <= 1, 1 - np.exp(-k * np.abs(ratios - 1)), 0)
 
-    # return factors[:2].min(), factors[2:4].min(), 1 #factors[4]
-    return 1, factors[2:4].min(), 1  # factors[4]
+    return factors[:2].min(), factors[2:4].min(), 1 #factors[4]
 
 
 def kill_switch(observation, action, dynamics_func):

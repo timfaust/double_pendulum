@@ -6,12 +6,6 @@ from examples.reinforcement_learning.General.misc_helper import punish_limit, ge
 from examples.reinforcement_learning.General.score import calculate_score
 
 
-def score_reward(observation, action, env_type, dynamic_func, observation_dict):
-    reward = pos_reward(observation, action, env_type, dynamic_func, observation_dict)
-    score, *_ = calculate_score(observation_dict, needs_success=False)
-    return reward * score
-
-
 def pos_reward(observation, action, env_type, dynamic_func, observation_dict):
     state_values = get_state_values(observation_dict, 'X_real')
     reward = get_i_decay(state_values['distance']) - get_i_decay(2)
@@ -24,14 +18,14 @@ def angle_distance(state_values):
     diff = state_values['y'][:2] - goal
     diff = wrap_angles_diff(diff)
 
-    dist = np.dot(diff.T, diff)
+    dist = np.dot(diff.T, diff) + state_values['distance'] ** 2 * 2
 
-    return dist * 0.025
+    return dist * 0.015
 
 
 def r1(observation_dict, state_values):
-    d = angle_distance(state_values) + energy_distance(observation_dict, state_values) + effort_distance(observation_dict, state_values)
-    return -d #+ calculate_score(observation_dict, needs_success=True) / 10.0
+    d = effort_distance(observation_dict, state_values) + angle_distance(state_values) + energy_distance(observation_dict, state_values)
+    return -d * 2
 
 
 def energy_distance(observation_dict, state_values):
@@ -40,7 +34,7 @@ def energy_distance(observation_dict, state_values):
     Etot = Ekin + Epot
     goal = np.array([np.pi, 0.0, 0.0, 0.0])
     Epot_goal = observation_dict['dynamics_func'].simulator.plant.potential_energy(goal)
-    return np.abs(Epot_goal - Etot) * 0.025
+    return (Epot_goal - Etot) ** 2 * 0.005
 
 
 def f1(state_values):
@@ -62,9 +56,9 @@ def f2(state_values):
 def effort_distance(observation_dict, state_values):
     du = 0
     if len(observation_dict['U_con']) > 2:
-        du = (observation_dict['U_con'][-1] - observation_dict['U_con'][-2]) ** 2
-    abstract_distance = (state_values['omega_squared_1'] + state_values['omega_squared_2']) / 400.0 + (state_values['unscaled_action'] ** 2) / 20.0 + du * 10.0
-    return abstract_distance * 0.05
+        du = ((observation_dict['U_con'][-1] - observation_dict['U_con'][-2]) / observation_dict['dynamics_func'].dt) ** 2
+    abstract_distance = (state_values['omega_squared_1'] + state_values['omega_squared_2']) / 400.0 + (state_values['unscaled_action'] ** 2) / 20.0 + du * 0.000
+    return abstract_distance * 0.1
 
 
 def future_pos_reward(observation, action, env_type, dynamic_func, observation_dict):
