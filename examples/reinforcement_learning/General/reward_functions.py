@@ -18,9 +18,9 @@ def angle_distance(state_values):
     diff = state_values['y'][:2] - goal
     diff = wrap_angles_diff(diff)
 
-    dist = np.dot(diff.T, diff) + state_values['distance'] ** 2 * 2
+    dist = np.dot(diff.T, diff) #+ state_values['distance'] ** 2 * 2
 
-    return dist * 0.015
+    return dist * 0.025
 
 
 def r1(observation_dict, state_values):
@@ -57,8 +57,8 @@ def effort_distance(observation_dict, state_values):
     du = 0
     if len(observation_dict['U_con']) > 2:
         du = ((observation_dict['U_con'][-1] - observation_dict['U_con'][-2]) / observation_dict['dynamics_func'].dt) ** 2
-    abstract_distance = (state_values['omega_squared_1'] + state_values['omega_squared_2']) / 400.0 + (state_values['unscaled_action'] ** 2) / 20.0 + du * 0.000
-    return abstract_distance * 0.1
+    abstract_distance = (state_values['omega_squared_1'] + state_values['omega_squared_2']) / 400.0 + (state_values['unscaled_action'] ** 2) / 20.0 + du * 0.002
+    return abstract_distance * 1.0
 
 
 def future_pos_reward(observation, action, env_type, dynamic_func, observation_dict):
