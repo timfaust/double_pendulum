@@ -1,3 +1,4 @@
+import random
 from collections import deque
 from double_pendulum.utils.wrap_angles import wrap_angles_diff
 import numpy as np
@@ -7,6 +8,8 @@ disturbed_parameters = [
     'nothing', 'm2', 'b1', 'b2', 'coulomb_fric1', 'coulomb_fric2', 'com1', 'com2', 'I1', 'I2', 'Ir', 'delay',
     'velocity_noise', 'action_noise', 'responsiveness', 'n_pert_per_joint'
 ]
+
+optimal_path = np.load('optimal.npy')
 
 
 def smooth_transition(value, threshold, sharpness=80):
@@ -44,6 +47,12 @@ def default_decider(obs, progress):
     return 1
 
 
+def optimal_reset():
+    random_row_index = np.random.randint(0, optimal_path.shape[0] - 1)
+    observation = optimal_path[random_row_index]
+    return observation
+
+
 def general_reset(x_values, dx_values):
     rand = np.random.rand(4)
     observation = [x - dx + 2 * dx * r for x, dx, r in zip(x_values, dx_values, rand)]
@@ -72,10 +81,10 @@ def semi_random_reset():
 
 def balanced_reset(low_pos=[0, 0, 0, 0]):
     r = np.random.random()
-    if r < 2.0/3.0:
+    if r < 1.0/2.0:
         return debug_reset(low_pos)
     else:
-        return random_reset()
+        return optimal_reset()
 
 
 def updown_reset(low_pos=[0, 0, 0, 0]):
