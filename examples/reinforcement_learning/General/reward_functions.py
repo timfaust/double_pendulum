@@ -18,14 +18,14 @@ def angle_distance(state_values):
     diff = state_values['y'][:2] - goal
     diff = wrap_angles_diff(diff)
 
-    dist = np.dot(diff.T, diff) #+ state_values['distance'] ** 2 * 2
+    dist = np.dot(diff.T, diff)
 
-    return dist * 0.025
+    return dist * 0.05
 
 
 def r1(observation_dict, state_values):
-    d = effort_distance(observation_dict, state_values) + angle_distance(state_values) + energy_distance(observation_dict, state_values)
-    return -d * 2
+    d = effort_distance(observation_dict, state_values) + angle_distance(state_values) # + energy_distance(observation_dict, state_values)
+    return -d
 
 
 def energy_distance(observation_dict, state_values):
@@ -56,9 +56,15 @@ def f2(state_values):
 def effort_distance(observation_dict, state_values):
     du = 0
     if len(observation_dict['U_con']) > 2:
-        du = ((observation_dict['U_con'][-1] - observation_dict['U_con'][-2]) / observation_dict['dynamics_func'].dt) ** 2
-    abstract_distance = (state_values['omega_squared_1'] + state_values['omega_squared_2']) / 400.0 + (state_values['unscaled_action'] ** 2) / 20.0 + du * 0.002
-    return abstract_distance * 1.0
+        du = np.abs((observation_dict['U_con'][-1] - observation_dict['U_con'][-2]) / observation_dict['dynamics_func'].dt)
+
+    velocity = state_values['omega_squared_1'] + state_values['omega_squared_2']
+    torque = state_values['unscaled_action'] ** 2 + np.abs(state_values['unscaled_action']) * 2
+    smoothness = du * observation_dict['dynamics_func'].torque_limit[0]
+    energy = (np.abs(state_values['y'][2] * state_values['unscaled_action']) + np.abs(state_values['y'][2] * state_values['unscaled_action']))
+    abstract_distance = 0.0025 * velocity + 0.1 * torque + 0.01 * smoothness + 0.01 * energy
+
+    return abstract_distance * 0.5
 
 
 def future_pos_reward(observation, action, env_type, dynamic_func, observation_dict):

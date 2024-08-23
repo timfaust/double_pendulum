@@ -72,7 +72,7 @@ def high_reset():
 
 
 def random_reset():
-    return general_reset([0, 0, 0, 0], [1/3, 1/3, 1/4, 1/4])
+    return general_reset([0, 0, 0, 0], [1/3, 1/3, 0.5, 0.5])
 
 
 def semi_random_reset():
@@ -81,10 +81,10 @@ def semi_random_reset():
 
 def balanced_reset(low_pos=[0, 0, 0, 0]):
     r = np.random.random()
-    if r < 1.0/2.0:
-        return debug_reset(low_pos)
+    if r < 1.0/3.0:
+        return random_reset()
     else:
-        return optimal_reset()
+        return debug_reset(low_pos)
 
 
 def updown_reset(low_pos=[0, 0, 0, 0]):

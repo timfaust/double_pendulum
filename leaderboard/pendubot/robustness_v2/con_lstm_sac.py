@@ -16,6 +16,6 @@ leaderboard_config = {
     "username": "tfaust",
 }
 
-sac = Trainer("default_6", "pendubot", "default", [SequenceSACPolicy], [MultiplePoliciesReplayBuffer], [default_decider], 42, None)
-controller = sac.get_controller("/final")
+sac = Trainer("test3", "pendubot", "default", [SequenceSACPolicy], [MultiplePoliciesReplayBuffer], [default_decider], 42, None)
+controller = sac.get_controller("/best_score")
 controller.init()
