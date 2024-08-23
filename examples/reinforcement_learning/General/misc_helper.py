@@ -9,8 +9,6 @@ disturbed_parameters = [
     'velocity_noise', 'action_noise', 'responsiveness', 'n_pert_per_joint'
 ]
 
-optimal_path = np.load('optimal.npy')
-
 
 def smooth_transition(value, threshold, sharpness=80):
     return 0.5 * (1 + np.tanh(sharpness * (value - threshold)))
@@ -45,12 +43,6 @@ def stabilize(obs, progress):
 
 def default_decider(obs, progress):
     return 1
-
-
-def optimal_reset():
-    random_row_index = np.random.randint(0, optimal_path.shape[0] - 1)
-    observation = optimal_path[random_row_index]
-    return observation
 
 
 def general_reset(x_values, dx_values):
