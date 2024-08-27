@@ -378,18 +378,3 @@ class GeneralController(AbstractController):
         self.last_action = action.item()
 
         return self.dynamics_func.unscale_action(action)
-
-    def get_control_output_old(self, x, t=None):
-
-        rounded_t = np.rint(t * 10000).astype(int)
-        if rounded_t % self.controller_dt == 0:
-            env = self.model.env.envs[0].env
-            obs = self.dynamics_func.normalize_state(x)
-            if t != 0:
-                env.append_observation_dict(obs, obs, self.last_action)
-                env.observation_dict['U_con'].append(self.last_action)
-            action, _ = self.model.predict(observation=obs.reshape(1, -1), deterministic=True)
-            self.last_u = self.dynamics_func.unscale_action(action)
-            self.last_action = action.item()
-
-        return self.last_u.copy()
