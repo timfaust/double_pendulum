@@ -273,7 +273,7 @@ class SequenceTranslator(DefaultTranslator):
         state_values = get_state_values(observation_dict, offset=index + 1 - len(observation_dict['T']))
         l_ges = env.mpar.l[0] + env.mpar.l[1]
         additional = np.array([
-            state_values['x3'][1] / l_ges,
+            state_values['x2'][1] / l_ges,
             state_values['v2'][0] / env.dynamics_func.max_velocity,
             state_values['c1'],
             state_values['c2']

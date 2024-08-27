@@ -339,7 +339,7 @@ class GeneralEnv(CustomEnv):
             'position_bias': 0.0,
             'action_noise': 1.1 / self.dynamics_func.torque_limit[0] * n_factor,
             'action_bias': 0.0,
-            'n_pert_per_joint': 3,
+            'n_pert_per_joint': 1,
             'min_t_dist': 1.0,
             'sigma_minmax': [0.05, 0.1],
             'amplitude_min_max': [0.5, 5.0],

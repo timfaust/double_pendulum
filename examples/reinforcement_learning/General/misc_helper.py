@@ -15,8 +15,8 @@ def smooth_transition(value, threshold, sharpness=80):
 
 
 def is_up(obs, progress):
-    phi_1 = obs[0] * 3 * np.pi
-    phi_2 = obs[1] * 3 * np.pi
+    phi_1 = obs[0] * 4 * np.pi
+    phi_2 = obs[1] * 4 * np.pi
     s1 = np.sin(phi_1)
     s2 = np.sin(phi_1 + phi_2)
     c1 = np.cos(phi_1)
@@ -64,7 +64,7 @@ def high_reset():
 
 
 def random_reset():
-    return general_reset([0, 0, 0, 0], [1/3, 1/3, 0.5, 0.5])
+    return general_reset([0, 0, 0, 0], [1/4, 1/4, 1/3, 1/3])
 
 
 def semi_random_reset():
@@ -101,7 +101,7 @@ def no_termination(observation):
 
 
 def punish_limit(observation, action, dynamics_function, k=25):
-    thresholds = np.array([0.95] * 5)
+    thresholds = np.array([0.75] * 5)
 
     values = np.concatenate([np.abs(observation), np.array([np.abs(action)])])
     ratios = values / thresholds
@@ -198,7 +198,7 @@ def get_stabilized(observation_dict, threshold=0.002):
     #TODO: add lowpass filter
     X_meas = np.array(observation_dict['X_real'])
     T = observation_dict['T']
-    f = np.abs(np.sin((X_meas[-1][0] + X_meas[-1][1]) * 3 * np.pi / 2))
+    f = np.abs(np.sin((X_meas[-1][0] + X_meas[-1][1]) * 4 * np.pi / 2))
 
     # Check if the last measurement is within the specified range
     if f < 0.99:

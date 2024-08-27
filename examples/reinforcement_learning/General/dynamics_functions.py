@@ -36,9 +36,9 @@ def default_dynamics(robot, dt, max_torque, class_obj):
 def general_dynamics(robot, plant, dt, max_torque, class_obj):
     print("build new plant")
     simulator = Simulator(plant=plant)
-    max_vel = 20.0
+    max_vel = 30.0
     if robot == "acrobot":
-        max_vel = 20.0
+        max_vel = 30.0
 
     dynamics_function = class_obj(
         simulator=simulator,
@@ -55,7 +55,7 @@ def general_dynamics(robot, plant, dt, max_torque, class_obj):
 class custom_dynamics_func_4PI(double_pendulum_dynamics_func):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.max_angle = 3 * np.pi
+        self.max_angle = 4 * np.pi
 
     def unscale_action(self, action):
         if isinstance(action, (float, list)):

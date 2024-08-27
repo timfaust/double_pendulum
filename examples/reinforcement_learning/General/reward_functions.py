@@ -67,7 +67,7 @@ def effort_distance(observation_dict, state_values):
     energy = np.abs(state_values['y'][i] * state_values['unscaled_action'])
     abstract_distance = 0.0025 * velocity + 0.1 * torque + 0.01 * smoothness + 0.02 * energy
 
-    return abstract_distance * 0.5
+    return abstract_distance * 0.2
 
 
 def future_pos_reward(observation, action, env_type, dynamic_func, observation_dict):
@@ -77,7 +77,7 @@ def future_pos_reward(observation, action, env_type, dynamic_func, observation_d
     # print(abstract_distance)
     # reward = r3(observation_dict, state_values) + score * 4
     reward = r1(observation_dict, state_values)
-    return reward# * np.min(punish_limit(observation_dict['X_meas'][-1], action, observation_dict['dynamics_func']))
+    return reward + (np.min(punish_limit(observation_dict['X_meas'][-1], action, observation_dict['dynamics_func'])) - 1)
 
 
 def exp_distance_from_target(observation, action, env_type, dynamic_func, observation_dict):
