@@ -61,8 +61,11 @@ def effort_distance(observation_dict, state_values):
     velocity = state_values['omega_squared_1'] + state_values['omega_squared_2']
     torque = state_values['unscaled_action'] ** 2 + np.abs(state_values['unscaled_action']) * 2
     smoothness = du * observation_dict['dynamics_func'].torque_limit[0]
-    energy = (np.abs(state_values['y'][2] * state_values['unscaled_action']) + np.abs(state_values['y'][2] * state_values['unscaled_action']))
-    abstract_distance = 0.0025 * velocity + 0.1 * torque + 0.01 * smoothness + 0.01 * energy
+    i = 2
+    if observation_dict['dynamics_func'].robot == 'acrobot':
+        i = 3
+    energy = np.abs(state_values['y'][i] * state_values['unscaled_action'])
+    abstract_distance = 0.0025 * velocity + 0.1 * torque + 0.01 * smoothness + 0.02 * energy
 
     return abstract_distance * 0.5
 

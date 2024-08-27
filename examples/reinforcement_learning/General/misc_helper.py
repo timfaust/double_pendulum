@@ -100,7 +100,7 @@ def no_termination(observation):
     return False
 
 
-def punish_limit(observation, action, dynamics_function, k=50):
+def punish_limit(observation, action, dynamics_function, k=25):
     thresholds = np.array([0.95] * 5)
 
     values = np.concatenate([np.abs(observation), np.array([np.abs(action)])])
@@ -115,7 +115,7 @@ def punish_limit(observation, action, dynamics_function, k=50):
 
 
 def kill_switch(observation, action, dynamics_func):
-    return np.array(punish_limit(observation, action, dynamics_func)) == 0
+    return False # np.array(punish_limit(observation, action, dynamics_func)) == 0
 
 
 def calculate_q_values(reward, gamma):
