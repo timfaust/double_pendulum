@@ -165,7 +165,7 @@ class CustomSAC(SAC):
 
     # connects each env to the SAC and initializes their disturbance configurations
     def connect_envs(self, env=None):
-        N = 7
+        N = 4
         if env is None:
             env = self.env
         if env is None:
@@ -174,19 +174,19 @@ class CustomSAC(SAC):
         for monitor in env.envs:
             monitor.env.visualizer.model = self
             monitor.env.sac = self
-            monitor.env.change_dynamics(disturbance=configuration.copy(), N=N)
-            # if monitor.env.is_evaluation_environment:
-            #     monitor.env.change_dynamics(disturbance=configuration.copy(), N=N)
-            # else:
-            #     configuration_random = [configuration[0], -1]
-            #     monitor.env.change_dynamics(disturbance=configuration_random.copy())
-            #     configuration[1] = N - 1
-            # configuration[1] += 1
-            # if configuration[1] == N:
-            #     configuration[1] = 0
-            #     configuration[0] += 1
-            # if configuration[0] == len(disturbed_parameters):
-            #     configuration[0] = 0
+            # monitor.env.change_dynamics(disturbance=configuration.copy(), N=N)
+            if monitor.env.is_evaluation_environment:
+                monitor.env.change_dynamics(disturbance=configuration.copy(), N=N)
+            else:
+                configuration_random = [configuration[0], -1]
+                monitor.env.change_dynamics(disturbance=configuration_random.copy())
+                configuration[1] = N - 1
+            configuration[1] += 1
+            if configuration[1] == N:
+                configuration[1] = 0
+                configuration[0] += 1
+            if configuration[0] == len(disturbed_parameters):
+                configuration[0] = 0
 
     def select_policy(self, policy_id):
         if len(self.policies) > policy_id >= 0:

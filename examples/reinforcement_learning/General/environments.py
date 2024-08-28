@@ -158,7 +158,7 @@ class GeneralEnv(CustomEnv):
             if key != 'dynamics_func' and key != 'max_episode_steps' and key != 'mpar':
                 self.observation_dict[key].clear()
 
-        if self.sac and (self.configuration[1] == -1 or self.use_perturbations):
+        if self.sac and (self.configuration[1] == -1 or self.use_perturbations) and (np.random.random() < 0.05 or self.is_evaluation_environment):
             self.change_dynamics()
 
         clean_observation = np.array(self.reset_function())
@@ -321,8 +321,10 @@ class GeneralEnv(CustomEnv):
         self.observation_dict['X_real'].append(clean_observation)
 
     def get_disturbance_values(self, progress: float):
-        p_factor = 1
-        n_factor = 1
+        if self.is_evaluation_environment:
+            progress = 1.0
+        p_factor = progress
+        n_factor = progress
         disturbances = {
             'l': 0.0,
             'm': 0.25 * p_factor,
@@ -339,10 +341,10 @@ class GeneralEnv(CustomEnv):
             'position_bias': 0.0,
             'action_noise': 1.1 / self.dynamics_func.torque_limit[0] * n_factor,
             'action_bias': 0.0,
-            'n_pert_per_joint': 3,
+            'n_pert_per_joint': 1,
             'min_t_dist': 1.0,
             'sigma_minmax': [0.05, 0.1],
-            'amplitude_min_max': [0.5, 5.0],
+            'amplitude_min_max': [0.5 * n_factor, 5.0 * n_factor],
             'responsiveness': [1 - 0.9 * n_factor, 1 + 1 * n_factor]
         }
 

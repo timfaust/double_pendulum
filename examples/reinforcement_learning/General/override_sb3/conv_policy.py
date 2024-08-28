@@ -11,14 +11,14 @@ from examples.reinforcement_learning.General.reward_functions import get_state_v
 import torch.nn.functional as F
 
 class ConvExtractor(SequenceExtractor):
-    def __init__(self, observation_space: gym.spaces.Box, translator, num_filters=16, num_heads=0, dropout=0.05):
+    def __init__(self, observation_space: gym.spaces.Box, translator, num_filters=16, num_heads=0, dropout=0.0):
         super().__init__(observation_space, translator)
 
         self.num_heads = num_heads
 
         # 1D Convolutional layers
-        self.conv1 = nn.Conv1d(self.input_features, num_filters, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv1d(num_filters, num_filters, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv1d(self.input_features, num_filters, kernel_size=5, padding=2)
+        self.conv2 = nn.Conv1d(num_filters, num_filters, kernel_size=5, padding=2)
 
         if num_heads > 0:
             # Multi-head self-attention
@@ -28,8 +28,8 @@ class ConvExtractor(SequenceExtractor):
 
         # Feature combination layers
         self.fc1 = nn.Linear(num_filters * self.timesteps, 256)
-        self.fc2 = nn.Linear(256, 64)
-        self.fc3 = nn.Linear(64, self.output_dim)
+        self.fc2 = nn.Linear(256, 256)
+        self.fc3 = nn.Linear(256, self.output_dim)
         self.activation = nn.Tanh()
 
         self.dropout = nn.Dropout(dropout)
