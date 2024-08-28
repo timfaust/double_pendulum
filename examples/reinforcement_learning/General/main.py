@@ -27,7 +27,7 @@ if __name__ == '__main__':
 
     # arguments for trainer
     parser = argparse.ArgumentParser()
-    parser.add_argument('--name', default="Acrobot_28_08_pureSAC")
+    parser.add_argument('--name', default="Acrobot_28_08_new_NN_FC_layers_256_512_256_effort_factor_0_03")
     parser.add_argument('--mode', default="train", choices=["train", "retrain", "evaluate", "evaluate_korean", "simulate"])
     parser.add_argument('--model_path', default="/best_model/best_score")
     parser.add_argument('--env_type', default="acrobot", choices=["pendubot", "acrobot"])
