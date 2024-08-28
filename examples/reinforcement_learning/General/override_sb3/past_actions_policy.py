@@ -44,6 +44,6 @@ class PastActionsSACPolicy(CustomPolicy):
         return PastActionsTranslator()
 
     def __init__(self, *args, **kwargs):
-        self.additional_actor_kwargs['net_arch'] = [512, 512, 512]
+        self.additional_actor_kwargs['net_arch'] = [256,512,256]
         self.additional_critic_kwargs['net_arch'] = self.additional_actor_kwargs['net_arch']
         super().__init__(*args, **kwargs)

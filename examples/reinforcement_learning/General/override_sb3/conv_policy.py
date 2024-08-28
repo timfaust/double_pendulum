@@ -84,7 +84,7 @@ class ConvTranslator(DefaultTranslator):
         self.feature_dim = 5
         self.output_dim = 16
         self.additional_features = 8
-        self.net_arch = [512, 512, 512]
+        self.net_arch = [32, 64, 128, 128, 64, 32]
 
         super().__init__(self.timesteps * self.feature_dim + self.additional_features)
 
