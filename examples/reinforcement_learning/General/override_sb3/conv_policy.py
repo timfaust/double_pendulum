@@ -185,7 +185,7 @@ class ConvPolicy(CustomPolicy):
             dict(
                 features_extractor_class=ConvExtractor,
                 features_extractor_kwargs=dict(translator=self.translator),
-                share_features_extractor=True,
+                share_features_extractor=False,
                 # optimizer_kwargs={'weight_decay': 0.0001}
             )
         )

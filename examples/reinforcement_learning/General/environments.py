@@ -159,7 +159,7 @@ class GeneralEnv(CustomEnv):
                 self.observation_dict[key].clear()
 
         if self.sac and (self.configuration[1] == -1 or self.use_perturbations) and (np.random.random() < 0.05 or self.is_evaluation_environment):
-            self.change_dynamics()
+            self.change_dynamics(progress=self.sac.progress)
 
         clean_observation = np.array(self.reset_function())
         dirty_observation = self.apply_observation_disturbances(clean_observation)
