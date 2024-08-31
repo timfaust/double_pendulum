@@ -27,9 +27,9 @@ class ConvExtractor(SequenceExtractor):
             self.self_attn = None
 
         # Feature combination layers
-        self.fc1 = nn.Linear(num_filters * self.timesteps, 256)
-        self.fc2 = nn.Linear(256, 256)
-        self.fc3 = nn.Linear(256, self.output_dim)
+        self.fc1 = nn.Linear(num_filters * self.timesteps, 128)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, self.output_dim)
         self.activation = nn.Tanh()
 
         self.dropout = nn.Dropout(dropout)
@@ -80,7 +80,7 @@ class ConvTranslator(DefaultTranslator):
     """
     def __init__(self):
         self.reset()
-        self.timesteps = 32
+        self.timesteps = 16
         self.feature_dim = 5
         self.output_dim = 16
         self.additional_features = 8
@@ -185,8 +185,8 @@ class ConvPolicy(CustomPolicy):
             dict(
                 features_extractor_class=ConvExtractor,
                 features_extractor_kwargs=dict(translator=self.translator),
-                share_features_extractor=False,
-                # optimizer_kwargs={'weight_decay': 0.0001}
+                share_features_extractor=True,
+                #optimizer_kwargs={'weight_decay': 0.0001}
             )
         )
 

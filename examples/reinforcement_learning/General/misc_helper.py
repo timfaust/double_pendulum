@@ -6,7 +6,7 @@ import numpy as np
 # TODO: remove nothing
 disturbed_parameters = [
     'nothing', 'm2', 'b1', 'b2', 'coulomb_fric1', 'coulomb_fric2', 'com1', 'com2', 'I1', 'I2', 'Ir',
-    'velocity_noise', 'n_pert_per_joint' #, 'delay', 'action_noise', 'responsiveness'
+    'velocity_noise'#, 'n_pert_per_joint' #, 'delay', 'action_noise', 'responsiveness'
 ]
 
 
@@ -101,7 +101,7 @@ def no_termination(observation):
 
 
 def punish_limit(observation, action, dynamics_function, k=25):
-    thresholds = np.array([0.75] * 5)
+    thresholds = np.array([0.85] * 5)
 
     values = np.concatenate([np.abs(observation), np.array([np.abs(action)])])
     ratios = values / thresholds
@@ -111,7 +111,7 @@ def punish_limit(observation, action, dynamics_function, k=25):
     # If the ratio is greater than 1, the factor is set to 0
     factors = np.where(ratios <= 1, 1 - np.exp(-k * np.abs(ratios - 1)), 0)
 
-    return factors[:2].min(), factors[2:4].min(), 1 #factors[4]
+    return 1, 1, 1# factors[:2].min(), factors[2:4].min(), 1 #factors[4]
 
 
 def kill_switch(observation, action, dynamics_func):
@@ -264,7 +264,7 @@ def get_state_values(observation_dict, key='X_meas', offset=0):
         l = observation_dict['dynamics_func'].simulator.plant.l
         action_key = 'U_real'
 
-    dt_goal = 0.05
+    dt_goal = 0.0
     threshold_distance = (l[0] + l[1]) * 0.1
 
     unscaled_observation = observation_dict['dynamics_func'].unscale_state(observation_dict[key][offset-1])

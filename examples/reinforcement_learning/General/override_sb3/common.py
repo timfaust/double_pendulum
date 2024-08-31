@@ -243,6 +243,40 @@ class DefaultTranslator:
         pass
 
 
+class FeatureActor(Actor):
+
+    def get_action_dist_params(self, obs: PyTorchObs) -> Tuple[th.Tensor, th.Tensor, th.Tensor, Dict[str, th.Tensor]]:
+        """
+        Get the parameters for the action distribution.
+
+        :param obs:
+        :return:
+            Mean, standard deviation and optional keyword arguments.
+        """
+        features = self.extract_features(obs, self.features_extractor)
+        latent_pi = self.latent_pi(features)
+        mean_actions = self.mu(latent_pi)
+
+        if self.use_sde:
+            return mean_actions, self.log_std, features, dict(latent_sde=latent_pi)
+        # Unstructured exploration (Original implementation)
+        log_std = self.log_std(latent_pi)  # type: ignore[operator]
+        # Original Implementation to cap the standard deviation
+        log_std = th.clamp(log_std, LOG_STD_MIN, LOG_STD_MAX)
+        return mean_actions, log_std, features, {}
+
+    def forward(self, obs: PyTorchObs, deterministic: bool = False) -> th.Tensor:
+        mean_actions, log_std, features, kwargs = self.get_action_dist_params(obs)
+        # Note: the action is squashed
+        return self.action_dist.actions_from_params(mean_actions, log_std, deterministic=deterministic, **kwargs)
+
+    def action_log_prob(self, obs: PyTorchObs) -> Tuple[th.Tensor, th.Tensor, th.Tensor]:
+        mean_actions, log_std, features, kwargs = self.get_action_dist_params(obs)
+        # return action and associated log prob
+        action, log_prob = self.action_dist.log_prob_from_params(mean_actions, log_std, **kwargs)
+        return action, log_prob, features
+
+
 # custom policies which is almost the same but can return the default translator for generic state building
 class CustomPolicy(SACPolicy):
     """
@@ -253,6 +287,7 @@ class CustomPolicy(SACPolicy):
     """
     additional_actor_kwargs = {}
     additional_critic_kwargs = {}
+    actor: FeatureActor
 
     def __init__(self, *args, **kwargs):
         self.translator = self.get_translator()
@@ -262,10 +297,10 @@ class CustomPolicy(SACPolicy):
     def get_translator(cls) -> DefaultTranslator:
         return DefaultTranslator(4)
 
-    def make_actor(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> Actor:
+    def make_actor(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> FeatureActor:
         actor_kwargs = self._update_features_extractor(self.actor_kwargs, features_extractor)
         actor_kwargs.update(self.additional_actor_kwargs)
-        actor = Actor(**actor_kwargs).to(self.device)
+        actor = FeatureActor(**actor_kwargs).to(self.device)
         return actor
 
     def make_critic(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> ContinuousCritic:

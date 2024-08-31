@@ -165,28 +165,30 @@ class CustomSAC(SAC):
 
     # connects each env to the SAC and initializes their disturbance configurations
     def connect_envs(self, env=None):
-        N = 4
         if env is None:
             env = self.env
         if env is None:
             return
+        N = env.envs[0].env.N
         configuration = [0, 0]
         for monitor in env.envs:
             monitor.env.visualizer.model = self
             monitor.env.sac = self
-            # monitor.env.change_dynamics(disturbance=configuration.copy(), N=N)
-            if monitor.env.is_evaluation_environment:
+            if not monitor.env.randomize:
                 monitor.env.change_dynamics(disturbance=configuration.copy(), N=N)
             else:
-                configuration_random = [configuration[0], -1]
-                monitor.env.change_dynamics(disturbance=configuration_random.copy())
-                configuration[1] = N - 1
-            configuration[1] += 1
-            if configuration[1] == N:
-                configuration[1] = 0
-                configuration[0] += 1
-            if configuration[0] == len(disturbed_parameters):
-                configuration[0] = 0
+                if monitor.env.is_evaluation_environment:
+                    monitor.env.change_dynamics(disturbance=configuration.copy(), N=N)
+                else:
+                    configuration_random = [configuration[0], -1]
+                    monitor.env.change_dynamics(disturbance=configuration_random.copy())
+                    configuration[1] = N - 1
+                configuration[1] += 1
+                if configuration[1] == N:
+                    configuration[1] = 0
+                    configuration[0] += 1
+                if configuration[0] == len(disturbed_parameters):
+                    configuration[0] = 0
 
     def select_policy(self, policy_id):
         if len(self.policies) > policy_id >= 0:
@@ -383,7 +385,7 @@ class CustomSAC(SAC):
                     print("This should not happen :(")
 
                 obs_tensor = th.tensor(obs, device=device)
-                next_actions, policy_next_log_prob = self.policies[policy_id].actor.action_log_prob(obs_tensor)
+                next_actions, policy_next_log_prob, features = self.policies[policy_id].actor.action_log_prob(obs_tensor)
                 policy_next_q_values = th.cat(self.policies[policy_id].critic_target(obs_tensor, next_actions), dim=1)
 
                 next_q_values[indices] = policy_next_q_values
@@ -412,11 +414,11 @@ class CustomSAC(SAC):
                 s.step()
 
     def prepare_print_gradients(self, gradient_step, replay_data):
-        if self.num_timesteps % 100000 == 0 and gradient_step == 0:
+        if self.num_timesteps % 92280 == 0 and gradient_step == 0:
             replay_data.observations.requires_grad = True
 
     def print_gradients(self, gradient_step, replay_data, logging_name):
-        if self.num_timesteps % 100000 == 0 and gradient_step == 0:
+        if self.num_timesteps % 92280 == 0 and gradient_step == 0:
             state_gradients = th.mean(th.abs(replay_data.observations.grad), axis=0)
             with SummaryWriter(self.logger.dir) as writer:
                 plt.figure(figsize=(8, 6))
@@ -468,7 +470,7 @@ class CustomSAC(SAC):
 
             # Action by the current actor for the sampled state
             self.prepare_print_gradients(gradient_step, replay_data)
-            actions_pi, log_prob = self.actor.action_log_prob(replay_data.observations)
+            actions_pi, log_prob, features = self.actor.action_log_prob(replay_data.observations)
             log_prob = log_prob.reshape(-1, 1)
 
             ent_coef_loss = None

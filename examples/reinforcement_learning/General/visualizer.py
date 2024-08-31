@@ -2,7 +2,7 @@ import pygame
 import numpy as np
 import torch as th
 from examples.reinforcement_learning.General.score import calculate_score
-from examples.reinforcement_learning.General.misc_helper import calculate_q_values, get_stabilized, get_i_decay
+from examples.reinforcement_learning.General.misc_helper import calculate_q_values, get_stabilized, get_i_decay, smooth_transition
 from examples.reinforcement_learning.General.reward_functions import get_state_values, angle_distance, effort_distance, energy_distance, r1
 
 
@@ -211,14 +211,16 @@ class Visualizer:
             'step_counter': len(self.env.observation_dict['T']) - 1,
             'x_1': round(y[0] / dynamics_func.max_angle, 4),
             'x_2': round(y[1] / dynamics_func.max_angle, 4),
+            'distance': round(state_values['distance'], 4),
             'distance_next': round(distance_next, 4),
+            'v2': round(np.linalg.norm(state_values['v2']), 4),
             'v_1': round(y[2] / dynamics_func.max_velocity, 4),
             'v_2': round(y[3] / dynamics_func.max_velocity, 4),
             'action': round(state_values['unscaled_action'] / dynamics_func.torque_limit[0], 4),
             'time': self.env.observation_dict['T'][-1],
             'policy': self.policy,
             'killed': self.env.killed_because,
-            'stabilized': get_stabilized(self.env.observation_dict),
+            'stabilize': 0.1 * (get_i_decay(np.linalg.norm(state_values['v2']), factor=2.5) * (1 - smooth_transition(state_values['distance'], 0.3, sharpness=10)) - 1),
             'angle_distance': angle_distance(state_values),
             'effort_distance': effort_distance(self.env.observation_dict, state_values),
             'energy_distance': energy_distance(self.env.observation_dict, state_values),

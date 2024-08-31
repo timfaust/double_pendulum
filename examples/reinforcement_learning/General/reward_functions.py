@@ -2,7 +2,7 @@ import numpy as np
 from double_pendulum.utils.wrap_angles import wrap_angles_diff
 
 from examples.reinforcement_learning.General.misc_helper import punish_limit, get_state_values, get_i_decay, \
-    get_unscaled_action
+    get_unscaled_action, smooth_transition
 from examples.reinforcement_learning.General.score import calculate_score
 
 
@@ -67,16 +67,14 @@ def effort_distance(observation_dict, state_values):
     energy = np.abs(state_values['y'][i] * state_values['unscaled_action'])
     abstract_distance = 0.0025 * velocity + 0.1 * torque + 0.01 * smoothness + 0.02 * energy
 
-    return abstract_distance * 0.5
+    return abstract_distance * 0.3
 
 
 def future_pos_reward(observation, action, env_type, dynamic_func, observation_dict):
     state_values = get_state_values(observation_dict, 'X_real')
-    # score = calculate_score(observation_dict, needs_success=False)
-    # abstract_distance = (state_values['omega_squared_1'] + state_values['omega_squared_2']) / 400.0 + (state_values['unscaled_action'] ** 2) / 20.0
-    # print(abstract_distance)
-    # reward = r3(observation_dict, state_values) + score * 4
     reward = r1(observation_dict, state_values)
+    stabilize = get_i_decay(np.linalg.norm(state_values['v2']), factor=2.5) * (1 - smooth_transition(state_values['distance'], 0.3, sharpness=10)) - 1
+    reward += 0.1 * stabilize
     return reward + (np.min(punish_limit(observation_dict['X_meas'][-1], action, observation_dict['dynamics_func'])) - 1)
 
 

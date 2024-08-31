@@ -55,6 +55,10 @@ class GeneralEnv(CustomEnv):
         if not os.path.exists(path):
             path = os.path.join("../../../examples/reinforcement_learning/General/", path)
         self.param_data = json.load(open(path))[param_name]
+        self.randomize = False
+        if param_name == "random":
+            self.randomize = True
+        self.N = self.param_data['eval_env']['n_envs'] // len(disturbed_parameters)
 
         self.type = None
         self.configuration = None   # Configuration for disturbances
