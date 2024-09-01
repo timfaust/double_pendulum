@@ -11,14 +11,14 @@ from examples.reinforcement_learning.General.reward_functions import get_state_v
 import torch.nn.functional as F
 
 class ConvExtractor(SequenceExtractor):
-    def __init__(self, observation_space: gym.spaces.Box, translator, num_filters=16, num_heads=0, dropout=0.0):
+    def __init__(self, observation_space: gym.spaces.Box, translator, num_filters=8, num_heads=0, dropout=0.0):
         super().__init__(observation_space, translator)
 
         self.num_heads = num_heads
 
         # 1D Convolutional layers
-        self.conv1 = nn.Conv1d(self.input_features, num_filters, kernel_size=5, padding=2)
-        self.conv2 = nn.Conv1d(num_filters, num_filters, kernel_size=5, padding=2)
+        self.conv1 = nn.Conv1d(self.input_features, num_filters, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv1d(num_filters, num_filters, kernel_size=3, padding=1)
 
         if num_heads > 0:
             # Multi-head self-attention
@@ -28,8 +28,7 @@ class ConvExtractor(SequenceExtractor):
 
         # Feature combination layers
         self.fc1 = nn.Linear(num_filters * self.timesteps, 128)
-        self.fc2 = nn.Linear(128, 64)
-        self.fc3 = nn.Linear(64, self.output_dim)
+        self.fc2 = nn.Linear(128, self.output_dim)
         self.activation = nn.Tanh()
 
         self.dropout = nn.Dropout(dropout)
@@ -58,12 +57,11 @@ class ConvExtractor(SequenceExtractor):
         x = x.reshape(x.size(0), -1)  # Flatten
         x = F.relu(self.fc1(x))
         x = self.dropout(x)
-        x = F.relu(self.fc2(x))
-        x = self.dropout(x)
-        x = self.fc3(x)
+        x = self.fc2(x)
         x = self.activation(x)
 
         return x
+
 
 class ConvTranslator(DefaultTranslator):
     """
@@ -82,7 +80,7 @@ class ConvTranslator(DefaultTranslator):
         self.reset()
         self.timesteps = 16
         self.feature_dim = 5
-        self.output_dim = 16
+        self.output_dim = 4
         self.additional_features = 8
         self.net_arch = [512, 512, 512]
 
@@ -185,8 +183,8 @@ class ConvPolicy(CustomPolicy):
             dict(
                 features_extractor_class=ConvExtractor,
                 features_extractor_kwargs=dict(translator=self.translator),
-                share_features_extractor=True,
-                #optimizer_kwargs={'weight_decay': 0.0001}
+                share_features_extractor=False,
+                optimizer_kwargs={'weight_decay': 0.00001}
             )
         )
 

@@ -11,6 +11,7 @@ from typing import List, Optional, Union, Dict, Any, Tuple, Iterable, Type
 
 import numpy as np
 from matplotlib import pyplot as plt
+from matplotlib.colors import Normalize
 from stable_baselines3 import SAC
 from stable_baselines3.common.base_class import SelfBaseAlgorithm
 from stable_baselines3.common.buffers import ReplayBuffer
@@ -414,18 +415,20 @@ class CustomSAC(SAC):
                 s.step()
 
     def prepare_print_gradients(self, gradient_step, replay_data):
-        if self.num_timesteps % 92280 == 0 and gradient_step == 0:
+        if self.num_timesteps % (1000 * len(self.env.envs)) == 0 and gradient_step == 0:
             replay_data.observations.requires_grad = True
 
     def print_gradients(self, gradient_step, replay_data, logging_name):
-        if self.num_timesteps % 92280 == 0 and gradient_step == 0:
-            state_gradients = th.mean(th.abs(replay_data.observations.grad), axis=0)
+        if self.num_timesteps % (1000 * len(self.env.envs)) == 0 and gradient_step == 0:
+            state_gradients = th.mean(th.abs(replay_data.observations.grad), axis=0).detach().cpu().numpy()
+
+            norm = Normalize(vmin=np.min(state_gradients), vmax=np.max(state_gradients))
+            colors = plt.get_cmap("viridis")(norm(state_gradients))
+
             with SummaryWriter(self.logger.dir) as writer:
-                plt.figure(figsize=(8, 6))
+                plt.figure(figsize=(16, 8))
 
-                colors = plt.get_cmap("viridis")(np.linspace(0, 1, len(state_gradients)))
-
-                plt.bar(np.arange(len(state_gradients)), state_gradients.detach().cpu().numpy(), color=colors)
+                plt.bar(np.arange(len(state_gradients)), state_gradients, color=colors)
                 plt.xlabel('Feature Index')
                 plt.ylabel('Gradient')
                 plt.title('Mean Gradients of Input Features in Batch')
