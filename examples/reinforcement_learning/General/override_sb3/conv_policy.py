@@ -17,8 +17,8 @@ class ConvExtractor(SequenceExtractor):
         self.num_heads = num_heads
 
         # 1D Convolutional layers
-        self.conv1 = nn.Conv1d(self.input_features, num_filters, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv1d(num_filters, num_filters, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv1d(self.input_features, num_filters, kernel_size=5, padding=2)
+        self.conv2 = nn.Conv1d(num_filters, num_filters, kernel_size=5, padding=2)
 
         if num_heads > 0:
             # Multi-head self-attention
@@ -78,7 +78,7 @@ class ConvTranslator(DefaultTranslator):
     """
     def __init__(self):
         self.reset()
-        self.timesteps = 16
+        self.timesteps = 32
         self.feature_dim = 5
         self.output_dim = 4
         self.additional_features = 8

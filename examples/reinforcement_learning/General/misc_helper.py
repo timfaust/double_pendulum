@@ -6,7 +6,7 @@ import numpy as np
 # TODO: remove nothing
 disturbed_parameters = [
     'nothing', 'm2', 'b1', 'b2', 'coulomb_fric1', 'coulomb_fric2', 'com1', 'com2', 'I1', 'I2', 'Ir',
-    'velocity_noise', 'n_pert_per_joint' #, 'delay', 'action_noise', 'responsiveness'
+    'velocity_noise', 'n_pert_per_joint', 'delay', 'action_noise', 'responsiveness'
 ]
 
 
