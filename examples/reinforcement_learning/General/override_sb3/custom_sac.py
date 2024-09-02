@@ -20,7 +20,7 @@ from stable_baselines3.common.utils import polyak_update, safe_mean
 from torch.optim import lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
 
-from examples.reinforcement_learning.General.misc_helper import softmax_and_select, default_decider, disturbed_parameters
+from examples.reinforcement_learning.General.misc_helper import softmax_and_select, default_decider, disturbed_parameters, add_gaussian_noise
 import torch as th
 from torch.nn import functional as F
 
@@ -178,7 +178,7 @@ class CustomSAC(SAC):
             if not monitor.env.randomize:
                 monitor.env.change_dynamics(disturbance=configuration.copy(), N=N)
             else:
-                if monitor.env.is_evaluation_environment:
+                if monitor.env.is_evaluation_environment or True:
                     monitor.env.change_dynamics(disturbance=configuration.copy(), N=N)
                 else:
                     configuration_random = [configuration[0], -1]
@@ -385,7 +385,7 @@ class CustomSAC(SAC):
                 if not all(o.shape == obs[0].shape for o in obs):
                     print("This should not happen :(")
 
-                obs_tensor = th.tensor(obs, device=device)
+                obs_tensor = add_gaussian_noise(th.tensor(obs, device=device))
                 next_actions, policy_next_log_prob, features = self.policies[policy_id].actor.action_log_prob(obs_tensor)
                 policy_next_q_values = th.cat(self.policies[policy_id].critic_target(obs_tensor, next_actions), dim=1)
 
@@ -473,7 +473,7 @@ class CustomSAC(SAC):
 
             # Action by the current actor for the sampled state
             self.prepare_print_gradients(gradient_step, replay_data)
-            actions_pi, log_prob, features = self.actor.action_log_prob(replay_data.observations)
+            actions_pi, log_prob, features = self.actor.action_log_prob(add_gaussian_noise(replay_data.observations))
             log_prob = log_prob.reshape(-1, 1)
 
             ent_coef_loss = None
@@ -506,7 +506,7 @@ class CustomSAC(SAC):
 
             # Get current Q-values estimates for each critic network
             # using action from the replay buffer
-            current_q_values = self.critic(replay_data.observations, replay_data.actions)
+            current_q_values = self.critic(add_gaussian_noise(replay_data.observations), replay_data.actions)
 
             # Compute critic loss
             critic_loss = 0.5 * sum(F.mse_loss(current_q, target_q_values) for current_q in current_q_values)
@@ -523,7 +523,7 @@ class CustomSAC(SAC):
             # Compute actor loss
             # Alternative: actor_loss = th.mean(log_prob - qf1_pi)
             # Min over all critic networks
-            q_values_pi = th.cat(self.critic(replay_data.observations, actions_pi), dim=1)
+            q_values_pi = th.cat(self.critic(add_gaussian_noise(replay_data.observations), actions_pi), dim=1)
             min_qf_pi, _ = th.min(q_values_pi, dim=1, keepdim=True)
             actor_loss = (ent_coef * log_prob - min_qf_pi).mean()
             actor_losses.append(actor_loss.item())

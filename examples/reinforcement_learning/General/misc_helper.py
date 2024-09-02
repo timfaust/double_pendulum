@@ -2,12 +2,18 @@ import random
 from collections import deque
 from double_pendulum.utils.wrap_angles import wrap_angles_diff
 import numpy as np
+import torch as th
 
 # TODO: remove nothing
 disturbed_parameters = [
     'nothing', 'm2', 'b1', 'b2', 'coulomb_fric1', 'coulomb_fric2', 'com1', 'com2', 'I1', 'I2', 'Ir',
-    'velocity_noise', 'n_pert_per_joint', 'delay', 'action_noise', 'responsiveness'
+    'velocity_noise', 'n_pert_per_joint'#, 'delay', 'action_noise', 'responsiveness'
 ]
+
+
+def add_gaussian_noise(x, mean=0.0, std=0.0005): #std=0.0006
+    noise = th.randn_like(x) * std + mean
+    return x + noise
 
 
 def smooth_transition(value, threshold, sharpness=80):
@@ -52,7 +58,7 @@ def general_reset(x_values, dx_values):
 
 
 def low_reset(low_pos=[0, 0, 0, 0]):
-    return general_reset(low_pos, [0.025, 0.025, 0.025, 0.025])
+    return general_reset(low_pos, [0.007, 0.007, 0.007, 0.007])
 
 
 def debug_reset(low_pos=[0, 0, 0, 0]):

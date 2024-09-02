@@ -327,8 +327,8 @@ class GeneralEnv(CustomEnv):
     def get_disturbance_values(self, progress: float):
         if self.is_evaluation_environment:
             progress = 1.0
-        p_factor = progress
-        n_factor = progress
+        p_factor = 1.0
+        n_factor = 1.0
         disturbances = {
             'l': 0.0,
             'm': 0.25 * p_factor,

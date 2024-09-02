@@ -11,7 +11,7 @@ from examples.reinforcement_learning.General.reward_functions import get_state_v
 import torch.nn.functional as F
 
 class ConvExtractor(SequenceExtractor):
-    def __init__(self, observation_space: gym.spaces.Box, translator, num_filters=8, num_heads=0, dropout=0.0):
+    def __init__(self, observation_space: gym.spaces.Box, translator, num_filters=12, num_heads=0, dropout=0.0):
         super().__init__(observation_space, translator)
 
         self.num_heads = num_heads
@@ -27,8 +27,8 @@ class ConvExtractor(SequenceExtractor):
             self.self_attn = None
 
         # Feature combination layers
-        self.fc1 = nn.Linear(num_filters * self.timesteps, 128)
-        self.fc2 = nn.Linear(128, self.output_dim)
+        self.fc1 = nn.Linear(num_filters * self.timesteps, 256)
+        self.fc2 = nn.Linear(256, self.output_dim)
         self.activation = nn.Tanh()
 
         self.dropout = nn.Dropout(dropout)
@@ -78,11 +78,11 @@ class ConvTranslator(DefaultTranslator):
     """
     def __init__(self):
         self.reset()
-        self.timesteps = 32
-        self.feature_dim = 5
+        self.timesteps = 8
+        self.feature_dim = 3
         self.output_dim = 4
-        self.additional_features = 8
-        self.net_arch = [512, 512, 512]
+        self.additional_features = 4
+        self.net_arch = [1024, 1024, 1024]
 
         super().__init__(self.timesteps * self.feature_dim + self.additional_features)
 
@@ -107,7 +107,7 @@ class ConvTranslator(DefaultTranslator):
             X_meas = np.array(observation_dict['X_meas'])
             U_con = np.array(observation_dict['U_con'])
             conv_memory = np.hstack((
-                X_meas[sequence_start:index + 1, :self.feature_dim - 1],
+                X_meas[sequence_start:index + 1, :-2],
                 U_con[sequence_start:index + 1, np.newaxis]
             ))
         else:
@@ -125,12 +125,12 @@ class ConvTranslator(DefaultTranslator):
         output = np.append(dirty_observation, output)
 
         state_values = get_state_values(observation_dict, offset=index + 1 - len(observation_dict['T']))
-        l_ges = env.mpar.l[0] + env.mpar.l[1]
+        # l_ges = env.mpar.l[0] + env.mpar.l[1]
         additional = np.array([
-            state_values['x2'][1] / l_ges,
-            state_values['v2'][0] / env.dynamics_func.max_velocity,
-            state_values['c1'],
-            state_values['c2']
+            # state_values['x2'][1] / l_ges,
+            # state_values['v2'][0] / env.dynamics_func.max_velocity,
+            # state_values['c1'],
+            # state_values['c2']
         ])
 
         return np.append(additional, output)
@@ -184,7 +184,7 @@ class ConvPolicy(CustomPolicy):
                 features_extractor_class=ConvExtractor,
                 features_extractor_kwargs=dict(translator=self.translator),
                 share_features_extractor=False,
-                optimizer_kwargs={'weight_decay': 0.00001}
+                # optimizer_kwargs={'weight_decay': 0.00001}
             )
         )
 

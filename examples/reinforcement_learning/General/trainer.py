@@ -375,7 +375,7 @@ class GeneralController(AbstractController):
         env.observation_dict['U_con'] = self.observation_dict['U'][::-1][::self.n][::-1].copy()
         env.observation_dict['X_meas'] = self.observation_dict['X'][::-1][::self.n][::-1].copy()
         action, _ = self.model.predict(observation=obs.reshape(1, -1), deterministic=True)
-        lowpass = 0.85
+        lowpass = 0.0 #0.85
         if self.last_action == 0.0:
             lowpass = 0.0
         new_action = lowpass * self.last_action + (1 - lowpass) * action.item()
