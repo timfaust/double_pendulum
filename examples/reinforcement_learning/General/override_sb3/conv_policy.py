@@ -79,7 +79,7 @@ class ConvTranslator(DefaultTranslator):
     def __init__(self):
         self.reset()
         self.timesteps = 8
-        self.feature_dim = 3
+        self.feature_dim = 2
         self.output_dim = 4
         self.additional_features = 4
         self.net_arch = [1024, 1024, 1024]
@@ -108,7 +108,7 @@ class ConvTranslator(DefaultTranslator):
             U_con = np.array(observation_dict['U_con'])
             conv_memory = np.hstack((
                 X_meas[sequence_start:index + 1, :-2],
-                U_con[sequence_start:index + 1, np.newaxis]
+                # U_con[sequence_start:index + 1, np.newaxis]
             ))
         else:
             conv_memory = np.append(dirty_observation[:self.feature_dim - 1], clean_action).reshape(1, -1)

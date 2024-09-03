@@ -18,7 +18,7 @@ from examples.reinforcement_learning.General.environments import GeneralEnv
 from double_pendulum.controller.abstract_controller import AbstractController
 from double_pendulum.utils.plotting import plot_timeseries
 
-from examples.reinforcement_learning.General.misc_helper import debug_reset
+from examples.reinforcement_learning.General.misc_helper import debug_reset, resample_and_denoise
 from examples.reinforcement_learning.General.override_sb3.callbacks import CustomEvalCallback
 from examples.reinforcement_learning.General.override_sb3.custom_sac import CustomSAC
 from src.python.double_pendulum.controller.AR_EAPO import AR_EAPOController
@@ -344,37 +344,34 @@ class GeneralController(AbstractController):
         self.dt = environment.dynamics_func.dt
         self.scaling = environment.dynamics_func.scaling
         self.integrator = environment.dynamics_func.integrator
-        self.controller_dt = np.rint(self.dt * 10000).astype(int)
         self.observation_dict = None
         self.last_action = None
-        self.n = None
         self.last_u = None
         self.reset()
 
     def reset(self):
         super().reset()
-        self.observation_dict = {'X': [], 'U': []}
+        self.observation_dict = {'T': [], 'X': [], 'U': []}
         self.last_action = 0.0
-        self.n = 1
         self.last_u = None
         self.model.env.envs[0].env.reset()
 
     def get_control_output_(self, x, t=None):
 
-        if self.n == 1 and t > 0:
-            self.n = np.rint(self.dt / np.round(t, decimals=5)).astype(int)
-
+        self.observation_dict['T'].append(np.round(t, decimals=5))
         env = self.model.env.envs[0].env
         obs = self.dynamics_func.normalize_state(x)
-        rounded_t = np.rint(t * 10000).astype(int)
-        if rounded_t % self.controller_dt == 0 and t > 0.0:
+
+        if np.rint(t * 10000) % np.rint(self.dt * 10000) == 0 and t > 0.0:
             env.observation_dict['T'].append(np.round(t, decimals=5))
+
         self.observation_dict['X'].append(obs)
         self.observation_dict['U'].append(self.last_action)
 
-        env.observation_dict['U_con'] = self.observation_dict['U'][::-1][::self.n][::-1].copy()
-        env.observation_dict['X_meas'] = self.observation_dict['X'][::-1][::self.n][::-1].copy()
-        action, _ = self.model.predict(observation=obs.reshape(1, -1), deterministic=True)
+        _, env.observation_dict['X_meas'] = resample_and_denoise(self.dt, self.observation_dict['T'], self.observation_dict['X'], False)
+        _, env.observation_dict['U_con'] = resample_and_denoise(self.dt, self.observation_dict['T'], self.observation_dict['U'], False)
+
+        action, _ = self.model.predict(observation=env.observation_dict['X_meas'][-1].reshape(1, -1), deterministic=True)
         lowpass = 0.0 #0.85
         if self.last_action == 0.0:
             lowpass = 0.0

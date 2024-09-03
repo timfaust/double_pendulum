@@ -1,4 +1,4 @@
-import random
+from scipy.interpolate import interp1d
 from collections import deque
 from double_pendulum.utils.wrap_angles import wrap_angles_diff
 import numpy as np
@@ -7,11 +7,91 @@ import torch as th
 # TODO: remove nothing
 disturbed_parameters = [
     'nothing', 'm2', 'b1', 'b2', 'coulomb_fric1', 'coulomb_fric2', 'com1', 'com2', 'I1', 'I2', 'Ir',
-    'velocity_noise', 'n_pert_per_joint'#, 'delay', 'action_noise', 'responsiveness'
+    #'velocity_noise', 'n_pert_per_joint'#, 'delay', 'action_noise', 'responsiveness'
 ]
 
 
-def add_gaussian_noise(x, mean=0.0, std=0.0005): #std=0.0006
+
+def resample_and_denoise(dt, times, values, force_edges=True):
+    """
+    Resample the time series with a coarser resolution and reduce noise by averaging surrounding data points.
+
+    Parameters:
+    times (list of float): Original time points.
+    values (list of float or list of np.ndarray): Corresponding values for the time points.
+    dt (float): The coarser time step for resampling.
+    force_edges (bool): Whether to set the first and last resampled values to the original values.
+
+    Returns:
+    resampled_times (list of float): Resampled time points.
+    resampled_values (list): Values for the resampled time points.
+                             A list of floats if input values are a list of floats,
+                             or a list of np.ndarrays if input values are a list of numpy arrays.
+    """
+
+    # Handle the case where the input has a length of 1
+    if len(times) == 1:
+        return times, values
+
+    # Convert lists to numpy arrays for easier manipulation
+    times = np.array(times)
+
+    # Initialize lists for resampled data
+    resampled_times = []
+    resampled_values = []
+
+    # Check if the input values are a list of numpy arrays or list of floats
+    if isinstance(values[0], np.ndarray):
+        is_array_input = True
+    else:
+        is_array_input = False
+
+    # Start from the last time point and move backwards
+    current_time = times[-1]
+    while current_time >= times[0]:
+        # Find indices of surrounding data points within dt/2 on either side
+        indices = np.where((times >= current_time - dt / 2) & (times <= current_time + dt / 2))[0]
+
+        if len(indices) > 0:
+            if is_array_input:
+                # Calculate the average value channel-wise for numpy array input
+                avg_value = np.mean([values[i] for i in indices], axis=0)
+            else:
+                # Calculate the average value for list input
+                avg_value = np.mean([values[i] for i in indices])
+
+            resampled_times.append(current_time)
+            resampled_values.append(avg_value)
+
+        # Move backwards by dt
+        current_time -= dt
+
+    # Reverse the lists to have them in increasing time order
+    resampled_times.reverse()
+    resampled_values.reverse()
+
+    # Handle the case where resampled_times has a length of 1
+    if len(resampled_times) == 1 and force_edges:
+        resampled_times[0] = times[-1]
+        resampled_values[0] = values[-1]
+        return resampled_times, resampled_values
+
+    # Force the first and last values if required
+    if force_edges and len(resampled_times) > 1:
+        # Force the last value to match the original last value
+        resampled_times[-1] = times[-1]
+        resampled_values[-1] = values[-1]
+
+        # Force the first value to match the original first value if possible
+        if resampled_times[0] == times[0]:
+            resampled_values[0] = values[0]
+
+    return resampled_times, resampled_values
+
+
+def add_gaussian_noise(x, mean=0.0, std=0.0005, p=1.0): #std=0.008
+    if p < 1.0 and np.random.random() > p:
+        return x
     noise = th.randn_like(x) * std + mean
     return x + noise
 
