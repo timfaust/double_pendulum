@@ -89,7 +89,7 @@ def resample_and_denoise(dt, times, values, force_edges=True):
     return resampled_times, resampled_values
 
 
-def add_gaussian_noise(x, mean=0.0, std=0.0005, p=1.0): #std=0.008
+def add_gaussian_noise(x, mean=0.0, std=0.00025, p=1.0): #std=0.008
     if p < 1.0 and np.random.random() > p:
         return x
     noise = th.randn_like(x) * std + mean

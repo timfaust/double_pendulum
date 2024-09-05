@@ -78,9 +78,9 @@ class ConvTranslator(DefaultTranslator):
     """
     def __init__(self):
         self.reset()
-        self.timesteps = 8
+        self.timesteps = 12
         self.feature_dim = 2
-        self.output_dim = 4
+        self.output_dim = 6
         self.additional_features = 4
         self.net_arch = [1024, 1024, 1024]
 
