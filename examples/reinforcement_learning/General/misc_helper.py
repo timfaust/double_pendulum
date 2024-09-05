@@ -4,15 +4,15 @@ from double_pendulum.utils.wrap_angles import wrap_angles_diff
 import numpy as np
 import torch as th
 
-# TODO: remove nothing
+
 disturbed_parameters = [
     'nothing', 'm2', 'b1', 'b2', 'coulomb_fric1', 'coulomb_fric2', 'com1', 'com2', 'I1', 'I2', 'Ir',
     #'velocity_noise', 'n_pert_per_joint'#, 'delay', 'action_noise', 'responsiveness'
 ]
 
 
-
-def resample_and_denoise(dt, times, values, force_edges=True):
+# TODO: needs to be more efficient!
+def resample_and_denoise(dt, times, values, force_edges=True, max_length=None):
     """
     Resample the time series with a coarser resolution and reduce noise by averaging surrounding data points.
 
@@ -21,6 +21,7 @@ def resample_and_denoise(dt, times, values, force_edges=True):
     values (list of float or list of np.ndarray): Corresponding values for the time points.
     dt (float): The coarser time step for resampling.
     force_edges (bool): Whether to set the first and last resampled values to the original values.
+    max_length (int, optional): Maximum length of the output lists. The function terminates early if the limit is reached.
 
     Returns:
     resampled_times (list of float): Resampled time points.
@@ -29,46 +30,42 @@ def resample_and_denoise(dt, times, values, force_edges=True):
                              or a list of np.ndarrays if input values are a list of numpy arrays.
     """
 
-    # Handle the case where the input has a length of 1
     if len(times) == 1:
         return times, values
 
-    # Convert lists to numpy arrays for easier manipulation
     times = np.array(times)
+    values = np.array(values)
 
     # Initialize lists for resampled data
     resampled_times = []
     resampled_values = []
 
-    # Check if the input values are a list of numpy arrays or list of floats
-    if isinstance(values[0], np.ndarray):
-        is_array_input = True
-    else:
-        is_array_input = False
+    is_array_input = isinstance(values[0], np.ndarray)
 
     # Start from the last time point and move backwards
     current_time = times[-1]
+    half_dt = dt / 2
+
     while current_time >= times[0]:
         # Find indices of surrounding data points within dt/2 on either side
-        indices = np.where((times >= current_time - dt / 2) & (times <= current_time + dt / 2))[0]
+        indices = np.where((times >= current_time - half_dt) & (times <= current_time + half_dt))[0]
 
         if len(indices) > 0:
-            if is_array_input:
-                # Calculate the average value channel-wise for numpy array input
-                avg_value = np.mean([values[i] for i in indices], axis=0)
-            else:
-                # Calculate the average value for list input
-                avg_value = np.mean([values[i] for i in indices])
-
+            # Calculate the average value
+            avg_value = np.mean(values[indices], axis=0) if is_array_input else np.mean(values[indices])
             resampled_times.append(current_time)
             resampled_values.append(avg_value)
 
         # Move backwards by dt
         current_time -= dt
 
+        # Terminate early if the max_length is reached
+        if max_length is not None and len(resampled_times) >= max_length:
+            break
+
     # Reverse the lists to have them in increasing time order
-    resampled_times.reverse()
-    resampled_values.reverse()
+    resampled_times = resampled_times[::-1]
+    resampled_values = resampled_values[::-1]
 
     # Handle the case where resampled_times has a length of 1
     if len(resampled_times) == 1 and force_edges:

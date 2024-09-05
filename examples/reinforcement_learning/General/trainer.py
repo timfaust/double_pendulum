@@ -368,8 +368,8 @@ class GeneralController(AbstractController):
         self.observation_dict['X'].append(obs)
         self.observation_dict['U'].append(self.last_action)
 
-        _, env.observation_dict['X_meas'] = resample_and_denoise(self.dt, self.observation_dict['T'], self.observation_dict['X'], False)
-        _, env.observation_dict['U_con'] = resample_and_denoise(self.dt, self.observation_dict['T'], self.observation_dict['U'], False)
+        _, env.observation_dict['X_meas'] = resample_and_denoise(self.dt, self.observation_dict['T'], self.observation_dict['X'], force_edges=False, max_length=12)
+        #_, env.observation_dict['U_con'] = resample_and_denoise(self.dt, self.observation_dict['T'], self.observation_dict['U'], force_edges=False, max_length=12)
 
         action, _ = self.model.predict(observation=env.observation_dict['X_meas'][-1].reshape(1, -1), deterministic=True)
         lowpass = 0.0 #0.85

@@ -22,7 +22,7 @@ class PastActionsTranslator(DefaultTranslator):
         if actions_to_copy > 0:
             action_memory[-actions_to_copy:] = u_con[-actions_to_copy:]
 
-        state_values = get_state_values(observation_dict, offset=index + 1 - len(observation_dict['T']))
+        state_values = get_state_values(observation_dict, offset=index + 1 - len(observation_dict['X_meas']))
         l_ges = env.mpar.l[0] + env.mpar.l[1]
         additional = np.array([
             state_values['x2'][1] / l_ges,

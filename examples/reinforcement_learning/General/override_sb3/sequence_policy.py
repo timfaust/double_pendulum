@@ -270,7 +270,7 @@ class SequenceTranslator(DefaultTranslator):
         output = output.flatten()
         output = np.append(dirty_observation, output)
 
-        state_values = get_state_values(observation_dict, offset=index + 1 - len(observation_dict['T']))
+        state_values = get_state_values(observation_dict, offset=index + 1 - len(observation_dict['X_meas']))
         l_ges = env.mpar.l[0] + env.mpar.l[1]
         additional = np.array([
             state_values['x2'][1] / l_ges,
