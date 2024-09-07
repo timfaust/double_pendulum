@@ -80,7 +80,7 @@ class ConvTranslator(DefaultTranslator):
         self.reset()
         self.timesteps = 12
         self.feature_dim = 2
-        self.output_dim = 6
+        self.output_dim = 8
         self.additional_features = 4
         self.net_arch = [1024, 1024, 1024]
 
