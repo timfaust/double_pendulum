@@ -11,10 +11,10 @@ class Visualizer:
         self.acc_reward = 0
         self.reward = 0
         self.policy = 0
-        self.pendulum_length_visualization = 700
-        self.graph_window_width = 1500
-        self.graph_window_height = 1500
-        self.metrics_width = 3000
+        self.pendulum_length_visualization = 240
+        self.graph_window_width = 500
+        self.graph_window_height = 500
+        self.metrics_width = 1000
         self.full_window_width = self.graph_window_width + self.metrics_width
         self.window = None
         self.clock = None
@@ -38,7 +38,7 @@ class Visualizer:
 
         # Preload fonts
         pygame.font.init()
-        self.font = pygame.font.SysFont("Arial", 28)
+        self.font = pygame.font.SysFont("Arial", 9)
 
     def reset(self):
         if len(self.past_scores) > 0:
@@ -135,7 +135,7 @@ class Visualizer:
             (reward_shifted, (0, 200, 0, 255), 2),
             (effort_shifted, (200, 200, 0, 255), 2),
             (angle_shifted, (200, 0, 200, 255), 2),
-            (energy_shifted, (0, 200, 200, 255), 2),
+            #(energy_shifted, (0, 200, 200, 255), 2),
             (past_scores_scaled, (200, 0, 0, 255), 2)
         ]
 
@@ -163,7 +163,7 @@ class Visualizer:
                 (graph_num // 2) * self.graph_height + self.graph_height - ((value + 1) / 2 * self.graph_height)
             ) for i, value in enumerate(graph)]
 
-            pygame.draw.lines(self.graph_surface, color, False, points, 2)
+            pygame.draw.lines(self.graph_surface, color, False, points, 1)
 
     def draw_feature_bars(self, extracted_features):
         bar_width = self.graph_width / len(extracted_features)
@@ -193,7 +193,7 @@ class Visualizer:
 
         return metrics
 
-    def draw_grid(self, line_color=(200, 200, 200), spacing=75):
+    def draw_grid(self, line_color=(200, 200, 200), spacing=25):
         for x in range(0, self.full_window_width, spacing):
             pygame.draw.line(self.canvas, line_color, (x, 0), (x, self.graph_window_height), 1)
         for y in range(0, self.graph_window_height, spacing):
@@ -237,25 +237,25 @@ class Visualizer:
         black = (0, 0, 0, alpha)
         joint_color = (60, 60, 230, alpha) if self.policy != 1 else (230, 193, 60, alpha)
 
-        pygame.draw.line(self.pendulum_surface, black, self.getXY(np.array([0, 0])), self.getXY(x1), 10)
-        pygame.draw.line(self.pendulum_surface, black, self.getXY(x1), self.getXY(x2), 10)
-        pygame.draw.circle(self.pendulum_surface, joint_color, self.getXY(np.array([0, 0])), 20)
-        pygame.draw.circle(self.pendulum_surface, joint_color, self.getXY(x1), 20)
-        pygame.draw.circle(self.pendulum_surface, joint_color, self.getXY(x2), 10)
+        pygame.draw.line(self.pendulum_surface, black, self.getXY(np.array([0, 0])), self.getXY(x1), 5)
+        pygame.draw.line(self.pendulum_surface, black, self.getXY(x1), self.getXY(x2), 5)
+        pygame.draw.circle(self.pendulum_surface, joint_color, self.getXY(np.array([0, 0])), 5)
+        pygame.draw.circle(self.pendulum_surface, joint_color, self.getXY(x1), 5)
+        # pygame.draw.circle(self.pendulum_surface, joint_color, self.getXY(x2), 5)
 
         # Blit the pendulum surface onto the main canvas
         self.canvas.blit(self.pendulum_surface, (0, 0))
 
     def draw_goals(self, goal, threshold, x3):
         pygame.draw.line(self.canvas, (255, 50, 50),
-                         self.getXY(np.array([-0.5 * 30 / 28, goal[1] + threshold])),
-                         self.getXY(np.array([0.5 * 30 / 28, goal[1] + threshold])), 3)
+                         self.getXY(np.array([-0.52, goal[1] + threshold])),
+                         self.getXY(np.array([0.52, goal[1] + threshold])), 2)
 
     def blit_texts(self, metrics):
         for i, (label, value) in enumerate(metrics.items()):
             text = self.font.render(f"{label}: {value:.4f}" if isinstance(value, float) else f"{label}: {value}", True,
                                     (0, 0, 0))
-            self.canvas.blit(text, (10, i * 40 + 150))
+            self.canvas.blit(text, (10, i * 13 + 50))
 
     def update_display(self):
         self.window.blit(self.canvas, self.canvas.get_rect())
