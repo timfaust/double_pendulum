@@ -7,12 +7,12 @@ import torch as th
 
 disturbed_parameters = [
     'nothing', 'm2', 'b1', 'b2', 'coulomb_fric1', 'coulomb_fric2', 'com1', 'com2', 'I1', 'I2', 'Ir',
-    #'velocity_noise', 'n_pert_per_joint'#, 'delay', 'action_noise', 'responsiveness'
+    'velocity_noise', 'delay'#, 'n_pert_per_joint'#, 'action_noise', 'responsiveness'
 ]
 
 
 # TODO: needs to be more efficient!
-def resample_and_denoise(dt, times, values, force_edges=True, max_length=None):
+def resample_and_denoise(dt, times, values, force_edges=False, max_length=None):
     """
     Resample the time series with a coarser resolution and reduce noise by averaging surrounding data points.
 
@@ -44,15 +44,14 @@ def resample_and_denoise(dt, times, values, force_edges=True, max_length=None):
 
     # Start from the last time point and move backwards
     current_time = times[-1]
-    half_dt = dt / 2
 
     while current_time >= times[0]:
-        # Find indices of surrounding data points within dt/2 on either side
-        indices = np.where((times >= current_time - half_dt) & (times <= current_time + half_dt))[0]
+        indices = np.where((times >= current_time - dt) & (times <= current_time))[0]
 
         if len(indices) > 0:
-            # Calculate the average value
-            avg_value = np.mean(values[indices], axis=0) if is_array_input else np.mean(values[indices])
+            recent_value = values[indices[-1]][:2]
+            avg_last_two_channels = np.mean(values[indices][:, 2:], axis=0)
+            avg_value = np.concatenate([recent_value, avg_last_two_channels])
             resampled_times.append(current_time)
             resampled_values.append(avg_value)
 
@@ -86,7 +85,7 @@ def resample_and_denoise(dt, times, values, force_edges=True, max_length=None):
     return resampled_times, resampled_values
 
 
-def add_gaussian_noise(x, mean=0.0, std=0.00025, p=1.0): #std=0.008
+def add_gaussian_noise(x, mean=0.0, std=0.00005, p=1.0): #std=0.008
     if p < 1.0 and np.random.random() > p:
         return x
     noise = th.randn_like(x) * std + mean

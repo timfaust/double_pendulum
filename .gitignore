@@ -49,3 +49,5 @@ data/experiment_records/*
 
 
 *.prof
+
+examples/reinforcement_learning/General/old_logs

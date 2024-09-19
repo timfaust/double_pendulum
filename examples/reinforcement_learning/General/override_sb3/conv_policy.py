@@ -166,7 +166,7 @@ class ConvPolicy(CustomPolicy):
                 features_extractor_class=ConvExtractor,
                 features_extractor_kwargs=dict(translator=self.translator),
                 share_features_extractor=False,
-                # optimizer_kwargs={'weight_decay': 0.00001}
+                optimizer_kwargs={'weight_decay': 0.000001}
             )
         )
 

@@ -196,6 +196,11 @@ class GeneralEnv(CustomEnv):
 
     def apply_observation_disturbances(self, clean_observation):
         dirty_observation = clean_observation.copy()
+
+        if len(self.observation_dict['X_real']) > 0:
+            last_observation = self.observation_dict['X_real'][-1]
+            dirty_observation[-2:] = (last_observation[-2:] + clean_observation[-2:]) / 2
+
         dirty_observation[:2] += np.random.normal(self.position_bias, self.position_noise, size=2)
         dirty_observation[-2:] += np.random.normal(self.velocity_bias, self.velocity_noise, size=2)
 
@@ -203,31 +208,44 @@ class GeneralEnv(CustomEnv):
 
     def find_delay_action(self):
         """
-            Find the action to be applied with a delay based on the observed time and configured delay.
+        Find the action to be applied with a delay based on the observed time and configured delay.
 
-            Returns:
-                float: The action to be applied with delay.
+        Returns:
+            float: The action to be applied with delay.
         """
-        T = self.observation_dict['T']
+        T = self.observation_dict['T']  # Time steps
         U_con = self.observation_dict['U_con']
 
         current_time = T[-1]
 
-        offset = np.round(self.dynamics_func.dt / 2, decimals=5)    # Half-step offset for adjusting delay
-        if current_time < self.start_delay - offset:
+        if current_time < self.start_delay:
             return 0.0
 
-        adjusted_delay = max(0, self.delay - offset)
-        delay_time = current_time - adjusted_delay
-
-        if adjusted_delay <= 0.0:
+        if self.delay == 0.0:
+            delayed_action = U_con[-1]
             index = len(U_con) - 1
         else:
-            index = np.searchsorted(T, delay_time) - 1
 
-        delayed_action = U_con[max(0, index)]
+            delay_time = np.round(current_time - self.delay, decimals=6)
+
+            if delay_time < 0.0:
+                return 0.0
+
+            index = np.searchsorted(T, delay_time)
+            if index == 0:
+                delayed_action = U_con[0]  # No interpolation, first element
+            elif index >= len(T):
+                delayed_action = U_con[-1]  # No interpolation, last element
+            else:
+                t1 = T[index - 1]
+                t2 = T[index]
+                u1 = U_con[index - 1]
+                u2 = U_con[index]
+                interp_factor = (delay_time - t1) / (t2 - t1)
+                delayed_action = u1 + interp_factor * (u2 - u1)
+
+        # TODO: Handle responsiveness wrong
         last_action = U_con[max(0, index - 1)]
-
         return last_action + self.responsiveness * (delayed_action - last_action)
 
     # normalized noise
@@ -339,13 +357,13 @@ class GeneralEnv(CustomEnv):
             'Ir': 0.0001 * p_factor,
             'start_delay': 0.0,
             'delay': 0.04 * n_factor,
-            'velocity_noise': 0.5 / self.dynamics_func.max_velocity * n_factor,
+            'velocity_noise': 0.5 / (self.dynamics_func.max_velocity * np.sqrt(10)) * n_factor,
             'velocity_bias': 0.0,
             'position_noise': 0.0,
             'position_bias': 0.0,
             'action_noise': 1.1 / self.dynamics_func.torque_limit[0] * n_factor,
             'action_bias': 0.0,
-            'n_pert_per_joint': 1,
+            'n_pert_per_joint': 3,
             'min_t_dist': 1.0,
             'sigma_minmax': [0.05, 0.1],
             'amplitude_min_max': [0.5 * n_factor, 5.0 * n_factor],
