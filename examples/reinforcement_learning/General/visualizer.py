@@ -95,10 +95,10 @@ class Visualizer:
 
         dirty_actions = self.env.observation_dict['U_real'][1:]
         clean_actions = self.env.observation_dict['U_con'][1:]
-        dirty_x = [x[0] for x in self.env.observation_dict['X_meas'][1:]]
-        clean_x = [x[0] for x in self.env.observation_dict['X_real'][1:]]
-        dirty_v = [x[2] for x in self.env.observation_dict['X_meas'][1:]]
-        clean_v = [x[2] for x in self.env.observation_dict['X_real'][1:]]
+        dirty_x = [x[0] * 5/2 for x in self.env.observation_dict['X_meas'][1:]]
+        clean_x = [x[0] * 5/2 for x in self.env.observation_dict['X_real'][1:]]
+        dirty_v = [x[2] * 5/2 for x in self.env.observation_dict['X_meas'][1:]]
+        clean_v = [x[2] * 5/2 for x in self.env.observation_dict['X_real'][1:]]
 
         if len(self.env.observation_dict[reward_name][1:]) == 0:
             return

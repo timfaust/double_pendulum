@@ -1,6 +1,7 @@
 import copy
 import json
 import os
+import re
 from typing import Dict, Any
 
 from sympy import lambdify
@@ -349,14 +350,14 @@ class GeneralEnv(CustomEnv):
         n_factor = 1.0
         disturbances = {
             'l': 0.0,
-            'm': 0.25 * p_factor,
-            'b': 0.1 * p_factor,
-            'coulomb_fric': 0.2 * p_factor,
+            'm': 0.1 * p_factor,
+            'b': 0.01 * p_factor,
+            'coulomb_fric': 0.1 * p_factor,
             'com': 0.25 * p_factor,
-            'I': 0.25 * p_factor,
-            'Ir': 0.0001 * p_factor,
+            'I': 0.2 * p_factor,
+            'Ir': 0.0002 * p_factor,
             'start_delay': 0.0,
-            'delay': 0.04 * n_factor,
+            'delay': 0.02 * n_factor,
             'velocity_noise': 0.5 / (self.dynamics_func.max_velocity * np.sqrt(10)) * n_factor,
             'velocity_bias': 0.0,
             'position_noise': 0.0,
@@ -397,9 +398,56 @@ class GeneralEnv(CustomEnv):
         parameter = disturbed_parameters[disturbance[0]]
         step_index = disturbance[1]
         parameter_index = -1
-        if parameter[-1].isdigit():
+        if parameter[-1].isdigit() and "si" not in parameter:
             parameter_index = int(parameter[-1]) - 1
             parameter = parameter[:-1]
+
+        # Check if parameter contains 'si' followed by an integer
+        si_match = re.match(r'si(\d+)', parameter)
+        if si_match:
+            integer = si_match.group(1)
+            filepath = f'optimization_plots/{integer}/current_best_parameters.txt'
+            try:
+                with open(filepath, 'r') as f:
+                    lines = f.readlines()
+                # Parse parameters from the file
+                params = {}
+                for line in lines[1:]:  # Skip the first line
+                    if ':' in line:
+                        key, value = line.strip().split(':', 1)
+                        key = key.strip()
+                        value = float(value.strip())
+                        params[key] = value
+                # Set plant parameters
+                if 'I1' in params:
+                    plant.I[0] = params['I1']
+                if 'I2' in params:
+                    plant.I[1] = params['I2']
+                if 'Ir' in params:
+                    plant.Ir = params['Ir']
+                if 'b1' in params:
+                    plant.b[0] = params['b1']
+                if 'b2' in params:
+                    plant.b[1] = params['b2']
+                if 'cf1' in params:
+                    plant.coulomb_fric[0] = params['cf1']
+                if 'cf2' in params:
+                    plant.coulomb_fric[1] = params['cf2']
+                if 'm1' in params:
+                    plant.m[0] = params['m1']
+                if 'm2' in params:
+                    plant.m[1] = params['m2']
+                if 'r1' in params:
+                    plant.com[0] = params['r1']
+                if 'r2' in params:
+                    plant.com[1] = params['r2']
+                # Always update the plant when loading from file
+                self.update_plant()
+                self.configuration = disturbance
+                return  # Exit the function since we've handled the disturbance
+            except FileNotFoundError:
+                print(f"File {filepath} not found.")
+                # Handle the error as needed (e.g., raise an exception or continue with default behavior)
 
         self.use_perturbations = False
         if parameter == 'n_pert_per_joint':
@@ -424,15 +472,17 @@ class GeneralEnv(CustomEnv):
                         new_value[parameter_index] = np.random.choice(steps)
                     setattr(plant, parameter, new_value)
                 elif parameter in ['coulomb_fric', 'b']:
+                    base_value = plant_parameters[parameter][parameter_index]
                     steps = np.linspace(-value, value, N)
                     new_value = getattr(plant, parameter)
-                    new_value[parameter_index] = steps[step_index]
+                    new_value[parameter_index] = steps[step_index] + base_value
                     if step_index == -1:
                         new_value[parameter_index] = np.random.choice(steps)
                     setattr(plant, parameter, new_value)
                 elif parameter == 'Ir':
-                    steps = np.linspace(0, value, N)
-                    new_value = steps[step_index]
+                    base_value = plant_parameters[parameter]
+                    steps = np.linspace(-value, value, N)
+                    new_value = steps[step_index] + base_value
                     if step_index == -1:
                         new_value = np.random.choice(steps)
                     setattr(plant, parameter, new_value)

@@ -5,9 +5,14 @@ import numpy as np
 import torch as th
 
 
+# disturbed_parameters = [
+#     'nothing', 'm2', 'b1', 'b2', 'coulomb_fric1', 'coulomb_fric2', 'com1', 'com2', 'I1', 'I2', 'Ir',
+#     'velocity_noise', 'delay'#, 'n_pert_per_joint'#, 'action_noise', 'responsiveness'
+# ]
+
 disturbed_parameters = [
-    'nothing', 'm2', 'b1', 'b2', 'coulomb_fric1', 'coulomb_fric2', 'com1', 'com2', 'I1', 'I2', 'Ir',
-    'velocity_noise', 'delay'#, 'n_pert_per_joint'#, 'action_noise', 'responsiveness'
+    'si11', 'si1', 'si2', 'si3', 'si4', 'si5', 'si6', 'si7', 'si8', 'si9', 'si10', 'si12', 'si13', 'si14', 'si15',
+    # 'velocity_noise', 'delay'#, 'n_pert_per_joint'#, 'action_noise', 'responsiveness'
 ]
 
 
@@ -85,7 +90,7 @@ def resample_and_denoise(dt, times, values, force_edges=False, max_length=None):
     return resampled_times, resampled_values
 
 
-def add_gaussian_noise(x, mean=0.0, std=0.00005, p=1.0): #std=0.008
+def add_gaussian_noise(x, mean=0.0, std=0.00025, p=1.0): #std=0.008
     if p < 1.0 and np.random.random() > p:
         return x
     noise = th.randn_like(x) * std + mean
@@ -155,10 +160,10 @@ def semi_random_reset():
 
 def balanced_reset(low_pos=[0, 0, 0, 0]):
     r = np.random.random()
-    if r < 1.0/3.0:
+    if r < 1.0/4.0:
         return random_reset()
     else:
-        return debug_reset(low_pos)
+        return low_reset(low_pos)
 
 
 def updown_reset(low_pos=[0, 0, 0, 0]):

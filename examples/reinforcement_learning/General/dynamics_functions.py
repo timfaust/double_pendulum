@@ -5,9 +5,9 @@ from double_pendulum.simulation.gym_env import double_pendulum_dynamics_func
 from double_pendulum.model.model_parameters import model_parameters
 
 
-def load_param(torque_limit, simplify=True):
+def load_param(torque_limit, simplify=False):
     design = "design_C.1"
-    model = "model_1.1"
+    model = "model_si"
     torque_array = [torque_limit, torque_limit]
 
     model_par_path = (

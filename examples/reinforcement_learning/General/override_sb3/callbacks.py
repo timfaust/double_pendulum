@@ -60,7 +60,7 @@ class CustomEvalCallback(EvalCallback):
 
             backup_env = self.model.env
             last_obs, last_original_obs = self.model.set_env(self.eval_env)
-            episode_rewards, episode_scores, episode_lengths, default_score = evaluate_policy(
+            episode_rewards, episode_scores, episode_lengths, default_score, episode_swingup_times = evaluate_policy(
                 self.model,
                 self.eval_env,
                 n_eval_episodes=self.n_eval_episodes,
@@ -93,7 +93,7 @@ class CustomEvalCallback(EvalCallback):
                     **kwargs,
                 )
 
-            mean_reward, mean_ep_length = self.evaluate_additional(episode_rewards, episode_scores, episode_lengths, default_score)
+            mean_reward, mean_ep_length = self.evaluate_additional(episode_rewards, episode_scores, episode_lengths, default_score, episode_swingup_times)
             self.logger.record("eval/mean_ep_length", mean_ep_length)
 
             if len(self._is_success_buffer) > 0:
@@ -128,7 +128,7 @@ class CustomEvalCallback(EvalCallback):
 
         return continue_training
 
-    def evaluate_additional(self, episode_rewards, episode_scores, episode_lengths, default_score):
+    def evaluate_additional(self, episode_rewards, episode_scores, episode_lengths, default_score, episode_swingup_times):
         mean_reward, std_reward = np.mean(episode_rewards, axis=0), np.std(episode_rewards, axis=0)
         success_scores = np.array(episode_scores)[np.array(episode_scores) != 0.0]
         mean_score, std_score = 0, 0
@@ -144,6 +144,7 @@ class CustomEvalCallback(EvalCallback):
                 writer.add_histogram("eval/hist_reward_" + str(i), np.array(episode_rewards)[:, i], self.num_timesteps)
         with SummaryWriter(self.logger.dir) as writer:
             writer.add_histogram("eval/hist_score", np.array(episode_scores), self.num_timesteps)
+            writer.add_histogram("eval/hist_swingup_times", np.array(episode_swingup_times), self.num_timesteps)
 
         self.logger.record("eval/failed_attempts", episode_scores.count(0.0))
         self.logger.record("eval/mean_score", float(mean_score))
@@ -154,6 +155,7 @@ class CustomEvalCallback(EvalCallback):
         self.logger.record("eval/default_tau_cost", default_score[5])
         self.logger.record("eval/default_tau_smoothness", default_score[6])
         self.logger.record("eval/default_velocity_cost", default_score[7])
+        self.logger.record("eval/stabilized_attempts", len([value for value in episode_swingup_times if 0.5 <= value <= 3.0]))
 
 
         return mean_reward, mean_ep_length
@@ -170,7 +172,7 @@ def evaluate_policy(
     reward_threshold: Optional[float] = None,
     return_episode_rewards: bool = False,
     warn: bool = True,
-) -> Union[Tuple[float, float, float, float], Tuple[List[float], List[float], List[int], float]]:
+) -> Union[Tuple[float, float, float, float], Tuple[List[float], List[float], List[int], float, List[float]]]:
     """
     Runs policy for ``n_eval_episodes`` episodes and returns average reward.
     If a vector env is passed in, this divides the episodes to evaluate onto the
@@ -226,6 +228,7 @@ def evaluate_policy(
     n_envs = env.num_envs
     episode_rewards = []
     episode_scores = []
+    episode_swingup_times = []
     episode_lengths = []
     default_score = 0.0
 
@@ -291,7 +294,11 @@ def evaluate_policy(
                         # print(disturbed_parameters[c[0]], c[1], "with score:", score, "was killed because:", killed)
                     # else:
                     #     print(disturbed_parameters[c[0]], c[1], "with score:", score)
+                    swingup_time = 0.0
+                    if score_value > 0:
+                        swingup_time = (20.0 / np.pi) * np.arctanh(1 - score[1] / 0.2)
                     episode_scores.append(score_value)
+                    episode_swingup_times.append(swingup_time)
 
         observations = new_observations
 
@@ -305,5 +312,5 @@ def evaluate_policy(
     if reward_threshold is not None:
         assert mean_reward > reward_threshold, "Mean reward below threshold: " f"{mean_reward:.2f} < {reward_threshold:.2f}"
     if return_episode_rewards:
-        return episode_rewards, episode_scores, episode_lengths, default_score
+        return episode_rewards, episode_scores, episode_lengths, default_score, episode_swingup_times
     return mean_reward, std_reward, mean_score, std_score

@@ -17,5 +17,5 @@ leaderboard_config = {
 }
 
 sac = Trainer("test", "pendubot", "default", [SequenceSACPolicy], [MultiplePoliciesReplayBuffer], [default_decider], 42, None)
-controller = sac.get_controller("/best_score")
+controller = sac.get_controller("/best_reward")
 controller.init()
