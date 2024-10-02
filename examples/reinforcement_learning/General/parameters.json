@@ -54,7 +54,7 @@
       "batch_size": 1024,
       "train_freq": 1,
       "target_update_interval": 1,
-      "max_episode_steps": 500,
+      "max_episode_steps": 300,
       "training_steps": 4000000,
       "use_action_noise": 1,
       "eval_freq": 20000,
@@ -73,28 +73,28 @@
         "reset_function": "balanced_reset",
         "reward_function": "future_pos_reward",
         "same_environment": 0,
-        "n_envs": 15
+        "n_envs": 20
       },
       "eval_env": {
         "dynamics_function": "default_dynamics",
         "reset_function": "debug_reset",
         "reward_function": "future_pos_reward",
         "same_environment": 0,
-        "n_envs": 15
+        "n_envs": 4
       },
       "normalization": "custom_dynamics_func_4PI",
       "dt": 0.02,
       "max_torque": 6,
 
-      "actor_schedule": [0.001, "ExponentialLR(gamma=0.95, lr=0.005)", 0.001],
-      "critic_schedule": [0.001, "ExponentialLR(gamma=0.95, lr=0.005)", 0.001],
-      "entropy_schedule": [0.001, 0.001],
+      "actor_schedule": [0.0005, "ExponentialLR(gamma=0.95, lr=0.005)", 0.001],
+      "critic_schedule": [0.0005, "ExponentialLR(gamma=0.95, lr=0.005)", 0.001],
+      "entropy_schedule": [0.0005, 0.001],
       "gradient_steps": 3,
       "buffer_size": 512000,
       "batch_size": 1024,
       "train_freq": 1,
       "target_update_interval": 1,
-      "max_episode_steps": 300,
+      "max_episode_steps": 500,
       "training_steps": 20000000,
       "use_action_noise": 1,
       "eval_freq": 20000,
@@ -105,7 +105,7 @@
       "verbose": 0,
       "show_progress_bar": 1,
       "save_freq": 20000,
-      "gamma": 0.99
+      "gamma": 0.995
     },
     "push": {
       "train_env": {

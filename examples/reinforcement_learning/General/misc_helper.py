@@ -11,8 +11,10 @@ import torch as th
 # ]
 
 disturbed_parameters = [
-    'si11', 'si1', 'si2', 'si3', 'si4', 'si5', 'si6', 'si7', 'si8', 'si9', 'si10', 'si12', 'si13', 'si14', 'si15',
-    # 'velocity_noise', 'delay'#, 'n_pert_per_joint'#, 'action_noise', 'responsiveness'
+    'si6', 'si7', 'si8', 'si9'#, 'si5' #, 'si6', 'si7', 'si8', 'si9', 'si10',
+    # 'si11', 'si12', 'si13', 'si14', 'si15', 'si16', 'si17', 'si18', 'si19', 'si20',
+    # 'si21', 'si22', 'si23', 'si24', 'si25', 'si26', 'si27', 'si28', 'si29', 'si30',
+    # 'si31', 'si1', 'si33', 'si34'
 ]
 
 

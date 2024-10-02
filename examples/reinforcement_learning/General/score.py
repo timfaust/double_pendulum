@@ -120,8 +120,8 @@ def calculate_score(
         "max_tau": 1.0,  # not used
         "energy": 60.0,
         "integ_tau": 1.0,  # not used
-        "tau_cost": 20.0,
-        "tau_smoothness": 0.1,
+        "tau_cost": 100.0,
+        "tau_smoothness": 4.0,
         "velocity_cost": 400,
     },
     needs_success=True
@@ -155,7 +155,7 @@ def calculate_score(
     energies.append(get_energy(X, U))
     integ_taus.append(get_integrated_torque(T, U))
     tau_costs.append(get_torque_cost(T, U))
-    tau_smoothnesses.append(get_tau_smoothness(U) * 0.002/dynamics_func.dt)
+    tau_smoothnesses.append(get_tau_smoothness(U) * 0.003/dynamics_func.dt)
     velocity_costs.append(get_velocity_cost(T, X))
 
     successes.append(int(swingup_times[-1] < T[-1]))

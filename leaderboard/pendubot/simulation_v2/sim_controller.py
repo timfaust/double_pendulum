@@ -34,7 +34,7 @@ def simulate_controller(controller, save_dir, controller_name=""):
         scale=0.25,
     )
 
-    save_trajectory(os.path.join(save_dir, "sim_swingup.csv"), T=T, X_meas=X, U_con=U)
+    save_trajectory(os.path.join(save_dir, "sim_swingup.csv"), T=T, X_meas=X, U_con=U, X_des=X)
 
     plot_timeseries(
         T,

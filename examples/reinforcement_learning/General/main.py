@@ -27,9 +27,9 @@ if __name__ == '__main__':
 
     # arguments for trainer
     parser = argparse.ArgumentParser()
-    parser.add_argument('--name', default="conv")
+    parser.add_argument('--name', default="test")
     parser.add_argument('--mode', default="train", choices=["train", "retrain", "evaluate", "evaluate_korean", "simulate"])
-    parser.add_argument('--model_path', default="/best_model/best_score")
+    parser.add_argument('--model_path', default="/best_model/best_reward")
     parser.add_argument('--env_type', default="pendubot", choices=["pendubot", "acrobot"])
     parser.add_argument('--param', default="random")
     args = parser.parse_args()

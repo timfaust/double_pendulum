@@ -60,6 +60,7 @@ class CustomEvalCallback(EvalCallback):
 
             backup_env = self.model.env
             last_obs, last_original_obs = self.model.set_env(self.eval_env)
+            print()
             episode_rewards, episode_scores, episode_lengths, default_score, episode_swingup_times = evaluate_policy(
                 self.model,
                 self.eval_env,
@@ -299,6 +300,10 @@ def evaluate_policy(
                         swingup_time = (20.0 / np.pi) * np.arctanh(1 - score[1] / 0.2)
                     episode_scores.append(score_value)
                     episode_swingup_times.append(swingup_time)
+                    if swingup_time < 0.5 or swingup_time > 3.0:
+                        print(str(i) + " failed")
+                    else:
+                        print(str(i) + " score: " + str(score_value))
 
         observations = new_observations
 

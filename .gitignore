@@ -50,4 +50,6 @@ data/experiment_records/*
 
 *.prof
 
-examples/reinforcement_learning/General/old_logs
+examples/reinforcement_learning/General/log_data_old
+examples/reinforcement_learning/General/optimization_plots
+examples/reinforcement_learning/General/optimization_plots_old

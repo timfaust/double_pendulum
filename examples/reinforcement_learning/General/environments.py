@@ -166,6 +166,9 @@ class GeneralEnv(CustomEnv):
         if self.sac and (self.configuration[1] == -1 or self.use_perturbations) and (np.random.random() < 0.05 or self.is_evaluation_environment):
             self.change_dynamics(progress=self.sac.progress)
 
+        #self.velocity_noise = np.random.random() * 0.002
+        #self.responsiveness = 0.7 + np.random.random() * 0.4
+
         clean_observation = np.array(self.reset_function())
         dirty_observation = self.apply_observation_disturbances(clean_observation)
         self.append_observation_dict(clean_observation, dirty_observation, 0.0)
@@ -216,6 +219,7 @@ class GeneralEnv(CustomEnv):
         """
         T = self.observation_dict['T']  # Time steps
         U_con = self.observation_dict['U_con']
+        U_real = self.observation_dict['U_real']
 
         current_time = T[-1]
 
@@ -224,7 +228,6 @@ class GeneralEnv(CustomEnv):
 
         if self.delay == 0.0:
             delayed_action = U_con[-1]
-            index = len(U_con) - 1
         else:
 
             delay_time = np.round(current_time - self.delay, decimals=6)
@@ -246,7 +249,7 @@ class GeneralEnv(CustomEnv):
                 delayed_action = u1 + interp_factor * (u2 - u1)
 
         # TODO: Handle responsiveness wrong
-        last_action = U_con[max(0, index - 1)]
+        last_action = U_real[-1]
         return last_action + self.responsiveness * (delayed_action - last_action)
 
     # normalized noise

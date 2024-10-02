@@ -9,6 +9,7 @@ from stable_baselines3.common.vec_env import VecNormalize
 from stable_baselines3.sac.policies import SACPolicy, Actor, LOG_STD_MIN, LOG_STD_MAX
 import torch as th
 from gymnasium import spaces
+from examples.reinforcement_learning.General.misc_helper import find_index_and_dict
 
 from examples.reinforcement_learning.General.misc_helper import softmax_and_select, stabilize, swing_up
 
@@ -236,7 +237,8 @@ class DefaultTranslator:
 
             This method retrieves the most recent measurement from the environment's observation dictionary and returns it.
         """
-        dirty_observation = env.observation_dict['X_meas'][-1]
+        index, observation_dict = find_index_and_dict(observation, env)
+        dirty_observation = observation_dict['X_meas'][index].copy()
         return dirty_observation
 
     def reset(self):
