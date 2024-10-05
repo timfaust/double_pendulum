@@ -23,17 +23,17 @@ def angle_distance(observation_dict, state_values, save=True):
     if save:
         observation_dict['angle_distance'] -= dist
 
-    return dist * 0.05
+    return dist * observation_dict['weights'][2]
 
 def cart_distance(observation_dict, state_values, save=True):
     dist = state_values['distance'] ** 2
     if save:
         observation_dict['cart_distance'] -= dist
-    return 0.1 * dist
+    return observation_dict['weights'][1] * dist
 
 
 def r1(observation_dict, state_values, save=True):
-    d = 0.5 * (2 * effort_distance(observation_dict, state_values, save) + cart_distance(observation_dict, state_values, save) + angle_distance(observation_dict, state_values, save)) # + energy_distance(observation_dict, state_values)
+    d = effort_distance(observation_dict, state_values, save) + cart_distance(observation_dict, state_values, save) + angle_distance(observation_dict, state_values, save) # + energy_distance(observation_dict, state_values)
     return -d
 
 
@@ -89,9 +89,9 @@ def effort_distance(observation_dict, state_values, save=True):
         observation_dict['smoothness'] -= smoothness
         observation_dict['energy'] -= energy
 
-    abstract_distance = 0.1 * velocity + 0.3 * (torque1 * 4 + torque2) + 0.02 * smoothness + 0.1 * energy
-    #abstract_distance = 0.005 * velocity + 0.075 * torque + 0.01 * smoothness + 0.02 * energy
-    return abstract_distance * 0.05
+    weights = observation_dict['weights']
+    abstract_distance = weights[5] * velocity + weights[3] * torque1 + weights[4] * torque2 + weights[6] * smoothness + weights[7] * energy
+    return abstract_distance
 
 
 def future_pos_reward(observation, action, env_type, dynamic_func, observation_dict):
@@ -99,7 +99,7 @@ def future_pos_reward(observation, action, env_type, dynamic_func, observation_d
     reward = r1(observation_dict, state_values)
     stabilize = get_i_decay(np.linalg.norm(state_values['v2']), factor=2.5) * (1 - smooth_transition(state_values['distance'], 0.3, sharpness=10)) - 1
     observation_dict['stabilize'] += stabilize
-    reward += 0.1 * stabilize
+    reward += observation_dict['weights'][0] * stabilize
     return reward + (np.min(punish_limit(observation_dict['X_meas'][-1], action, observation_dict['dynamics_func'])) - 1)
 
 
