@@ -11,6 +11,7 @@ from examples.reinforcement_learning.General.misc_helper import updown_reset, ba
     get_stabilized, disturbed_parameters
 from examples.reinforcement_learning.General.override_sb3.utils import CustomDummyVecEnv, make_vec_env
 from examples.reinforcement_learning.General.reward_functions import get_state_values
+from examples.reinforcement_learning.General.score import calculate_score
 from examples.reinforcement_learning.General.visualizer import Visualizer
 from src.python.double_pendulum.simulation.gym_env import CustomEnv
 import pygame
@@ -89,7 +90,7 @@ class GeneralEnv(CustomEnv):
         self.initialize_disturbances()
 
         self.mpar = load_param(self.param_data["max_torque"])
-        self.observation_dict = {"T": [], 'X_meas': [], 'X_real': [], 'U_con': [], 'U_real': [], "push": [], "max_episode_steps": self.max_episode_steps, "mpar": self.mpar}
+        self.observation_dict = {'T': [], 'X_meas': [], 'X_real': [], 'U_con': [], 'U_real': [], 'score': 0.0, 'stabilize': 0.0, 'cart_distance': 0.0, 'angle_distance': 0.0, 'torque1': 0.0, 'torque2': 0.0, 'velocity': 0.0, 'smoothness': 0.0, 'energy': 0.0, 'max_episode_steps': self.max_episode_steps, 'mpar': self.mpar}
         self.observation_dict_old = None    # Updated after reset is called to store the old values
         self.render_mode = "None"
         self.visualizer = Visualizer(self)
@@ -108,9 +109,9 @@ class GeneralEnv(CustomEnv):
 
     def initialize_disturbances(self):
         self.velocity_noise = 0.00
-        self.velocity_bias = 0.0
+        self.velocity_bias = [0.0, 0.0]
         self.position_noise = 0.00
-        self.position_bias = 0.0
+        self.position_bias = [0.0, 0.0]
         self.action_noise = 0.00
         self.action_bias = 0.0
         self.start_delay = 0.0
@@ -161,13 +162,16 @@ class GeneralEnv(CustomEnv):
             self.observation_dict['dynamics_func'] = self.dynamics_func
         for key in self.observation_dict:
             if key != 'dynamics_func' and key != 'max_episode_steps' and key != 'mpar':
-                self.observation_dict[key].clear()
+                if not isinstance(self.observation_dict[key], float):
+                    self.observation_dict[key].clear()
 
         if self.sac and (self.configuration[1] == -1 or self.use_perturbations) and (np.random.random() < 0.05 or self.is_evaluation_environment):
             self.change_dynamics(progress=self.sac.progress)
 
         #self.velocity_noise = np.random.random() * 0.002
-        #self.responsiveness = 0.7 + np.random.random() * 0.4
+        #self.responsiveness = np.random.uniform(0.7, 1.1)
+        # self.action_bias = np.random.uniform(-0.15 / 6.0, 0.15 / 6.0)
+        # self.position_bias = np.random.uniform(-0.0015, 0.0015, size=2)
 
         clean_observation = np.array(self.reset_function())
         dirty_observation = self.apply_observation_disturbances(clean_observation)
@@ -364,7 +368,7 @@ class GeneralEnv(CustomEnv):
             'velocity_noise': 0.5 / (self.dynamics_func.max_velocity * np.sqrt(10)) * n_factor,
             'velocity_bias': 0.0,
             'position_noise': 0.0,
-            'position_bias': 0.0,
+            'position_bias': [0.0, 0.0],
             'action_noise': 1.1 / self.dynamics_func.torque_limit[0] * n_factor,
             'action_bias': 0.0,
             'n_pert_per_joint': 3,
@@ -413,6 +417,7 @@ class GeneralEnv(CustomEnv):
             try:
                 with open(filepath, 'r') as f:
                     lines = f.readlines()
+                    print("load " + filepath)
                 # Parse parameters from the file
                 params = {}
                 for line in lines[1:]:  # Skip the first line

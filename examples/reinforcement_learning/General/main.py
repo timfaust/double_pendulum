@@ -27,11 +27,11 @@ if __name__ == '__main__':
 
     # arguments for trainer
     parser = argparse.ArgumentParser()
-    parser.add_argument('--name', default="test")
+    parser.add_argument('--name', default="default4")
     parser.add_argument('--mode', default="train", choices=["train", "retrain", "evaluate", "evaluate_korean", "simulate"])
-    parser.add_argument('--model_path', default="/best_model/best_reward")
+    parser.add_argument('--model_path', default="/best_model/best_score")
     parser.add_argument('--env_type', default="pendubot", choices=["pendubot", "acrobot"])
-    parser.add_argument('--param', default="random")
+    parser.add_argument('--param', default="default")
     args = parser.parse_args()
 
     action_noise = OrnsteinUhlenbeckActionNoise(mean=np.array([0.0]), sigma=0.1 * np.ones(1), theta=0.15, dt=1e-2)

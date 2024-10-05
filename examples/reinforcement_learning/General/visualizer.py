@@ -3,7 +3,7 @@ import numpy as np
 import torch as th
 from examples.reinforcement_learning.General.score import calculate_score
 from examples.reinforcement_learning.General.misc_helper import calculate_q_values, get_stabilized, get_i_decay, smooth_transition
-from examples.reinforcement_learning.General.reward_functions import get_state_values, angle_distance, effort_distance, energy_distance, r1
+from examples.reinforcement_learning.General.reward_functions import get_state_values, angle_distance, effort_distance, energy_distance, r1, cart_distance
 
 
 class Visualizer:
@@ -106,9 +106,9 @@ class Visualizer:
         state_values = get_state_values(self.env.observation_dict)
         self.past_scores.append(calculate_score(self.env.observation_dict, needs_success=True))
         self.reward_history["reward"].append(self.env.observation_dict[reward_name][1:][-1])
-        self.reward_history["energy"].append(energy_distance(self.env.observation_dict, state_values))
-        self.reward_history["effort"].append(effort_distance(self.env.observation_dict, state_values))
-        self.reward_history["angle"].append(angle_distance(state_values))
+        self.reward_history["energy"].append(cart_distance(self.env.observation_dict, state_values, save=False))
+        self.reward_history["effort"].append(effort_distance(self.env.observation_dict, state_values, save=False))
+        self.reward_history["angle"].append(angle_distance(self.env.observation_dict, state_values, save=False))
 
         self.reward = self.reward_history["reward"][-1]
         self.acc_reward = np.sum(self.reward_history["reward"])
@@ -135,7 +135,7 @@ class Visualizer:
             (reward_shifted, (0, 200, 0, 255), 2),
             (effort_shifted, (200, 200, 0, 255), 2),
             (angle_shifted, (200, 0, 200, 255), 2),
-            #(energy_shifted, (0, 200, 200, 255), 2),
+            (energy_shifted, (0, 200, 200, 255), 2),
             (past_scores_scaled, (200, 0, 0, 255), 2)
         ]
 
@@ -221,10 +221,10 @@ class Visualizer:
             'policy': self.policy,
             'killed': self.env.killed_because,
             'stabilize': 0.1 * (get_i_decay(np.linalg.norm(state_values['v2']), factor=2.5) * (1 - smooth_transition(state_values['distance'], 0.3, sharpness=10)) - 1),
-            'angle_distance': angle_distance(state_values),
-            'effort_distance': effort_distance(self.env.observation_dict, state_values),
+            'angle_distance': angle_distance(self.env.observation_dict, state_values, save=False),
+            'effort_distance': effort_distance(self.env.observation_dict, state_values, save=False),
             'energy_distance': energy_distance(self.env.observation_dict, state_values),
-            'r1': r1(self.env.observation_dict, state_values)
+            'r1': r1(self.env.observation_dict, state_values, save=False)
         }
 
         return state_values['x1'], state_values['x2'], state_values['x3'], state_values['goal'], state_values[

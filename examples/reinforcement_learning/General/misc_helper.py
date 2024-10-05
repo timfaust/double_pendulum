@@ -11,7 +11,7 @@ import torch as th
 # ]
 
 disturbed_parameters = [
-    'si6', 'si7', 'si8', 'si9'#, 'si5' #, 'si6', 'si7', 'si8', 'si9', 'si10',
+    'si0', 'si6', 'si7', 'si8', 'si9'#, 'si5' #, 'si6', 'si7', 'si8', 'si9', 'si10',
     # 'si11', 'si12', 'si13', 'si14', 'si15', 'si16', 'si17', 'si18', 'si19', 'si20',
     # 'si21', 'si22', 'si23', 'si24', 'si25', 'si26', 'si27', 'si28', 'si29', 'si30',
     # 'si31', 'si1', 'si33', 'si34'
@@ -164,8 +164,10 @@ def balanced_reset(low_pos=[0, 0, 0, 0]):
     r = np.random.random()
     if r < 1.0/4.0:
         return random_reset()
+    elif r < 2.0/4.0:
+        return low_reset()
     else:
-        return low_reset(low_pos)
+        return debug_reset()
 
 
 def updown_reset(low_pos=[0, 0, 0, 0]):

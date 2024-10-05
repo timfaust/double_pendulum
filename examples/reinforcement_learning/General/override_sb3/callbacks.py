@@ -1,4 +1,5 @@
 import os
+import csv
 import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union, Tuple
@@ -31,6 +32,24 @@ from examples.reinforcement_learning.General.override_sb3.utils import DummyVecE
 if TYPE_CHECKING:
     from stable_baselines3.common import base_class
 
+
+def write_to_csv(observation_dict, filename='score_data.csv'):
+    # Specify the headers, which are the keys in observation_dict
+    headers = ['score', 'stabilize', 'cart_distance', 'angle_distance', 'torque1', 'torque2', 'velocity', 'smoothness', 'energy']
+
+    # Check if the CSV file already exists
+    file_exists = os.path.isfile(filename)
+
+    # Open the CSV file for appending. Create if not exists.
+    with open(filename, mode='a', newline='') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=headers)
+
+        # If file does not exist yet, write the headers first
+        if not file_exists:
+            writer.writeheader()
+
+        # Write the row of values from observation_dict
+        writer.writerow({key: observation_dict.get(key, 0.0) for key in headers})
 
 # override sb3 method to also log scores
 class CustomEvalCallback(EvalCallback):
@@ -283,13 +302,14 @@ def evaluate_policy(
                         episode_rewards.append(current_rewards[:, i])
                         episode_lengths.append(current_lengths[i])
                         episode_counts[i] += 1
-                    score = calculate_score(env.envs[i].env.observation_dict_old)
+                    observation_dict = env.envs[i].env.observation_dict_old
+                    score = calculate_score(observation_dict)
                     score_value = score[0]
                     c = env.envs[i].env.configuration
                     if c[0] == 0 and c[1] == 0:
                         default_score = score
 
-                    killed = env.envs[i].env.observation_dict_old['killed_because']
+                    killed = observation_dict['killed_because']
                     if killed > 0:
                         score_value = 0.0
                         # print(disturbed_parameters[c[0]], c[1], "with score:", score, "was killed because:", killed)
@@ -303,6 +323,8 @@ def evaluate_policy(
                     if swingup_time < 0.5 or swingup_time > 3.0:
                         print(str(i) + " failed")
                     else:
+                        observation_dict['score'] = score_value
+                        write_to_csv(observation_dict)
                         print(str(i) + " score: " + str(score_value))
 
         observations = new_observations

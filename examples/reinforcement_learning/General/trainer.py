@@ -146,12 +146,14 @@ class Trainer:
     def get_eval_envs(self, agent):
         eval_envs = self.eval_environment.get_envs(log_dir=self.log_dir)
         agent.connect_envs(eval_envs)
+        set_render = False
         for i in range(len(eval_envs.envs)):
             monitor = eval_envs.envs[i]
             # render_env = i % self.eval_environment.render_every_envs == 0
             render_env = monitor.env.configuration[0] == 0 and monitor.env.configuration[1] == 0
-            if self.render_eval and render_env:
+            if self.render_eval and render_env and not set_render:
                 monitor.env.render_mode = 'human'
+                set_render = True
         return eval_envs
 
     def evaluate(self, model_path):

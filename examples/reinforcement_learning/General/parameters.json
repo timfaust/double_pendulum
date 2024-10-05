@@ -54,8 +54,8 @@
       "batch_size": 1024,
       "train_freq": 1,
       "target_update_interval": 1,
-      "max_episode_steps": 300,
-      "training_steps": 4000000,
+      "max_episode_steps": 500,
+      "training_steps": 10000000,
       "use_action_noise": 1,
       "eval_freq": 20000,
       "n_eval_episodes": 1,
@@ -64,8 +64,8 @@
       "render_every_envs": 200,
       "verbose": 0,
       "show_progress_bar": 1,
-      "save_freq": 1000000,
-      "gamma": 0.99
+      "save_freq": 20000,
+      "gamma": 0.995
     },
     "random": {
       "train_env": {
