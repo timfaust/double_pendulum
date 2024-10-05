@@ -83,9 +83,9 @@ def effort_distance(observation_dict, state_values, save=True):
     energy = np.abs(state_values['y'][i] * state_values['unscaled_action'])
 
     if save:
-        observation_dict['velocity'] -= velocity
         observation_dict['torque1'] -= torque1
         observation_dict['torque2'] -= torque2
+        observation_dict['velocity'] -= velocity
         observation_dict['smoothness'] -= smoothness
         observation_dict['energy'] -= energy
 

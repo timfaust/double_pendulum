@@ -164,6 +164,8 @@ class GeneralEnv(CustomEnv):
             if key != 'dynamics_func' and key != 'max_episode_steps' and key != 'mpar':
                 if not isinstance(self.observation_dict[key], float):
                     self.observation_dict[key].clear()
+                else:
+                    self.observation_dict[key] = 0.0
 
         if self.sac and (self.configuration[1] == -1 or self.use_perturbations) and (np.random.random() < 0.05 or self.is_evaluation_environment):
             self.change_dynamics(progress=self.sac.progress)
