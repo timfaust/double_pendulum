@@ -90,7 +90,7 @@ class GeneralEnv(CustomEnv):
         self.initialize_disturbances()
 
         self.mpar = load_param(self.param_data["max_torque"])
-        self.initial_weights = [0.1, 0.05, 0.025, 0.06, 0.015, 0.005, 0.001, 0.005]
+        self.initial_weights = [0.1, 0.05, 0.025, 0.06, 0.02, 0.005, 0.001, 0.0075]
         self.final_weights = [0.0077, 0.0443, 0.0, 0.0, 0.0320, 0.0097, 0.0007, 0.0488]
         self.observation_dict = {'weights': self.initial_weights, 'T': [], 'X_meas': [], 'X_real': [], 'U_con': [], 'U_real': [], 'score': 0.0, 'stabilize': 0.0, 'cart_distance': 0.0, 'angle_distance': 0.0, 'torque1': 0.0, 'torque2': 0.0, 'velocity': 0.0, 'smoothness': 0.0, 'energy': 0.0, 'max_episode_steps': self.max_episode_steps, 'mpar': self.mpar}
         self.observation_dict_old = None    # Updated after reset is called to store the old values
